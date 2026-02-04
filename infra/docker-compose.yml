@@ -38,8 +38,8 @@ services:
   # ═══════════════════════════════════════════════════════════════
   api:
     build:
-      context: ..
-      dockerfile: infra/api/Dockerfile
+      context: ../backend
+      dockerfile: Dockerfile
     container_name: sathya_api
     restart: unless-stopped
     networks:
@@ -68,12 +68,8 @@ services:
       - APP_ENV=${APP_ENV:-development}
       - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
     volumes:
-      # Mount code for dev opportunities, though Dockerfile is capable of standalone
-      - ../orchestration:/app/orchestration
-      - ../agents:/app/agents
-      - ../api:/app/api
-      - ../shared:/app/shared
-      - ../contracts:/app/contracts
+      # Mount code for dev opportunities
+      - ../backend/app:/app/app
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.api.rule=Host(`api.localhost`) || PathPrefix(`/api`)"
