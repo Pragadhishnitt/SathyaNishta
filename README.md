@@ -4,52 +4,58 @@ A Dockerized microservices architecture for intelligent investigation.
 
 ## 📁 Repository Structure & Ownership
 
+The project follows a monorepo structure with clear ownership boundaries.
+
 | Path | Description | Owner |
 |------|-------------|-------|
-| **`/infra`** | Docker configs, Traefik, Neo4j setup | **Team A** |
-| **`/orchestration`** | core workflow logic, supervisor, state management | **Team A** |
-| **`/api`** | FastAPI backend service & routes | **Team A** |
-| **`/agents`** | Domain-specific AI agents (Financial, Graph, etc.) | **Team B** |
-| **`/frontend`** | Next.js User Interface | **Team B** |
-| **`/contracts`** | Shared schemas, API specs, DB schemas | **Shared** |
-| **`/shared`** | Shared utilities (logger, config, clients) | **Shared** |
+| **`/infra`** | Docker configs, Traefik, Neo4j setup | **Team A (Infra)** |
+| **`/backend`** | Python Monolith (FastAPI + Orchestration) | **Team A (Backend)** |
+| **`/backend/app/orchestration`** | Core workflow, LangGraph, Supervisor | **Team A** |
+| **`/backend/app/api`** | FastAPI routes, Middleware | **Team A** |
+| **`/backend/app/agents`** | Domain-specific AI agents | **Team B** |
+| **`/backend/app/contracts`** | Shared Pydantic models & Specs | **Shared** |
+| **`/frontend`** | Next.js User Interface | **Team B (Frontend)** |
 | **`/scripts`** | Helper scripts for build & deployment | **Shared** |
 
-## 🚀 Getting Started
+## 🚀 Architecture
 
-### Prerequisites
-- Docker & Docker Compose
-- Supabase Account (or local postgres if configured)
-- Neo4j AuraDB Account (or use local container)
-
-### Setup
-1. Copy `.env.example` to `.env` and fill in API keys.
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Start the stack:
-   ```bash
-   docker-compose -f infra/docker-compose.yml up -d
-   ```
-   
-3. Access services:
-   - Frontend: `http://localhost`
-   - API: `http://localhost/api/health`
-   - Traefik Dashboard: `http://localhost:8080` (if enabled)
+- **Orchestration**: Docker Compose
+- **Gateway**: Traefik (Edge Proxy, Rate Limiting, SSL)
+- **Backend**: FastAPI + LangGraph (Supervisor Architecture)
+- **Frontend**: Next.js (App Router)
+- **LLM Gateway**: Portkey (Cloud) -> Gemini 1.5 Flash
+- **Database**:
+    - **Relational**: Supabase (Cloud - PostgreSQL)
+    - **Graph**: Neo4j AuraDB (Cloud) or Local Docker
+    - **Vector**: pgvector (via Supabase)
 
 ## 🛠 Team Responsibilities
 
-### Team A
-- **Infrastructure**: Maintain `infra/` folder, ensuring Docker builds are optimized and secure.
-- **Orchestration**: Develop the central brain in `orchestration/`.
-- **API Layer**: Manage `api/` routes and middleware.
-- **Environment**: Keep `.env.example` up to date.
+### Team A (Infrastructure & Core Backend)
+1.  **Infrastructure**: Maintain `/infra` (Docker, Traefik, Neo4j).
+2.  **Orchestration**: Implement LangGraph supervisor in `/backend/app/orchestration`.
+3.  **API**: expose endpoints in `/backend/app/api`.
+4.  **Database**: Manage Supabase migrations and Neo4j schema.
 
-### Team B
-- **Frontend**: Develop the UI in `frontend/` and ensure it connects correctly to the API.
-- **Agents**: Implement specialized agent logic in `agents/` (Audio, Financial, Compliance, Graph).
-- **Integration**: Ensure agents work correctly within the containerized environment.
+### Team B (Agents & Frontend)
+1.  **Agents**: Implement domain logic in `/backend/app/agents` (Financial, Compliance, etc.).
+2.  **Frontend**: Build the investigation UI in `/frontend`.
+3.  **Integration**: Connect UI to API and ensure Agents return correct schemas.
 
-## 📜 License
-Proprietary
+## ⚡ Getting Started
+
+1.  **Environment Setup**:
+    ```bash
+    cp .env.example .env
+    # Fill in PORTKEY_API_KEY, SUPABASE_URL, NEO4J_URI, etc.
+    ```
+
+2.  **Run with Docker**:
+    ```bash
+    docker-compose -f infra/docker-compose.yml up --build
+    ```
+
+3.  **Access**:
+    - Frontend: `http://localhost:3000`
+    - API Docs: `http://localhost:8000/docs`
+    - Traefik Dashboard: `http://localhost:8080`
