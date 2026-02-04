@@ -1,0 +1,469 @@
+openapi: 3.0.3
+
+info:
+  title: Sathya Nishta Investigation API
+  description: |
+    **Sathya Nishta** is an AI-powered financial fraud investigation system for Indian capital markets.
+    
+    This API enables:
+    - Starting investigations with natural language queries
+    - Real-time progress streaming via Server-Sent Events (SSE)
+    - Retrieving final investigation reports with fraud risk scores
+    
+    ## Authentication
+    All endpoints require an API key passed via the `X-API-Key` header.
+    
+    ## Rate Limiting
+    - **100 requests per minute** per IP address
+    - HTTP 429 response when exceeded
+    
+    ## Workflow
+    1. POST `/api/v1/investigate` → Get `investigation_id`
+    2. Connect to `/api/v1/investigate/{id}/stream` (SSE) for live updates
+    3. GET `/api/v1/investigate/{id}` → Retrieve final report
+    
+  version: 1.0.0
+  contact:
+    name: Sathya Nishta Team
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.sathyanishta.com
+    description: Production server
+
+tags:
+  - name: Investigation
+    description: Core investigation endpoints
+  - name: Health
+    description: Service health and status
+
+# ==========================================
+# PATHS
+# ==========================================
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns service status and version
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /api/v1/investigate:
+    post:
+      summary: Start a new investigation
+      description: |
+        Submits a fraud investigation query. The system will:
+        1. Parse the query
+        2. Generate an investigation plan
+        3. Execute specialist agents (Financial, Graph, Audio, Compliance)
+        4. Synthesize findings into a final report
+        
+        Returns immediately with an `investigation_id`. Use the SSE endpoint to monitor progress.
+      operationId: startInvestigation
+      tags:
+        - Investigation
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvestigationRequest'
+            examples:
+              circularTrading:
+                summary: Circular trading investigation
+                value:
+                  query: "Investigate Adani for circular trading in Q3 2024"
+              complianceCheck:
+                summary: SEBI compliance check
+                value:
+                  query: "Check if Reliance Industries violated SEBI LODR regulations in their recent related-party transactions"
+                  context:
+                    focus_period: "Q4-2023"
+      responses:
+        '202':
+          description: Investigation started successfully (queued)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestigationResponse'
+        '400':
+          description: Invalid request (query too short, malformed JSON)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+
+  /api/v1/investigate/{investigation_id}/stream:
+    get:
+      summary: Stream investigation progress (SSE)
+      description: |
+        **Server-Sent Events (SSE)** endpoint for real-time investigation updates.
+        
+        Events emitted:
+        - `agent_started`: When an agent begins execution
+        - `agent_completed`: When an agent finishes (approved/rejected/failed)
+        - `investigation_complete`: When the final report is ready
+        - `error`: On critical failure
+        
+        Connection stays open until investigation completes or client disconnects.
+        
+        **Note:** EventSource doesn't support custom headers, so API key must be passed as a query parameter.
+      operationId: streamInvestigation
+      tags:
+        - Investigation
+      parameters:
+        - name: investigation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the investigation
+        - name: api_key
+          in: query
+          required: false
+          schema:
+            type: string
+          description: API key (alternative to X-API-Key header for SSE)
+      responses:
+        '200':
+          description: SSE stream established
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              examples:
+                agentStarted:
+                  summary: Agent started event
+                  value: |
+                    event: agent_started
+                    data: {"agent": "financial", "status": "running"}
+                    
+                agentCompleted:
+                  summary: Agent completed event
+                  value: |
+                    event: agent_completed
+                    data: {"agent": "financial", "status": "approved", "findings_count": 3}
+                    
+                complete:
+                  summary: Investigation complete event
+                  value: |
+                    event: investigation_complete
+                    data: {"investigation_id": "123e4567-e89b-12d3-a456-426614174000", "fraud_risk_score": 9.2, "verdict": "critical"}
+        '404':
+          description: Investigation not found
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/investigate/{investigation_id}:
+    get:
+      summary: Get final investigation report
+      description: |
+        Retrieves the complete investigation report including:
+        - Fraud risk score (0-10)
+        - Verdict (critical/high/medium/low/safe)
+        - Findings from all domains (Financial, Graph, Audio, Compliance)
+        - Cross-domain insights
+        - Evidence chain
+        
+        Only available after investigation status is `completed`.
+      operationId: getInvestigationReport
+      tags:
+        - Investigation
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: investigation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Investigation report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestigationReport'
+        '404':
+          description: Investigation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Investigation still running (not completed yet)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+# ==========================================
+# COMPONENTS
+# ==========================================
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication
+
+  responses:
+    UnauthorizedError:
+      description: API key is missing or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Unauthorized"
+            message: "Invalid or missing API key"
+            code: "UNAUTHORIZED"
+
+    RateLimitError:
+      description: Rate limit exceeded (100 req/min)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Rate Limit Exceeded"
+            message: "You have exceeded 100 requests per minute. Please try again later."
+            code: "RATE_LIMIT_EXCEEDED"
+            retry_after: 45
+
+  schemas:
+    InvestigationRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          minLength: 10
+          maxLength: 1000
+          description: Natural language investigation query
+          example: "Investigate Adani for circular trading in Q3 2024"
+        context:
+          type: object
+          additionalProperties: true
+          description: Optional context (date ranges, specific subsidiaries, uploaded files)
+          example:
+            focus_period: "Q3-2024"
+            include_subsidiaries: true
+
+    InvestigationResponse:
+      type: object
+      required:
+        - investigation_id
+        - status
+        - stream_url
+      properties:
+        investigation_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        status:
+          type: string
+          enum: [queued, running]
+          example: "queued"
+        stream_url:
+          type: string
+          description: SSE endpoint URL for real-time updates
+          example: "/api/v1/investigate/123e4567-e89b-12d3-a456-426614174000/stream"
+        estimated_completion_time:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2024-02-04T12:30:00Z"
+
+    InvestigationReport:
+      type: object
+      required:
+        - investigation_id
+        - query
+        - status
+        - fraud_risk_score
+        - verdict
+        - summary
+        - domains
+      properties:
+        investigation_id:
+          type: string
+          format: uuid
+        query:
+          type: string
+        status:
+          type: string
+          enum: [completed, failed]
+        fraud_risk_score:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 10.0
+          description: "Fraud risk score: 0 = safe, 10 = critical fraud"
+          example: 9.2
+        verdict:
+          type: string
+          enum: [critical, high, medium, low, safe]
+          description: "critical: 8-10 | high: 6-7.9 | medium: 4-5.9 | low: 2-3.9 | safe: 0-1.9"
+          example: "critical"
+        summary:
+          type: string
+          description: Executive summary of the investigation
+          example: "High probability of circular trading fraud detected. Financial, Graph, and Compliance domains all flagged the same ₹500Cr transaction loop."
+        domains:
+          type: object
+          properties:
+            financial:
+              $ref: '#/components/schemas/DomainFindings'
+            graph:
+              $ref: '#/components/schemas/DomainFindings'
+            audio:
+              $ref: '#/components/schemas/DomainFindings'
+            compliance:
+              $ref: '#/components/schemas/DomainFindings'
+        cross_domain_insights:
+          type: array
+          items:
+            type: string
+          description: Insights connecting findings across multiple domains
+          example:
+            - "₹500Cr undisclosed transaction (Financial) matches exact loop amount (Graph)"
+            - "CEO stress spike (Audio) occurred when questioned about this transaction"
+        evidence_chain:
+          type: array
+          items:
+            type: string
+          description: Step-by-step evidence trail
+          example:
+            - "Q3 2024 filing shows ₹500Cr transaction with Shell A"
+            - "Graph analysis reveals Shell A → Shell B → Adani loop"
+            - "SEBI LODR Regulation 23 requires disclosure > ₹1Cr"
+            - "Transaction was NOT disclosed → violation confirmed"
+        audit_trail_id:
+          type: string
+          description: Reference to the audit trail in the database
+          example: "audit_xyz789"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    DomainFindings:
+      type: object
+      required:
+        - agent_type
+        - findings
+        - confidence
+        - status
+      properties:
+        agent_type:
+          type: string
+          enum: [financial, graph, audio, compliance]
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Finding'
+        confidence:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 1.0
+          description: Agent's overall confidence in its findings
+          example: 0.92
+        status:
+          type: string
+          enum: [approved, rejected, failed]
+
+    Finding:
+      type: object
+      required:
+        - type
+        - severity
+        - detail
+        - evidence
+        - confidence
+      properties:
+        type:
+          type: string
+          description: Classification of the finding
+          example: "cash_flow_divergence"
+        severity:
+          type: string
+          enum: [critical, high, medium, low, info]
+        detail:
+          type: string
+          description: Human-readable description
+          example: "EBITDA grew 15% YoY but operating cash flow declined 8%"
+        evidence:
+          type: string
+          description: Source reference (document, page, timestamp)
+          example: "Q3_2024_cashflow.pdf, page 4"
+        confidence:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 1.0
+          example: 0.92
+        metadata:
+          type: object
+          additionalProperties: true
+          example:
+            ebitda_growth: 15.0
+            ocf_growth: -8.0
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          example: "Bad Request"
+        message:
+          type: string
+          example: "Query must be at least 10 characters long"
+        code:
+          type: string
+          example: "INVALID_QUERY"
+        retry_after:
+          type: integer
+          description: Seconds to wait before retrying (for rate limit errors)
+          example: 45
