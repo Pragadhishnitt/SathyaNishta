@@ -1,0 +1,14 @@
+http:
+  middlewares:
+    # Rate limiting
+    api-ratelimit:
+      rateLimit:
+        average: 100
+        period: 1m
+        burst: 20
+
+    # Auth (API key validation placeholder)
+    api-auth:
+      headers:
+        customRequestHeaders:
+          X-Forwarded-For: ""

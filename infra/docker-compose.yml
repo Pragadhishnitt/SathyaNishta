@@ -1,0 +1,139 @@
+networks:
+  sathya_net:
+    driver: bridge
+
+volumes:
+  neo4j_data:         # Neo4j data persistence
+  traefik_certs:      # SSL certificates (production)
+
+services:
+  # ═══════════════════════════════════════════════════════════════
+  # TRAEFIK — Edge Proxy
+  # ═══════════════════════════════════════════════════════════════
+  traefik:
+    image: traefik:v2.10
+    container_name: sathya_traefik
+    restart: unless-stopped
+    networks:
+      - sathya_net
+    ports:
+      - "80:80"        # HTTP
+      - "443:443"      # HTTPS
+      - "8080:8080"    # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - traefik_certs:/letsencrypt
+    environment:
+      - TRAEFIK_LOG_LEVEL=INFO
+    labels:
+      - "traefik.enable=true"
+      # Dashboard route
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+
+  # ═══════════════════════════════════════════════════════════════
+  # API SERVICE — FastAPI Backend
+  # ═══════════════════════════════════════════════════════════════
+  api:
+    build:
+      context: ..
+      dockerfile: infra/api/Dockerfile
+    container_name: sathya_api
+    restart: unless-stopped
+    networks:
+      - sathya_net
+    depends_on:
+      - traefik
+      - neo4j     # If using local Neo4j
+    environment:
+      # Portkey
+      - PORTKEY_API_KEY=${PORTKEY_API_KEY}
+      - PORTKEY_CONFIG=${PORTKEY_CONFIG}
+      
+      # Supabase (Cloud)
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      
+      # Neo4j (Cloud AuraDB or Local)
+      - NEO4J_URI=${NEO4J_URI}
+      - NEO4J_USER=${NEO4J_USER}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
+      
+      # Gemini
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      
+      # App config
+      - APP_ENV=${APP_ENV:-development}
+      - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
+    volumes:
+      # Mount code for dev opportunities, though Dockerfile is capable of standalone
+      - ../orchestration:/app/orchestration
+      - ../agents:/app/agents
+      - ../api:/app/api
+      - ../shared:/app/shared
+      - ../contracts:/app/contracts
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`api.localhost`) || PathPrefix(`/api`)"
+      - "traefik.http.routers.api.entrypoints=web"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
+      # Rate limiting middleware
+      - "traefik.http.middlewares.api-ratelimit.ratelimit.average=100"
+      - "traefik.http.middlewares.api-ratelimit.ratelimit.period=1m"
+      - "traefik.http.routers.api.middlewares=api-ratelimit"
+
+  # ═══════════════════════════════════════════════════════════════
+  # FRONTEND — Next.js UI
+  # ═══════════════════════════════════════════════════════════════
+  frontend:
+    build:
+      context: ..
+      dockerfile: infra/frontend/Dockerfile
+    container_name: sathya_frontend
+    restart: unless-stopped
+    networks:
+      - sathya_net
+    depends_on:
+      - traefik
+      - api
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost/api
+      - NODE_ENV=${APP_ENV:-development}
+    volumes:
+      # Hot reload support if needed
+      - ../frontend:/app
+      - /app/node_modules
+      - /app/.next
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`localhost`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+
+  # ═══════════════════════════════════════════════════════════════
+  # NEO4J — Graph Database (LOCAL)
+  # ═══════════════════════════════════════════════════════════════
+  neo4j:
+    image: neo4j:5.13-community
+    container_name: sathya_neo4j
+    restart: unless-stopped
+    networks:
+      - sathya_net
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    environment:
+      - NEO4J_AUTH=${NEO4J_USER}/${NEO4J_PASSWORD}
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_dbms_memory_heap_max__size=2G
+    volumes:
+      - neo4j_data:/data
+      - ./neo4j/schema.cypher:/var/lib/neo4j/import/schema.cypher
+      - ./neo4j/seed.cypher:/var/lib/neo4j/import/seed.cypher
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u ${NEO4J_USER} -p ${NEO4J_PASSWORD} 'RETURN 1'"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
