@@ -29,6 +29,10 @@ Once frozen (end of Sprint 1), these files can **only be modified with approval 
 | `api_spec.yaml` | Team A | OpenAPI REST API specification | API docs, client generation |
 | `database_schema.sql` | Team A | PostgreSQL + Neo4j schema definitions | Migrations, ORM setup |
 | `agent_tools.md` | Team B | Agent tool function signatures | Agent implementations |
+| `storage.md` | Team A & B | Supabase Storage bucket definitions | File uploads, Ingestion |
+| `traefik.md` | Team A | Traefik edge proxy configuration | Rate limiting, routing, auth |
+| `portkey.md` | Team A | Portkey AI gateway configuration | Semantic cache, model routing |
+| `orchestration_state_machine.md` | Team A | LangGraph state machine definition | Orchestration, retries, timeouts |
 | `README.md` (this file) | Both | Documentation and rules | Onboarding, reference |
 
 ---
