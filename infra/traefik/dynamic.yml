@@ -1,14 +1,16 @@
 http:
   middlewares:
-    # Rate limiting
-    api-ratelimit:
+    # Rate Limit Middleware (100 req/min)
+    rate-limit-api:
       rateLimit:
         average: 100
         period: 1m
-        burst: 20
+        burst: 50
+        sourceCriterion:
+          ipStrategy:
+            depth: 0
 
-    # Auth (API key validation placeholder)
-    api-auth:
-      headers:
-        customRequestHeaders:
-          X-Forwarded-For: ""
+    # Auth Stub (For future use)
+    # api-key-auth:
+    #   forwardAuth:
+    #     address: "http://backend:8000/auth/validate"

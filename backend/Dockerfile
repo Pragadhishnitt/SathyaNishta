@@ -38,13 +38,15 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
 COPY app /app/app
+COPY alembic /app/alembic
+COPY alembic.ini /app/alembic.ini
 
 # Create non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Set working directory to the app code for import compatibility
-WORKDIR /app/app
+# Set working directory to the app root so alembic finds app module
+WORKDIR /app
 
 # Expose port
 EXPOSE 8000
@@ -53,5 +55,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:8000/health || exit 1
 
-# Default command
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,50 @@
+version: "3.8"
+
+networks:
+  sathya-network:
+    driver: bridge
+
+services:
+  # ═══════════════════════════════════════════════════════════════
+  # TRAEFIK (Reverse Proxy & Edge Layer)
+  # ═══════════════════════════════════════════════════════════════
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "8090:80"      # API Gateway (Changed from 80 due to conflict)
+      - "8080:8080"  # Dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./infra/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    networks:
+      - sathya-network
+
+  # ═══════════════════════════════════════════════════════════════
+  # BACKEND (FastAPI - Python)
+  # ═══════════════════════════════════════════════════════════════
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sathya-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SECRET} # User calls it SECRET in .env
+    labels:
+      - "traefik.enable=true"
+      # API Routing
+      - "traefik.http.routers.api.rule=PathPrefix(`/api/v1`) || Path(`/health`)"
+      # - "traefik.http.routers.api.entrypoints=web"
+      - "traefik.http.routers.api.middlewares=rate-limit-api@file"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
+    networks:
+      - sathya-network
+    depends_on:
+      - traefik
