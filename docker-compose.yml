@@ -21,6 +21,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./infra/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - sathya-network
 
@@ -41,11 +43,6 @@ services:
       - ./backend:/app
     labels:
       - "traefik.enable=true"
-      # API Routing
-      - "traefik.http.routers.api.rule=PathPrefix(`/api/v1`) || Path(`/health`)"
-      # - "traefik.http.routers.api.entrypoints=web"
-      - "traefik.http.routers.api.middlewares=rate-limit-api@file"
-      - "traefik.http.services.api.loadbalancer.server.port=8000"
     network_mode: "host"
     # sysctls:
     #   - net.ipv6.conf.all.disable_ipv6=1

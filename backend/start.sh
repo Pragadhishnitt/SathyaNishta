@@ -5,6 +5,10 @@ set -e
 echo "🔄 Running database migrations..."
 alembic upgrade head
 
+# Setup storage buckets
+echo "📦 Setting up storage buckets..."
+python scripts/setup_storage.py
+
 # Start application
 echo "🚀 Starting FastAPI application..."
 # Use exec to preserve signal handling
