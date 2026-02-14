@@ -17,7 +17,7 @@ from pathlib import Path
 repo_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(repo_root / "backend"))
 
-from app.agents.compliance.compliance_agent2 import ComplianceAgent
+from app.agents.compliance.compliance_agent import ComplianceAgent
 
 
 def test_check_sebi_regulations():

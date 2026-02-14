@@ -21,14 +21,13 @@ from typing import Any, Callable, Dict, List, Optional
 
 import google.generativeai as genai
 from dotenv import load_dotenv
-from sentence_transformers import SentenceTransformer
 from supabase import create_client, Client
 
 
 # Handle imports for both standalone and module usage
 if __name__ == "__main__":
     # Standalone mode: adjust path and import directly
-    repo_root = Path(__file__).resolve().parent.parent.parent.parent.parent
+    repo_root = Path(__file__).resolve().parents[4]
     sys.path.insert(0, str(repo_root / "backend"))
     from app.agents.base_agent import BaseAgent
     from app.shared.logger import setup_logger
@@ -36,10 +35,10 @@ else:
     # Module mode: use relative imports
     from ..base_agent import BaseAgent
     from ...shared.logger import setup_logger
-    repo_root = Path(__file__).resolve().parent.parent.parent.parent.parent
+    repo_root = Path(__file__).resolve().parents[4]
 
 # Load environment variables from repo root
-load_dotenv(repo_root / ".env.example")
+load_dotenv(repo_root / ".env")
 
 
 class ComplianceAgent(BaseAgent):
@@ -60,8 +59,8 @@ class ComplianceAgent(BaseAgent):
             self.supabase = None
             self.logger.warning("Supabase credentials not found, RAG queries will be limited")
         
-        # Initialize embedding model for RAG queries
-        self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')  # Same model used for storing
+        # Cohere embedding model for RAG queries (1024 dimensions)
+        self.cohere_api_key = os.getenv("COHERE_API_KEY")
 
         self.tool_map: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
             "check_sebi_regulations": self.check_sebi_regulations,
@@ -101,9 +100,10 @@ class ComplianceAgent(BaseAgent):
         return self._call_llm("verify_indas_compliance", params, task)
 
     def rag_legal_query(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
-        """Perform semantic search on legal documents using Supabase pgvector."""
+        """Perform semantic search on regulatory documents using Supabase pgvector."""
         query = params.get("query")
         source_filter = params.get("source_filter")
+        category_filter = params.get("category_filter")
         top_k = params.get("top_k", 3)
         
         if not query:
@@ -113,65 +113,57 @@ class ComplianceAgent(BaseAgent):
             raise RuntimeError("Supabase not configured. Cannot perform RAG query.")
         
         try:
-            # Generate embedding for the query
-            query_embedding = self.embedding_model.encode(query).tolist()
+            # Generate embedding for the query using Cohere (1024 dimensions)
+            try:
+                import cohere
+            except ImportError:
+                raise RuntimeError("cohere package not installed. Install with: pip install cohere")
             
-            # Start building query
-            query_builder = self.supabase.table('legal_documents').select('*')
+            client = cohere.Client(self.cohere_api_key)
+            response = client.embed(
+                texts=[query],
+                model="embed-english-v3.0",
+                input_type="search_query"
+            )
+            query_embedding = response.embeddings[0]  # 1024 dimensions
             
-            # Add source filter if provided
+            # Prepare source filter - map to schema format
+            source_array = None
             if source_filter and isinstance(source_filter, list):
-                # Convert source_filter to uppercase to match stored format
-                uppercase_filters = [s.upper() for s in source_filter]
-                # Always include Companies Act when SEBI or IndAS is queried
-                if "SEBI" in uppercase_filters or "INDAS" in uppercase_filters:
-                    if "COMPANIES_ACT" not in uppercase_filters:
-                        uppercase_filters.append("COMPANIES_ACT")
-                query_builder = query_builder.in_('source', uppercase_filters)
+                source_map = {
+                    "SEBI": "SEBI",
+                    "INDAS": "IndAS",
+                    "COMPANIES_ACT": "CompaniesAct"
+                }
+                source_array = [source_map.get(s.upper(), s) for s in source_filter]
             
-            # Execute query to get all matching documents
-            response = query_builder.execute()
+            # Call the search_regulatory_documents SQL function
+            rpc_params = {
+                "query_embedding": query_embedding,
+                "match_count": top_k,
+                "source_filter": source_array,
+                "category_filter": category_filter
+            }
+            
+            response = self.supabase.rpc('search_regulatory_documents', rpc_params).execute()
             
             if not response.data:
                 return {"results": []}
             
-            # Calculate cosine similarity manually for each document
-            import numpy as np
-            
-            results_with_similarity = []
-            query_vec = np.array(query_embedding, dtype=np.float32)
-            
-            for row in response.data:
-                doc_embedding = row.get('embedding')
-                if doc_embedding:
-                    # Convert from string to list if needed
-                    if isinstance(doc_embedding, str):
-                        doc_embedding = json.loads(doc_embedding)
-                    
-                    doc_vec = np.array(doc_embedding, dtype=np.float32)
-                    # Cosine similarity
-                    similarity = np.dot(query_vec, doc_vec) / (np.linalg.norm(query_vec) * np.linalg.norm(doc_vec))
-                    results_with_similarity.append({
-                        "id": row.get("id"),
-                        "document": row.get("document", ""),
-                        "source": row.get("source", ""),
-                        "content": row.get("content", ""),
-                        "similarity": float(similarity)
-                    })
-            
-            # Sort by similarity descending and take top_k
-            results_with_similarity.sort(key=lambda x: x['similarity'], reverse=True)
-            top_results = results_with_similarity[:top_k]
-            
             # Format results according to contract
             results = []
-            for row in top_results:
+            for row in response.data:
                 results.append({
-                    "document_id": str(row["id"]),
-                    "title": row["document"],
-                    "source": row["source"],
-                    "relevance_score": row["similarity"],
-                    "excerpt": row["content"][:200]  # First 200 chars
+                    "document_id": str(row.get("id")),
+                    "title": row.get("title", ""),
+                    "source": row.get("source", ""),
+                    "category": row.get("category"),
+                    "doc_type": row.get("doc_type"),
+                    "relevance_score": float(row.get("similarity", 0.0)),
+                    "excerpt": row.get("content_chunk", "")[:200],  # First 200 chars
+                    "effective_date": row.get("effective_date"),
+                    "url": row.get("url"),
+                    "metadata": row.get("metadata", {})
                 })
             
             return {"results": results}
