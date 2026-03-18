@@ -16,3 +16,4 @@ langgraph<0.1.0
 langchain-core
 langchain-google-genai
 tenacity
+langgraph

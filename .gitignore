@@ -1,36 +1,19 @@
-# Version control
-.git
+.env
+backend/.env
 
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Tooling caches
 .pytest_cache/
-.coverage
-htmlcov/
-
-# Node
-node_modules/
-npm-debug.log*
-.next/
-out/
-
-# Environment
-.env
-.env.local
-.env.*.local
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Docker
-Dockerfile*
-docker-compose*.yml
-
-# Docs
-docs/
-README.md
-LICENSE
+.mypy_cache/
+.ruff_cache/
+.cache/
