@@ -1,9 +1,12 @@
 from pydantic import BaseModel
+from typing import Optional
+
 
 class InvestigationRequest(BaseModel):
-    query: string
-    user_id: string
+    query: str
+    mode: str = "standard"
+
 
 class InvestigationResponse(BaseModel):
-    status: string
-    result: dict
+    investigation_id: str
+    stream_url: str

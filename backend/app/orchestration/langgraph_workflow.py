@@ -1,47 +1,112 @@
+"""LangGraph investigation workflow — Sprint 1.
+
+Multi-node graph: supervisor → agents → synthesis → END.
+Supervisor uses deterministic routing (no LLM call) to walk through
+agents in order. Each agent node returns mock AgentFinding stubs.
+"""
+
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, TypedDict
+import sys
+from pathlib import Path
+from typing import Any, Dict
 
 from langgraph.graph import END, START, StateGraph
 
-from app.agents.financial.agent import FinancialAgent
+# Ensure repo root is on sys.path so `contracts.state` resolves
+_repo_root = str(Path(__file__).resolve().parents[3])
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
+
+from contracts.state import InvestigationState
+from app.agents.nodes import (
+    audio_node,
+    compliance_node,
+    financial_node,
+    graph_node,
+    reflection_node,
+    synthesis_node,
+)
 
 
-class SupervisorState(TypedDict, total=False):
-    """Minimal state passed through the LangGraph workflow.
+# Agent execution order per mode
+STANDARD_SEQUENCE = ["financial", "graph", "compliance"]
+SATHYANISHTA_SEQUENCE = ["financial", "graph", "compliance", "audio", "reflection"]
 
-    This is intentionally tiny (bare workflow, no business logic yet).
-    Extend this as you introduce routing, tools, and agent outputs.
+
+def _supervisor_node(state: InvestigationState) -> Dict[str, Any]:
+    """Deterministic routing: pick the next unfinished agent in sequence.
+
+    Checks which agents have already posted findings and routes to the next
+    one. Returns ``next_agent = "synthesis"`` once all required agents are done.
     """
+    mode = state.get("mode", "standard")
+    sequence = (
+        SATHYANISHTA_SEQUENCE if mode == "sathyanishta" else STANDARD_SEQUENCE
+    )
 
-    investigation_id: str
-    input: Dict[str, Any]
-    events: List[Dict[str, Any]]
+    # Map of agent name → state key that proves it ran
+    done_keys = {
+        "financial":  "financial_findings",
+        "graph":      "graph_findings",
+        "compliance": "compliance_findings",
+        "audio":      "audio_findings",
+        "reflection": "reflection_passed",
+    }
+
+    for agent in sequence:
+        key = done_keys[agent]
+        if state.get(key) is None:
+            return {
+                "next_agent": agent,
+                "iteration_count": state.get("iteration_count", 0) + 1,
+                "messages": [f"Supervisor → {agent}: routing next"],
+            }
+
+    # All done → go to synthesis
+    return {
+        "next_agent": "synthesis",
+        "iteration_count": state.get("iteration_count", 0) + 1,
+        "messages": ["Supervisor → synthesis: all agents complete"],
+    }
 
 
-async def _supervisor_entry(state: SupervisorState) -> SupervisorState:
-    # Minimal demo wiring: call a single agent through Portkey.
-    agent = FinancialAgent()
-    payload = state.get("input") or {}
-
-    content = await agent.aprocess(payload)
-    events = list(state.get("events") or [])
-    events.append({"type": "agent_result", "agent": "financial", "content": content})
-
-    state["events"] = events
-    return state
+def _route_next(state: InvestigationState) -> str:
+    """Conditional edge: read next_agent from state."""
+    return state.get("next_agent", "synthesis")
 
 
-def build_workflow():
-    """Builds and compiles the minimal LangGraph workflow.
+def build_investigation_graph():
+    """Build and compile the full investigation StateGraph."""
+    graph = StateGraph(InvestigationState)
 
-    Supervisor is the entry node and immediately terminates.
-    """
+    # Nodes
+    graph.add_node("supervisor", _supervisor_node)
+    graph.add_node("financial", financial_node)
+    graph.add_node("graph", graph_node)
+    graph.add_node("compliance", compliance_node)
+    graph.add_node("audio", audio_node)
+    graph.add_node("reflection", reflection_node)
+    graph.add_node("synthesis", synthesis_node)
 
-    graph = StateGraph(SupervisorState)
-    graph.add_node("supervisor", _supervisor_entry)
-
+    # Entry
     graph.add_edge(START, "supervisor")
-    graph.add_edge("supervisor", END)
+
+    # Supervisor routes conditionally
+    graph.add_conditional_edges("supervisor", _route_next, {
+        "financial":  "financial",
+        "graph":      "graph",
+        "compliance": "compliance",
+        "audio":      "audio",
+        "reflection": "reflection",
+        "synthesis":  "synthesis",
+    })
+
+    # Each agent loops back to supervisor
+    for agent in ["financial", "graph", "compliance", "audio", "reflection"]:
+        graph.add_edge(agent, "supervisor")
+
+    # Synthesis terminates the graph
+    graph.add_edge("synthesis", END)
 
     return graph.compile()

@@ -15,14 +15,12 @@ services:
     security_opt:
       - no-new-privileges:true
     ports:
-      - "8090:80"      # API Gateway (Changed from 80 due to conflict)
-      - "8080:8080"  # Dashboard
+      - "8090:80"      # API Gateway
+      - "8080:8080"    # Dashboard
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./infra/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
       - sathya-network
 
@@ -37,19 +35,39 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    environment:
-      - SUPABASE_SERVICE_KEY=${SUPABASE_SECRET} # User calls it SECRET in .env
     volumes:
       - ./backend:/app
+      - ./contracts:/contracts
     labels:
       - "traefik.enable=true"
-    network_mode: "host"
-    # sysctls:
-    #   - net.ipv6.conf.all.disable_ipv6=1
-    # dns:
-    #   - 8.8.8.8
-    #   - 8.8.4.4
-    # networks:
-    #   - sathya-network
+      # API routes (/api/*)
+      - "traefik.http.routers.backend-api.rule=PathPrefix(`/api`)"
+      - "traefik.http.routers.backend-api.entrypoints=web"
+      - "traefik.http.services.backend-api.loadbalancer.server.port=8000"
+      # Health route
+      - "traefik.http.routers.backend-health.rule=Path(`/health`)"
+      - "traefik.http.routers.backend-health.entrypoints=web"
+      - "traefik.http.routers.backend-health.service=backend-api"
+      # Rate limiting
+      - "traefik.http.routers.backend-api.middlewares=rate-limit-api@file"
+    networks:
+      - sathya-network
+    depends_on:
+      - traefik
+
+  # ═══════════════════════════════════════════════════════════════
+  # FRONTEND (NextJS/Vite UI)
+  # ═══════════════════════════════════════════════════════════════
+  frontend:
+    build:
+      context: ./frontend
+    container_name: sathya-frontend
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+    networks:
+      - sathya-network
     depends_on:
       - traefik

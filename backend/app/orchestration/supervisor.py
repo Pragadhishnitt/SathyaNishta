@@ -1,27 +1,29 @@
+"""Orchestration entrypoint — thin wrapper around the LangGraph workflow."""
+
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Dict, Optional
 
-from app.orchestration.langgraph_workflow import SupervisorState, build_workflow
+from app.orchestration.langgraph_workflow import (
+    InvestigationState,
+    build_investigation_graph,
+)
 
 
-class Supervisor:
-    """Orchestration entrypoint.
+_graph = None
 
-    For now, this is a bare LangGraph workflow with Supervisor as the entry node
-    and no business logic.
-    """
 
-    def __init__(self):
-        self._workflow = build_workflow()
+def _get_graph():
+    """Lazy-compile the graph once."""
+    global _graph
+    if _graph is None:
+        _graph = build_investigation_graph()
+    return _graph
 
-    def invoke(self, state: Optional[SupervisorState] = None):
-        return self._workflow.invoke(state or {})
 
-    async def ainvoke(self, state: Optional[SupervisorState] = None):
-        return await self._workflow.ainvoke(state or {})
+def invoke(state: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    return _get_graph().invoke(state or {})
 
-    def synthesize(self):
-        # Kept for backward-compatibility with the existing stub.
-        # Prefer invoke()/ainvoke() going forward.
-        return self.invoke({})
+
+async def ainvoke(state: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    return await _get_graph().ainvoke(state or {})

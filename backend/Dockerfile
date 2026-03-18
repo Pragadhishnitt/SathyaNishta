@@ -53,6 +53,9 @@ USER appuser
 # Set working directory to the app root so alembic finds app module
 WORKDIR /app
 
+# Ensure Python can find both /app (for app.*) and / (for contracts.*)
+ENV PYTHONPATH="/app:/"
+
 # Expose port
 EXPOSE 8000
 

@@ -1,29 +1,29 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
+
+from app.api.routes.health import router as health_router
+from app.api.routes.investigate import router as investigate_router
 
 app = FastAPI(
     title="Sathya Nishta API",
     description="AI-Powered Financial Fraud Investigation System",
-    version="1.0.0"
+    version="1.0.0",
 )
 
-# CORS (Allow Frontend)
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restrict this in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.get("/health")
-def health_check():
-    return {
-        "status": "healthy",
-        "version": "1.0.0",
-        "service": "backend"
-    }
+# Mount routers
+app.include_router(health_router)
+app.include_router(investigate_router, prefix="/api")
+
 
 if __name__ == "__main__":
-    uvicorn.run("api.main:app", host="0.0.0.0", port=8000, reload=True)
+    import uvicorn
+    uvicorn.run("app.api.main:app", host="0.0.0.0", port=8000, reload=True)
