@@ -15,50 +15,28 @@ It routes to the corresponding handler and returns the tool's output dict.
 
 import json
 import os
-import sys
-from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-import google.generativeai as genai
-from dotenv import load_dotenv
-from supabase import create_client, Client
-
-
-# Handle imports for both standalone and module usage
-if __name__ == "__main__":
-    # Standalone mode: adjust path and import directly
-    repo_root = Path(__file__).resolve().parents[4]
-    sys.path.insert(0, str(repo_root / "backend"))
-    from app.agents.base_agent import BaseAgent
-    from app.shared.logger import setup_logger
-else:
-    # Module mode: use relative imports
-    from ..base_agent import BaseAgent
-    from ...shared.logger import setup_logger
-    repo_root = Path(__file__).resolve().parents[4]
-
-# Load environment variables from repo root
-load_dotenv(repo_root / ".env")
+from ..base_agent import BaseAgent
+from ...shared.logger import setup_logger
+from ...shared.llm_portkey import chat_complete
+from ...core.config import settings
 
 
 class ComplianceAgent(BaseAgent):
     def __init__(self) -> None:
         self.logger = setup_logger(self.__class__.__name__)
-        # Use Gemini API directly (no Portkey needed)
-        self.gemini_api_key = os.getenv("GEMINI_API_KEY")
-        if self.gemini_api_key:
-            genai.configure(api_key=self.gemini_api_key)
-        self.model = genai.GenerativeModel('gemini-2.5-flash')
-        
+
         # Initialize Supabase client for RAG
-        supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_KEY")
+        supabase_url = settings.SUPABASE_URL
+        supabase_key = settings.SUPABASE_KEY
         if supabase_url and supabase_key:
-            self.supabase: Client = create_client(supabase_url, supabase_key)
+            from supabase import create_client, Client
+            self.supabase: Optional[Client] = create_client(supabase_url, supabase_key)
         else:
             self.supabase = None
             self.logger.warning("Supabase credentials not found, RAG queries will be limited")
-        
+
         # Cohere embedding model for RAG queries (1024 dimensions)
         self.cohere_api_key = os.getenv("COHERE_API_KEY")
 
@@ -105,20 +83,20 @@ class ComplianceAgent(BaseAgent):
         source_filter = params.get("source_filter")
         category_filter = params.get("category_filter")
         top_k = params.get("top_k", 3)
-        
+
         if not query:
             raise ValueError("rag_legal_query requires 'query' parameter")
-        
+
         if not self.supabase:
             raise RuntimeError("Supabase not configured. Cannot perform RAG query.")
-        
+
         try:
             # Generate embedding for the query using Cohere (1024 dimensions)
             try:
                 import cohere
             except ImportError:
                 raise RuntimeError("cohere package not installed. Install with: pip install cohere")
-            
+
             client = cohere.Client(self.cohere_api_key)
             response = client.embed(
                 texts=[query],
@@ -126,7 +104,7 @@ class ComplianceAgent(BaseAgent):
                 input_type="search_query"
             )
             query_embedding = response.embeddings[0]  # 1024 dimensions
-            
+
             # Prepare source filter - map to schema format
             source_array = None
             if source_filter and isinstance(source_filter, list):
@@ -136,7 +114,7 @@ class ComplianceAgent(BaseAgent):
                     "COMPANIES_ACT": "CompaniesAct"
                 }
                 source_array = [source_map.get(s.upper(), s) for s in source_filter]
-            
+
             # Call the search_regulatory_documents SQL function
             rpc_params = {
                 "query_embedding": query_embedding,
@@ -144,12 +122,12 @@ class ComplianceAgent(BaseAgent):
                 "source_filter": source_array,
                 "category_filter": category_filter
             }
-            
+
             response = self.supabase.rpc('search_regulatory_documents', rpc_params).execute()
-            
+
             if not response.data:
                 return {"results": []}
-            
+
             # Format results according to contract
             results = []
             for row in response.data:
@@ -165,9 +143,9 @@ class ComplianceAgent(BaseAgent):
                     "url": row.get("url"),
                     "metadata": row.get("metadata", {})
                 })
-            
+
             return {"results": results}
-        
+
         except Exception as e:
             self.logger.error(f"RAG query failed: {e}")
             return {
@@ -176,7 +154,7 @@ class ComplianceAgent(BaseAgent):
             }
 
     # ------------------------------------------------------------------
-    # Internal helper: call Gemini and return JSON per contract
+    # Internal helper: call LLM via Portkey and return JSON per contract
     # ------------------------------------------------------------------
     def _call_llm(
         self,
@@ -184,14 +162,11 @@ class ComplianceAgent(BaseAgent):
         params: Dict[str, Any],
         task: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Send a structured prompt to Gemini and parse JSON output.
+        """Send a structured prompt to the LLM via Portkey and parse JSON output.
 
         The LLM is expected to return a JSON object matching the tool contract.
         Raises RuntimeError on parsing issues.
         """
-
-        if not self.gemini_api_key:
-            raise RuntimeError("GEMINI_API_KEY is not set")
 
         system_prompt = self._build_system_prompt(tool_name)
         user_content = {
@@ -203,27 +178,30 @@ class ComplianceAgent(BaseAgent):
             },
         }
 
-        prompt = f"{system_prompt}\n\nTask:\n{json.dumps(user_content, indent=2)}"
-
-        self.logger.debug("Calling Gemini for compliance tool", extra={"tool": tool_name, "params": params})
+        self.logger.debug("Calling LLM for compliance tool", extra={"tool": tool_name, "params": params})
 
         try:
-            response = self.model.generate_content(prompt)
-            result_text = response.text.strip()
-            
+            result = chat_complete(
+                user_prompt=json.dumps(user_content),
+                system_prompt=system_prompt,
+                temperature=0.2,
+                metadata={"agent": "compliance", "tool": tool_name},
+            )
+            content = result.get("content", "").strip()
+
             # Extract JSON from response (handle markdown code blocks)
-            if "```json" in result_text:
-                result_text = result_text.split("```json")[1].split("```")[0].strip()
-            elif "```" in result_text:
-                result_text = result_text.split("```")[1].split("```")[0].strip()
-            
-            return json.loads(result_text)
-        
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0].strip()
+
+            return json.loads(content)
+
         except json.JSONDecodeError as exc:
-            self.logger.error("Failed to parse Gemini JSON response", extra={"response": response.text})
+            self.logger.error("Failed to parse LLM JSON response")
             raise RuntimeError(f"Failed to parse LLM JSON response: {exc}") from exc
         except Exception as exc:
-            self.logger.error("Gemini API call failed", extra={"error": str(exc)})
+            self.logger.error("LLM request failed", extra={"error": str(exc)})
             raise RuntimeError(f"LLM request failed: {exc}") from exc
 
     def _build_system_prompt(self, tool_name: str) -> str:

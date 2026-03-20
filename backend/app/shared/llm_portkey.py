@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List, Optional
 
-from app.shared.config import config
+from app.core.config import settings
 
 
 class PortkeyLLMError(RuntimeError):
@@ -31,21 +31,17 @@ def get_portkey_client():
       - PORTKEY_API_KEY
 
     Recommended:
-      - PORTKEY_VIRTUAL_KEY (routes to provider key stored in Portkey vault)
-      - PORTKEY_CONFIG (config id or JSON; use to enable semantic cache/routing/fallbacks)
+      - PORTKEY_CONFIG_ID (config id created in Portkey UI; controls model, routing, fallbacks)
     """
 
-    if not config.PORTKEY_API_KEY:
+    if not settings.PORTKEY_API_KEY:
         raise PortkeyLLMError("Missing PORTKEY_API_KEY. Set it in your environment (.env / docker-compose).")
 
     from portkey_ai import Portkey  # local import to keep startup resilient if deps change
 
-    kwargs: Dict[str, Any] = {"api_key": config.PORTKEY_API_KEY}
+    kwargs: Dict[str, Any] = {"api_key": settings.PORTKEY_API_KEY}
 
-    if config.PORTKEY_VIRTUAL_KEY:
-        kwargs["virtual_key"] = config.PORTKEY_VIRTUAL_KEY
-
-    parsed_config = _parse_portkey_config(config.PORTKEY_CONFIG)
+    parsed_config = _parse_portkey_config(settings.PORTKEY_CONFIG_ID)
     if parsed_config is not None:
         kwargs["config"] = parsed_config
 
@@ -56,18 +52,18 @@ def chat_complete(
     *,
     user_prompt: str,
     system_prompt: str = "You are a helpful assistant.",
-    model: Optional[str] = None,
     temperature: float = 0.2,
     metadata: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Performs a chat completion via Portkey.
 
+    The model is determined by the Portkey Config (set in Portkey UI),
+    not passed by callers.
+
     Returns a small normalized dict.
     """
 
     client = get_portkey_client()
-
-    model_to_use = model or config.PORTKEY_MODEL or "gemini-1.5-flash"
 
     messages: List[Dict[str, str]] = [
         {"role": "system", "content": system_prompt},
@@ -83,7 +79,6 @@ def chat_complete(
             request_client = client
 
     response = request_client.chat.completions.create(
-        model=model_to_use,
         messages=messages,
         temperature=temperature,
     )
@@ -101,7 +96,6 @@ def chat_complete(
         )
 
     return {
-        "model": model_to_use,
         "content": content,
         "raw": response,
     }

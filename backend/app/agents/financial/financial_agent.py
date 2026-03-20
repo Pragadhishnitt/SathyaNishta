@@ -15,26 +15,16 @@ It routes to the corresponding handler and returns the tool's output dict.
 """
 
 import json
-import os
-import re
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
-
-import requests
+from typing import Any, Callable, Dict, Optional
 
 from ..base_agent import BaseAgent
 from ...shared.logger import setup_logger
+from ...shared.llm_portkey import chat_complete
 
 
 class FinancialAgent(BaseAgent):
     def __init__(self) -> None:
         self.logger = setup_logger(self.__class__.__name__)
-        # LLM endpoint (e.g., Portkey or OpenAI-compatible router)
-        self.llm_url = os.getenv("LLM_API_URL", "https://api.portkey.ai/v1/chat/completions")
-        self.llm_api_key = os.getenv("PORTKEY_API_KEY")
-        self.gemini_api_key = os.getenv("GEMINI_API_KEY")
-        self.portkey_config = os.getenv("PORTKEY_CONFIG")
-        self.llm_model = self._model_from_portkey_config() or "gemini-2.5-flash"
 
         self.tool_map: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
             "analyze_balance_sheet": self.analyze_balance_sheet,
@@ -68,7 +58,6 @@ class FinancialAgent(BaseAgent):
     # ---------------------------------------------------------------------
     def analyze_balance_sheet(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
         """Delegate balance sheet analysis to the external financial analysis API."""
-
         return self._call_llm("analyze_balance_sheet", params, task)
 
     def calculate_financial_ratios(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
@@ -81,7 +70,7 @@ class FinancialAgent(BaseAgent):
         return self._call_llm("detect_related_party_transactions", params, task)
 
     # ------------------------------------------------------------------
-    # Internal helper: call LLM and return JSON per contract
+    # Internal helper: call LLM via Portkey and return JSON per contract
     # ------------------------------------------------------------------
     def _call_llm(
         self,
@@ -89,14 +78,11 @@ class FinancialAgent(BaseAgent):
         params: Dict[str, Any],
         task: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Send a structured prompt to the LLM router and parse JSON output.
+        """Send a structured prompt to the LLM via Portkey and parse JSON output.
 
         The LLM is expected to return a JSON object matching the tool contract.
         Raises RuntimeError on HTTP or parsing issues.
         """
-
-        if not self.llm_api_key:
-            raise RuntimeError("LLM_API_KEY or PORTKEY_API_KEY is not set")
 
         system_prompt = self._build_system_prompt(tool_name)
         user_content = {
@@ -108,44 +94,21 @@ class FinancialAgent(BaseAgent):
             },
         }
 
-        body = {
-            "model": self.llm_model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": json.dumps(user_content)},
-            ],
-            "temperature": 0.2,
-            "response_format": {"type": "json_object"},
-        }
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.llm_api_key}",
-        }
-
-        portkey_config_header = self._portkey_config_header()
-        if portkey_config_header:
-            headers["x-portkey-config"] = portkey_config_header
-
-        self.logger.debug("Calling LLM for financial tool", extra={"tool": tool_name, "body": body})
+        self.logger.debug("Calling LLM for financial tool", extra={"tool": tool_name})
 
         try:
-            response = requests.post(self.llm_url, headers=headers, json=body, timeout=60)
-        except Exception as exc:
-            raise RuntimeError(f"LLM request failed: {exc}") from exc
-
-        if not response.ok:
-            raise RuntimeError(f"LLM returned {response.status_code}: {response.text}")
-
-        try:
-            data = response.json()
-            # OpenAI-style responses contain choices[0].message.content
-            content = data.get("choices", [{}])[0].get("message", {}).get("content")
+            result = chat_complete(
+                user_prompt=json.dumps(user_content),
+                system_prompt=system_prompt,
+                temperature=0.2,
+                metadata={"agent": "financial", "tool": tool_name},
+            )
+            content = result.get("content")
             if not content:
                 raise ValueError("missing content")
             return json.loads(content)
         except Exception as exc:
-            raise RuntimeError("Failed to parse LLM JSON response") from exc
+            raise RuntimeError(f"Financial LLM call failed: {exc}") from exc
 
     def _build_system_prompt(self, tool_name: str) -> str:
         """Craft tool-specific instructions with required schema hints."""
@@ -164,100 +127,3 @@ class FinancialAgent(BaseAgent):
         ]
 
         return " \n".join(base_rules + [contract_notes.get(tool_name, "Follow the contract schema strictly.")])
-
-    def _model_from_portkey_config(self) -> Optional[str]:
-        """Extract model from PORTKEY_CONFIG if present (JSON or key:value text)."""
-
-        if not self.portkey_config:
-            return None
-
-        config_text = self.portkey_config.strip()
-        try:
-            data = json.loads(config_text)
-            if isinstance(data, dict):
-                model = data.get("model")
-                if isinstance(model, str) and model.strip():
-                    return model.strip()
-        except Exception:
-            pass
-
-        match = re.search(r"model\s*[:=]\s*[\"']?([\w.-]+)", config_text)
-        if match:
-            return match.group(1)
-        return None
-
-    def _portkey_config_header(self) -> Optional[str]:
-        """Return the x-portkey-config header value, injecting api_key when needed."""
-
-        if not self.portkey_config:
-            return None
-
-        config_text = self.portkey_config.strip()
-        try:
-            data = json.loads(config_text)
-            if isinstance(data, dict):
-                if data.get("provider") and not data.get("api_key") and self.gemini_api_key:
-                    data["api_key"] = self.gemini_api_key
-                return json.dumps(data)
-        except Exception:
-            pass
-
-        return self.portkey_config
-
-
-if __name__ == "__main__":
-    try:
-        from dotenv import load_dotenv
-
-        repo_root = Path(__file__).resolve().parents[4]
-        load_dotenv(repo_root / ".env", override=False)
-    except Exception:
-        pass
-
-    agent = FinancialAgent()
-
-    sample_tasks = [
-        {
-            "tool": "analyze_balance_sheet",
-            "params": {
-                "company_ticker": "RELIANCE.NS",
-                "period": "Q3-2024",
-                "comparison_periods": ["Q2-2024", "Q3-2023"],
-            },
-            "investigation_id": "test-investigation-001",
-            "task_id": "task-001",
-        },
-        {
-            "tool": "calculate_financial_ratios",
-            "params": {
-                "company_ticker": "RELIANCE.NS",
-                "period": "Q3-2024",
-                "comparison_periods": ["Q2-2024", "Q3-2023"],
-            },
-            "investigation_id": "test-investigation-001",
-            "task_id": "task-002",
-        },
-        {
-            "tool": "detect_cash_flow_divergence",
-            "params": {
-                "company_ticker": "RELIANCE.NS",
-                "period": "Q3-2024",
-            },
-            "investigation_id": "test-investigation-001",
-            "task_id": "task-003",
-        },
-        {
-            "tool": "detect_related_party_transactions",
-            "params": {
-                "company_ticker": "RELIANCE.NS",
-                "period": "Q3-2024",
-            },
-            "investigation_id": "test-investigation-001",
-            "task_id": "task-004",
-        },
-    ]
-
-    for task in sample_tasks:
-        result = agent.process(task)
-        print(f"\nTool: {task['tool']}")
-        print(json.dumps(result, indent=2))

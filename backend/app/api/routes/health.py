@@ -2,7 +2,7 @@ import time
 
 from fastapi import APIRouter
 
-from app.shared.config import config
+from app.core.config import settings
 from app.shared.llm_portkey import PortkeyLLMError, chat_complete
 
 router = APIRouter()
@@ -32,8 +32,7 @@ async def llm_health_check():
         return {
             "status": "ok",
             "portkey": {
-                "config": config.PORTKEY_CONFIG,
-                "model": result.get("model"),
+                "config_id": settings.PORTKEY_CONFIG_ID,
             },
             "latency_ms": elapsed_ms,
             "reply": content[:50],
@@ -43,7 +42,7 @@ async def llm_health_check():
         return {
             "status": "error",
             "error": str(e),
-            "portkey": {"config": config.PORTKEY_CONFIG},
+            "portkey": {"config_id": settings.PORTKEY_CONFIG_ID},
             "latency_ms": elapsed_ms,
         }
     except Exception as e:
@@ -51,6 +50,6 @@ async def llm_health_check():
         return {
             "status": "error",
             "error": f"LLM healthcheck failed: {type(e).__name__}",
-            "portkey": {"config": config.PORTKEY_CONFIG},
+            "portkey": {"config_id": settings.PORTKEY_CONFIG_ID},
             "latency_ms": elapsed_ms,
         }
