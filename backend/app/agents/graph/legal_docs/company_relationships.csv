@@ -1,0 +1,5 @@
+parent_company_id, child_company_id     , relationship_type, percentage_ownership, relationship_date
+ADANI_001        , SHELL_A_001          , Direct_Ownership ,                 75.0, 2018-03-01
+SHELL_A_001      , SHELL_B_001          , Subsidiary       ,                 60.0, 2019-05-15
+RELIANCE_001     , RELIANCE_SUBSIDIARY_1, Subsidiary       ,                100.0, 2015-01-01
+KOTAK_001        , KOTAK_MAHINDRA_LIFE  , Subsidiary       ,                100.0, 2000-09-01

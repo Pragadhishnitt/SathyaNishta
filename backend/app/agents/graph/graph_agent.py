@@ -1,32 +1,291 @@
-"""Graph agent skeleton — Sprint 1.
+"""Graph agent implementation aligned with contract specs.
 
-Detects circular transaction networks via Neo4j.
-Sprint 1 returns mock AgentFinding; real Neo4j queries drop in Sprint 2.
+This agent exposes contract-aligned tool handlers:
+- generate_cypher_query
+- run_cypher_query
+- detect_circular_loops
+
+`process` expects a task dict of the shape:
+{
+    "tool": "generate_cypher_query" | "run_cypher_query" | "detect_circular_loops",
+    "params": { ... }  # matches the contract for that tool
+}
+It routes to the corresponding handler and returns the tool's output dict.
 """
 
-from typing import Any, Dict
+import json
+from typing import Any, Callable, Dict, List, Optional
+
+from neo4j import GraphDatabase
 
 from ..base_agent import BaseAgent
 from ...shared.logger import setup_logger
+from ...shared.llm_portkey import chat_complete
+from ...core.config import settings
 
 
 class GraphAgent(BaseAgent):
     def __init__(self) -> None:
         self.logger = setup_logger(self.__class__.__name__)
 
+        # Initialize Neo4j driver
+        neo4j_uri = settings.NEO4J_URI
+        neo4j_username = settings.NEO4J_USERNAME
+        neo4j_password = settings.NEO4J_PASSWORD
+        if neo4j_uri and neo4j_username and neo4j_password:
+            self.neo4j_driver = GraphDatabase.driver(
+                neo4j_uri,
+                auth=(neo4j_username, neo4j_password)
+            )
+        else:
+            self.neo4j_driver = None
+            self.logger.warning("Neo4j credentials not found, graph queries will be limited")
+
+        self.tool_map: Dict[str, Callable[[Dict[str, Any], Dict[str, Any]], Dict[str, Any]]] = {
+            "generate_cypher_query": self.generate_cypher_query,
+            "run_cypher_query": self.run_cypher_query,
+            "detect_circular_loops": self.detect_circular_loops,
+        }
+
     def process(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        """Sprint 1 stub — returns mock circular-trading finding."""
-        self.logger.debug("GraphAgent.process called", extra={"task": task})
+        """Route the incoming task to the correct graph tool.
+
+        Expected task keys: tool (str), params (dict).
+        Raises ValueError for unknown tools or missing params.
+        """
+
+        tool_name = task.get("tool")
+        params = task.get("params", {})
+
+        if not tool_name:
+            raise ValueError("GraphAgent task missing 'tool'")
+        if tool_name not in self.tool_map:
+            raise ValueError(f"Unsupported graph tool: {tool_name}")
+        if not isinstance(params, dict):
+            raise ValueError("GraphAgent task 'params' must be a dict")
+
+        self.logger.debug("Running graph tool", extra={"tool": tool_name, "params": params})
+        return self.tool_map[tool_name](params, task)
+
+    # ---------------------------------------------------------------------
+    # Tool implementations (contract-compliant shapes)
+    # ---------------------------------------------------------------------
+    def generate_cypher_query(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
+        """Converts a natural language investigation goal into a Cypher query."""
+        entity_name = params.get("entity_name")
+        query_type = params.get("query_type")
+        max_hops = params.get("max_hops", 5)
+        min_transaction_amount = params.get("min_transaction_amount", 0)
+
+        if not entity_name:
+            raise ValueError("generate_cypher_query requires 'entity_name' parameter")
+        if not query_type:
+            raise ValueError("generate_cypher_query requires 'query_type' parameter")
+
+        # Use LLM to generate the Cypher query
+        return self._call_llm("generate_cypher_query", params, task)
+
+    def run_cypher_query(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
+        """Executes a Cypher query against Neo4j and returns structured results."""
+        query = params.get("query")
+        query_params = params.get("params", {})
+
+        if not query:
+            raise ValueError("run_cypher_query requires 'query' parameter")
+
+        if not self.neo4j_driver:
+            raise RuntimeError("Neo4j not configured. Cannot run Cypher query.")
+
+        try:
+            with self.neo4j_driver.session() as session:
+                result = session.run(query, query_params)
+                records = []
+                for record in result:
+                    # Convert Neo4j record to dict, handling special objects
+                    record_dict = {}
+                    for key, value in record.items():
+                        if hasattr(value, 'nodes') and hasattr(value, 'relationships'):
+                            # This is a Path object - extract useful information
+                            record_dict[key] = value  # Keep the Path object for processing
+                        else:
+                            record_dict[key] = value
+                    records.append(record_dict)
+
+                return {
+                    "results": records,
+                    "result_count": len(records)
+                }
+        except Exception as e:
+            self.logger.error(f"Cypher query failed: {e}")
+            return {
+                "results": [],
+                "result_count": 0,
+                "error": str(e)
+            }
+
+    def detect_circular_loops(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
+        """High-level tool that combines Cypher generation, execution, and validation."""
+        entity_name = params.get("entity_name")
+        max_hops = params.get("max_hops", 5)
+        min_transaction_amount = params.get("min_transaction_amount", 0)
+
+        if not entity_name:
+            raise ValueError("detect_circular_loops requires 'entity_name' parameter")
+
+        # Generate Cypher query for circular loops
+        cypher_params = {
+            "entity_name": entity_name,
+            "query_type": "circular_loop",
+            "max_hops": max_hops,
+            "min_transaction_amount": min_transaction_amount
+        }
+        cypher_result = self.generate_cypher_query(cypher_params, task)
+        cypher_query = cypher_result.get("cypher_query")
+
+        if not cypher_query:
+            return {
+                "loops_found": [],
+                "total_loop_count": 0,
+                "total_circular_amount": 0
+            }
+
+        # Run the query
+        run_params = {
+            "query": cypher_query,
+            "params": {
+                "entity_name": entity_name,
+                "min_amount": min_transaction_amount
+            }
+        }
+        run_result = self.run_cypher_query(run_params, task)
+        results = run_result.get("results", [])
+
+        # Process results into contract format
+        loops_found = []
+        total_circular_amount = 0
+
+        for record in results:
+            # Extract path information from Neo4j Path object
+            path_obj = record.get("path")
+            if path_obj:
+                # Get company names from path nodes
+                path = [node.get("name", "") for node in path_obj.nodes]
+                # Get transaction dates and amounts from relationships
+                relationships = path_obj.relationships
+                transaction_dates = [rel.get("date", "") for rel in relationships]
+                amounts = [rel.get("amount", 0) for rel in relationships]
+            else:
+                path = []
+                transaction_dates = []
+                amounts = []
+
+            loop_total = record.get("loop_total", 0)
+
+            # Determine if suspicious (simple heuristic)
+            suspicious = False
+            reason = ""
+            if len(set(transaction_dates)) < len(transaction_dates):  # Duplicate dates
+                suspicious = True
+                reason = "Multiple transactions on same date"
+            elif len(transaction_dates) <= 3 and len(set(transaction_dates)) == len(transaction_dates):
+                # Check if amounts are similar (within 10%)
+                if amounts and len(amounts) > 1:
+                    avg_amount = sum(amounts) / len(amounts)
+                    if all(abs(a - avg_amount) / avg_amount < 0.1 for a in amounts):
+                        suspicious = True
+                        reason = "Similar amounts in short timeframe"
+
+            loops_found.append({
+                "path": path,
+                "path_length": len(path) - 1 if path else 0,  # Number of edges
+                "total_flow": loop_total,
+                "transaction_dates": transaction_dates,
+                "suspicious": suspicious,
+                "reason": reason
+            })
+            total_circular_amount += loop_total
+
         return {
-            "risk_score": 9.1,
-            "findings": [
-                "STUB: 3-node circular loop detected",
-                "STUB: Total circular flow ₹1,440 Cr in Q3 2024",
-                "STUB: Shared director on target + shell company boards",
-            ],
-            "evidence": {
-                "circular_loop": "Adani → Shell A → Shell B → Adani (source: mock)",
-                "circular_flow": "₹1,440 Cr (source: mock)",
-                "shared_director": "Director X on Adani + Shell A (source: mock)",
+            "loops_found": loops_found,
+            "total_loop_count": len(loops_found),
+            "total_circular_amount": total_circular_amount
+        }
+
+    # ------------------------------------------------------------------
+    # Internal helper: call LLM via Portkey and return JSON per contract
+    # ------------------------------------------------------------------
+    def _call_llm(
+        self,
+        tool_name: str,
+        params: Dict[str, Any],
+        task: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Send a structured prompt to the LLM via Portkey and parse JSON output.
+
+        The LLM is expected to return a JSON object matching the tool contract.
+        Raises RuntimeError on parsing issues.
+        """
+
+        system_prompt = self._build_system_prompt(tool_name)
+        user_content = {
+            "tool": tool_name,
+            "params": params,
+            "metadata": {
+                "investigation_id": task.get("investigation_id") if task else None,
+                "task_id": task.get("task_id") if task else None,
             },
         }
+
+        self.logger.debug("Calling LLM for graph tool", extra={"tool": tool_name, "params": params})
+
+        try:
+            result = chat_complete(
+                user_prompt=json.dumps(user_content),
+                system_prompt=system_prompt,
+                temperature=0.2,
+                metadata={"agent": "graph", "tool": tool_name},
+            )
+            content = result.get("content", "").strip()
+
+            # Extract JSON from response (handle markdown code blocks)
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0].strip()
+
+            return json.loads(content)
+
+        except json.JSONDecodeError as exc:
+            self.logger.error("Failed to parse LLM JSON response")
+            raise RuntimeError(f"Failed to parse LLM JSON response: {exc}") from exc
+        except Exception as exc:
+            self.logger.error("LLM request failed", extra={"error": str(exc)})
+            raise RuntimeError(f"LLM request failed: {exc}") from exc
+
+    def _build_system_prompt(self, tool_name: str) -> str:
+        """Craft tool-specific instructions with required schema hints."""
+
+        contract_notes = {
+            "generate_cypher_query": """Generate a valid Cypher query for Neo4j graph database. Return cypher_query (str) and explanation (str).
+
+For circular_loop queries: Find transaction paths that form loops starting and ending at the specified entity_name.
+- Use MATCH path = (c:Company {{name: $entity_name}})-[:TRANSACTS_WITH*1..{max_hops}]-(c)
+- Filter transactions WHERE ALL(r IN relationships(path) WHERE r.amount > $min_amount)
+- Return path and loop_total: reduce(total = 0, r IN relationships(path) | total + r.amount) AS loop_total
+
+Example: MATCH path = (c:Company {{name: $entity_name}})-[:TRANSACTS_WITH*1..5]-(c) WHERE ALL(r IN relationships(path) WHERE r.amount > 10000000000) RETURN path, reduce(total = 0, r IN relationships(path) | total + r.amount) AS loop_total
+
+For ownership_chain: Find ownership relationships.
+For transaction_path: Find direct/indirect transaction connections.""",
+            "run_cypher_query": "This tool executes Cypher queries. Not for LLM to implement.",
+            "detect_circular_loops": "This tool combines query generation and execution. Not for LLM to implement.",
+        }
+
+        base_rules = [
+            "You are the Graph Agent. Output JSON only.",
+            "Follow the contract schema strictly.",
+            "For Cypher queries, use proper Neo4j syntax.",
+            "Entity names should be matched case-insensitively where possible.",
+        ]
+
+        return "\n".join(base_rules + [contract_notes.get(tool_name, "Follow the contract schema strictly.")])

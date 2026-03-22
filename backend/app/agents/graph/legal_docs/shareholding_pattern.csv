@@ -1,0 +1,7 @@
+company_id,shareholder_id,shareholder_type,percentage_stake,holding_type,as_of_date
+ADANI_001,ADANI_FAMILY_TRUST,Trust,74.5,Beneficial,2024-03-31
+ADANI_001,SHELL_A_001,Company,15.2,Direct,2024-03-31
+RELIANCE_001,MUKESH_PERSONAL,Individual,10.1,Direct,2024-03-31
+RELIANCE_001,RIL_EMPLOYEES_TRUST,Trust,8.5,Direct,2024-03-31
+SHELL_A_001,ADANI_001,Company,51.0,Direct,2024-03-31
+SHELL_B_001,SHELL_A_001,Company,60.0,Direct,2024-03-31

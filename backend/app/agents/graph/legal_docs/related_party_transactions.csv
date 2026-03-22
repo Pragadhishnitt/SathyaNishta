@@ -1,0 +1,6 @@
+transaction_id, from_company_id, to_company_id, amount_paise  , transaction_date, description       , transaction_type
+TXN001        , ADANI_001      , SHELL_A_001  , 50000000000000, 2024-07-15      , Equipment Purchase, Wire Transfer
+TXN002        , SHELL_A_001    , SHELL_B_001  , 50000000000000, 2024-08-20      , Consulting Fees   , Wire Transfer
+TXN003        , SHELL_B_001    , ADANI_001    , 50000000000000, 2024-09-10      , Investment Return , Wire Transfer
+TXN004        , RELIANCE_001   , KOTAK_001    , 30000000000000, 2024-06-01      , Loan Repayment    , Bank Transfer
+TXN005        , KOTAK_001      , BIRLA_001    , 25000000000000, 2024-07-05      , Advisory Fees     , NEFT

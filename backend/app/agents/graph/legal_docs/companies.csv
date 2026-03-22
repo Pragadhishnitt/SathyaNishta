@@ -1,0 +1,8 @@
+company_id  , company_name               , sector      , registration_number  , listing_status, country
+ADANI_001   , Adani Enterprises Limited  , Conglomerate, L74899GJ1988PLC011910, LISTED_NSE_BSE, India
+RELIANCE_001, Reliance Industries Limited, Oil & Gas   , L17310MH1957PLC002373, LISTED_NSE_BSE, India
+KOTAK_001   , Kotak Mahindra Bank        , Finance     , U65110MH1985PLC038137, LISTED_NSE_BSE, India
+BIRLA_001   , Aditya Birla Group         , Conglomerate, L17299MH1956PLC009945, LISTED_NSE    , India
+TATA_001    , Tata Consultancy Services  , IT Services , L72500TN1974PLC007466, LISTED_NSE_BSE, India
+SHELL_A_001 , Shell Trading UAE          , Trading     , UAE456               , PRIVATE       , UAE
+SHELL_B_001 , Mauritius Investments Ltd  , Investment  , MUS789               , PRIVATE       , Mauritius

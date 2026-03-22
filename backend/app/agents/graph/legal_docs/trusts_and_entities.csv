@@ -1,0 +1,5 @@
+entity_id,entity_name,entity_type,controlling_individual,beneficial_owner,jurisdiction
+TRUST_001,Adani Family Trust,Trust,Gautam Adani,Gautam Adani + Family,India
+TRUST_002,Reliance Employees Trust,Trust,Mukesh Ambani,RIL Employees,India
+OFFSHORE_001,Shell Trading UAE,Offshore Company,Vinod Adani,Vinod Adani,UAE
+OFFSHORE_002,Mauritius Investments,Offshore Company,Unknown,Shell A,Mauritius

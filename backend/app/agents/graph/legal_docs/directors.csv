@@ -1,0 +1,7 @@
+director_id, director_name, pan       , company_id  , designation    , appointment_date, sector_category
+DIR_001    , Gautam Adani , AAAPG1111A, ADANI_001   , Chairman       , 2002-01-15      , Conglomerate
+DIR_002    , Vinod Adani  , AAAPV1111A, ADANI_001   , Deputy Chairman, 2005-06-20      , Conglomerate
+DIR_003    , Vinod Adani  , AAAPV1111A, SHELL_A_001 , Director       , 2018-03-10      , Trading
+DIR_004    , Mukesh Ambani, AAMPA1111A, RELIANCE_001, Chairman       , 1991-06-15      , Oil & Gas
+DIR_005    , Nita Ambani  , AAMPN1111A, RELIANCE_001, Director       , 2015-09-01      , Oil & Gas
+DIR_006    , Uday Kotak   , AAAPK1111A, KOTAK_001   , MD & CEO       , 1985-11-30      , Finance
