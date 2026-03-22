@@ -13,9 +13,17 @@ This agent exposes contract-aligned tool handlers:
 It routes to the corresponding handler and returns the tool's output dict.
 """
 
+
 import json
 import os
 from typing import Any, Callable, Dict, List, Optional
+
+# Load .env if present (for local dev)
+from dotenv import load_dotenv
+load_dotenv()
+
+from ...core.config import settings
+
 
 from ..base_agent import BaseAgent
 from ...shared.logger import setup_logger
@@ -37,14 +45,26 @@ class ComplianceAgent(BaseAgent):
             self.supabase = None
             self.logger.warning("Supabase credentials not found, RAG queries will be limited")
 
-        # Cohere embedding model for RAG queries (1024 dimensions)
-        self.cohere_api_key = os.getenv("COHERE_API_KEY")
+
 
         self.tool_map: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
             "check_sebi_regulations": self.check_sebi_regulations,
             "verify_indas_compliance": self.verify_indas_compliance,
             "rag_legal_query": self.rag_legal_query,
         }
+
+        # Initialize Cohere client for embeddings
+        try:
+            import cohere
+            cohere_api_key = getattr(settings, "COHERE_API_KEY", None)
+            if cohere_api_key:
+                self.cohere_client = cohere.Client(cohere_api_key)
+            else:
+                self.cohere_client = None
+                self.logger.warning("Cohere API key not found in settings, RAG queries will be limited")
+        except ImportError:
+            self.cohere_client = None
+            self.logger.warning("cohere package not installed. Install with: pip install cohere")
 
     def process(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """Route the incoming task to the correct compliance tool.
@@ -90,15 +110,12 @@ class ComplianceAgent(BaseAgent):
         if not self.supabase:
             raise RuntimeError("Supabase not configured. Cannot perform RAG query.")
 
-        try:
-            # Generate embedding for the query using Cohere (1024 dimensions)
-            try:
-                import cohere
-            except ImportError:
-                raise RuntimeError("cohere package not installed. Install with: pip install cohere")
 
-            client = cohere.Client(self.cohere_api_key)
-            response = client.embed(
+        try:
+            # Use instance cohere_client for embedding
+            if self.cohere_client is None:
+                raise RuntimeError("Cohere client not initialized. Ensure 'cohere' is installed and COHERE_API_KEY is set in settings.")
+            response = self.cohere_client.embed(
                 texts=[query],
                 model="embed-english-v3.0",
                 input_type="search_query"
