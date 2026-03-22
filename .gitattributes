@@ -1,0 +1,5 @@
+# Enforce LF line endings for all text files (protects Linux/Docker environments from Windows CRLF issues)
+* text=auto eol=lf
+
+# Explicitly ensure bash scripts are always LF
+*.sh text eol=lf

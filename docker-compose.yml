@@ -9,7 +9,7 @@ services:
   # TRAEFIK (Reverse Proxy & Edge Layer)
   # ═══════════════════════════════════════════════════════════════
   traefik:
-    image: traefik:v2.10
+    image: traefik:v2.11
     container_name: traefik
     restart: unless-stopped
     security_opt:
@@ -63,6 +63,7 @@ services:
       context: ./frontend
     container_name: sathya-frontend
     restart: unless-stopped
+    tty: true
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
