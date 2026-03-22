@@ -53,7 +53,7 @@ def test_graph_agent():
     print("=" * 60)
     cypher_query = """
         MATCH path = (c:Company {name: 'Adani Enterprises Limited'})-[:TRANSACTS_WITH*1..4]-(c)
-        WHERE ALL(r IN relationships(path) WHERE r.amount > 50000000000000)
+        WHERE ALL(r IN relationships(path) WHERE r.amount >= 50000000000000)
         RETURN path, reduce(total = 0, r IN relationships(path) | total + r.amount) AS loop_total
         LIMIT 3
     """
@@ -80,7 +80,7 @@ def test_graph_agent():
         "tool": "detect_circular_loops",
         "params": {
             "entity_name": "Adani Enterprises Limited",
-            "min_transaction_amount": 50000000000000,
+            "min_transaction_amount": 40000000000000,  # Slightly lower to catch ₹500 Cr transactions
             "max_hops": 4
         }
     }

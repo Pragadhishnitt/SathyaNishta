@@ -105,10 +105,25 @@ class GraphAgent(BaseAgent):
                     record_dict = {}
                     for key, value in record.items():
                         if hasattr(value, 'nodes') and hasattr(value, 'relationships'):
-                            # This is a Path object - extract useful information
-                            record_dict[key] = value  # Keep the Path object for processing
+                            # This is a Path object - extract nodes and relationships
+                            path_data = {
+                                "nodes": [self._serialize_node(node) for node in value.nodes],
+                                "relationships": [
+                                    {
+                                        "type": rel.type,
+                                        "start_node_id": rel.start_node.id,
+                                        "end_node_id": rel.end_node.id,
+                                        "properties": {k: self._serialize_value(v) for k, v in dict(rel).items()}
+                                    }
+                                    for rel in value.relationships
+                                ]
+                            }
+                            record_dict[key] = path_data
+                        elif hasattr(value, 'id') and hasattr(value, 'labels'):
+                            # This is a Node object
+                            record_dict[key] = self._serialize_node(value)
                         else:
-                            record_dict[key] = value
+                            record_dict[key] = self._serialize_value(value)
                     records.append(record_dict)
 
                 return {
@@ -165,15 +180,17 @@ class GraphAgent(BaseAgent):
         total_circular_amount = 0
 
         for record in results:
-            # Extract path information from Neo4j Path object
+            # Extract path information from serialized path object
             path_obj = record.get("path")
             if path_obj:
                 # Get company names from path nodes
-                path = [node.get("name", "") for node in path_obj.nodes]
+                nodes = path_obj.get("nodes", [])
+                path = [node.get("properties", {}).get("name", "") for node in nodes]
+                
                 # Get transaction dates and amounts from relationships
-                relationships = path_obj.relationships
-                transaction_dates = [rel.get("date", "") for rel in relationships]
-                amounts = [rel.get("amount", 0) for rel in relationships]
+                rels = path_obj.get("relationships", [])
+                transaction_dates = [rel.get("properties", {}).get("date", "") for rel in rels]
+                amounts = [rel.get("properties", {}).get("amount", 0) for rel in rels]
             else:
                 path = []
                 transaction_dates = []
@@ -210,6 +227,36 @@ class GraphAgent(BaseAgent):
             "total_loop_count": len(loops_found),
             "total_circular_amount": total_circular_amount
         }
+
+    def _serialize_node(self, node):
+        """Convert a Neo4j Node to a JSON-serializable dict."""
+        return {
+            "id": node.id,
+            "labels": list(node.labels),
+            "properties": {k: self._serialize_value(v) for k, v in dict(node).items()}
+        }
+
+    def _serialize_value(self, value):
+        """Convert Neo4j types to JSON-serializable Python types."""
+        from datetime import date, datetime
+        from neo4j.time import DateTime, Date, Time
+
+        if value is None:
+            return None
+        elif isinstance(value, bool):
+            return value
+        elif isinstance(value, (int, float)):
+            return value
+        elif isinstance(value, str):
+            return value
+        elif isinstance(value, (date, datetime, Date, DateTime, Time)):
+            return str(value)
+        elif isinstance(value, (list, tuple)):
+            return [self._serialize_value(v) for v in value]
+        elif isinstance(value, dict):
+            return {k: self._serialize_value(v) for k, v in value.items()}
+        else:
+            return str(value)
 
     # ------------------------------------------------------------------
     # Internal helper: call LLM via Portkey and return JSON per contract
