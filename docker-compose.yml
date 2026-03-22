@@ -14,6 +14,8 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    environment:
+      - DOCKER_API_VERSION=1.41
     ports:
       - "8090:80"      # API Gateway
       - "8080:8080"    # Dashboard
@@ -64,10 +66,17 @@ services:
     container_name: sathya-frontend
     restart: unless-stopped
     tty: true
+    stdin_open: true
+    environment:
+      - NEXT_TELEMETRY_DISABLED=1
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
       - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
     networks:
       - sathya-network
     depends_on:
