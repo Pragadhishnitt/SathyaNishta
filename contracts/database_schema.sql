@@ -152,21 +152,22 @@ REVOKE UPDATE, DELETE ON audit_trail FROM PUBLIC;
 -- REGULATORY DOCUMENTS (RAG - Legal/Compliance)
 -- ==========================================
 
-CREATE TABLE regulatory_docs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+-- Create regulatory_docs table
+CREATE TABLE IF NOT EXISTS regulatory_docs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     
     -- Document metadata
     title VARCHAR(500) NOT NULL,
-    source VARCHAR(100) NOT NULL,  -- 'SEBI', 'IndAS', 'CompaniesAct', 'LODR'
-    category VARCHAR(100),  -- 'related_party', 'disclosure', 'insider_trading'
+    source VARCHAR(100) NOT NULL,  -- 'SEBI', 'IndAS', 'CompaniesAct'
+    category VARCHAR(100),  -- 'related_party', 'disclosure', 'compliance'
     doc_type VARCHAR(50),  -- 'regulation', 'circular', 'guideline'
     
     -- Content
-    content TEXT NOT NULL,
-    content_chunk TEXT,  -- Chunked for RAG (if content is large)
+    content TEXT NOT NULL,  -- Full document text
+    content_chunk TEXT,  -- Chunked content for RAG (500 words)
     
-    -- Embedding for semantic search
-    embedding vector(1536),  -- Gemini/OpenAI embedding dimension
+    -- Embedding for semantic search (1024 dimensions for Cohere embed-english-v3.0)
+    embedding vector(1024),
     
     -- Metadata
     effective_date DATE,
@@ -176,12 +177,13 @@ CREATE TABLE regulatory_docs (
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
--- Indexes
-CREATE INDEX idx_regulatory_docs_source ON regulatory_docs(source);
-CREATE INDEX idx_regulatory_docs_category ON regulatory_docs(category);
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_regulatory_docs_source ON regulatory_docs(source);
+CREATE INDEX IF NOT EXISTS idx_regulatory_docs_category ON regulatory_docs(category);
 
 -- Vector similarity search index (IVFFlat for performance)
-CREATE INDEX idx_regulatory_docs_embedding ON regulatory_docs 
+-- Note: This index should be created AFTER data is loaded for better performance
+CREATE INDEX IF NOT EXISTS idx_regulatory_docs_embedding ON regulatory_docs 
 USING ivfflat (embedding vector_cosine_ops)
 WITH (lists = 100);
 
