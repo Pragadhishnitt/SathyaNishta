@@ -18,13 +18,14 @@ import io
 import json
 import wave
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import requests
+from sqlalchemy import text, create_engine
+from sqlmodel import Session
 
 from ..base_agent import BaseAgent
 from ...shared.logger import setup_logger
-from ...shared.llm_portkey import chat_complete
 from ...core.config import settings
 
 
@@ -32,6 +33,14 @@ class AudioAgent(BaseAgent):
     def __init__(self) -> None:
         self.logger = setup_logger(self.__class__.__name__)
         self.llm_timeout_sec = 180
+
+        # Initialize PostgreSQL engine for audio data
+        try:
+            self.engine = create_engine(settings.DATABASE_URL)
+            self.logger.info("PostgreSQL connection initialized for audio data")
+        except Exception as e:
+            self.engine = None
+            self.logger.error(f"Failed to initialize PostgreSQL: {e}")
 
         self.tool_map: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
             "load_audio_file": self.load_audio_file,
@@ -99,51 +108,116 @@ class AudioAgent(BaseAgent):
         return result
 
     def analyze_audio_tone(self, params: Dict[str, Any], task: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        return self._call_llm("analyze_audio_tone", params, task)
+        """Query audio_files metadata and extract tone analysis from database."""
+        file_key = params.get("file_key")
+        company_name = params.get("company_name")
+        
+        if not (file_key or company_name):
+            raise ValueError("analyze_audio_tone requires 'file_key' or 'company_name'")
+        
+        try:
+            audio_records = self._query_audio_files(file_key, company_name)
+            
+            if not audio_records:
+                return {
+                    "segments": [],
+                    "overall_tone": "unknown",
+                    "confidence_in_analysis": 0.0,
+                }
+            
+            # Extract tone analysis from metadata
+            latest_audio = audio_records[0]
+            metadata = latest_audio.get("metadata", {})
+            tone_analysis = metadata.get("tone_analysis", {})
+            
+            return {
+                "segments": tone_analysis.get("segments", []),
+                "overall_tone": tone_analysis.get("overall_tone", "neutral"),
+                "confidence_in_analysis": tone_analysis.get("confidence", 0.0),
+            }
+        except Exception as exc:
+            raise RuntimeError(f"Audio tone analysis failed: {exc}") from exc
 
     def detect_deception_markers(self, params: Dict[str, Any], task: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        return self._call_llm("detect_deception_markers", params, task)
-
-    # ------------------------------------------------------------------
-    # Internal helper: call LLM via Portkey and return JSON per contract
-    # ------------------------------------------------------------------
-    def _call_llm(
-        self,
-        tool_name: str,
-        params: Dict[str, Any],
-        task: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        """Send a structured prompt to the LLM via Portkey and parse JSON output.
-
-        The LLM is expected to return a JSON object matching the tool contract.
-        Raises RuntimeError on HTTP or parsing issues.
-        """
-
-        system_prompt = self._build_system_prompt(tool_name)
-        user_content = {
-            "tool": tool_name,
-            "params": params,
-            "metadata": {
-                "investigation_id": task.get("investigation_id") if task else None,
-                "task_id": task.get("task_id") if task else None,
-            },
-        }
-
-        self.logger.debug("Calling LLM for audio tool", extra={"tool": tool_name})
-
+        """Query audio_files metadata and extract deception markers from database."""
+        file_key = params.get("file_key")
+        company_name = params.get("company_name")
+        
+        if not (file_key or company_name):
+            raise ValueError("detect_deception_markers requires 'file_key' or 'company_name'")
+        
         try:
-            result = chat_complete(
-                user_prompt=json.dumps(user_content),
-                system_prompt=system_prompt,
-                temperature=0.2,
-                metadata={"agent": "audio", "tool": tool_name},
-            )
-            content = result.get("content")
-            if not content:
-                raise ValueError("missing content")
-            return json.loads(content)
+            audio_records = self._query_audio_files(file_key, company_name)
+            
+            if not audio_records:
+                return {
+                    "deception_markers": [],
+                    "hedging_word_count": 0,
+                    "topic_avoidance_count": 0,
+                    "overall_deception_likelihood": 0.0,
+                    "explanation": "No audio data found",
+                }
+            
+            # Extract deception markers from metadata
+            latest_audio = audio_records[0]
+            metadata = latest_audio.get("metadata", {})
+            deception_analysis = metadata.get("deception_analysis", {})
+            
+            return {
+                "deception_markers": deception_analysis.get("markers", []),
+                "hedging_word_count": deception_analysis.get("hedging_count", 0),
+                "topic_avoidance_count": deception_analysis.get("avoidance_count", 0),
+                "overall_deception_likelihood": deception_analysis.get("likelihood", 0.0),
+                "explanation": deception_analysis.get("explanation", ""),
+            }
         except Exception as exc:
-            raise RuntimeError(f"Audio LLM call failed: {exc}") from exc
+            raise RuntimeError(f"Deception marker detection failed: {exc}") from exc
+
+    # ---------------------------------------------------------------
+    # Internal helper: query audio_files table
+    # ---------------------------------------------------------------
+    def _query_audio_files(self, file_key: Optional[str] = None, company_name: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Query audio_files table for company audio data."""
+        if not self.engine:
+            raise RuntimeError("PostgreSQL not initialized")
+        
+        try:
+            with Session(self.engine) as session:
+                query = """
+                    SELECT id, company_name, call_type, period, file_key, 
+                           duration_sec, transcript, participants, metadata, call_date
+                    FROM audio_files
+                    WHERE 1=1
+                """
+                params = {}
+                
+                if file_key:
+                    query += " AND file_key = :file_key"
+                    params["file_key"] = file_key
+                
+                if company_name:
+                    query += " AND LOWER(company_name) = LOWER(:company)"
+                    params["company"] = company_name
+                
+                query += " ORDER BY call_date DESC LIMIT 5"
+                
+                result = session.execute(text(query), params)
+                rows = result.fetchall()
+                return [{
+                    "id": str(row[0]),
+                    "company_name": row[1],
+                    "call_type": row[2],
+                    "period": row[3],
+                    "file_key": row[4],
+                    "duration_sec": row[5],
+                    "transcript": row[6],
+                    "participants": row[7] or [],
+                    "metadata": row[8] or {},
+                    "call_date": str(row[9]) if row[9] else None,
+                } for row in rows]
+        except Exception as exc:
+            self.logger.error(f"Audio file query failed: {exc}")
+            raise RuntimeError(f"Database query failed: {exc}") from exc
 
     def _read_audio_bytes(self, file_key: str) -> bytes:
         path = Path(file_key)
@@ -199,17 +273,3 @@ class AudioAgent(BaseAgent):
 
         return buffer.getvalue()
 
-    def _build_system_prompt(self, tool_name: str) -> str:
-        """Craft tool-specific instructions with required schema hints."""
-
-        contract_notes = {
-            "analyze_audio_tone": "Return segments with start_sec, end_sec, tone_label (confident|nervous|neutral|stressed|hesitant), stress_score (0-1), speaking_pace (slow|normal|fast), pitch_change (stable|rising|falling|erratic), overall_tone, confidence_in_analysis (0-1).",
-            "detect_deception_markers": "Return deception_markers list with timestamp_sec, marker_type (hedging_language|topic_avoidance|stress_spike|inconsistency), detail, confidence (0-1), plus hedging_word_count, topic_avoidance_count, overall_deception_likelihood (0-1), explanation.",
-        }
-
-        base_rules = [
-            "You are the Audio Agent. Output JSON only.",
-            "If unsure, return empty lists with low confidence.",
-        ]
-
-        return " \n".join(base_rules + [contract_notes.get(tool_name, "Follow the contract schema strictly.")])

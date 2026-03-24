@@ -9,14 +9,17 @@ class Settings(BaseSettings):
     # Database (Supabase)
     DATABASE_URL: str
     SUPABASE_URL: str
-    SUPABASE_SERVICE_KEY: str
     SUPABASE_KEY: Optional[str] = None
+    SUPABASE_SERVICE_KEY: Optional[str] = None
     SUPABASE_JWT_SECRET: Optional[str] = None
 
     # Neo4j
     NEO4J_URI: str
     NEO4J_USERNAME: str
     NEO4J_PASSWORD: str
+    
+    # Cohere — Vector Embeddings (1024-dim) for RAG
+    COHERE_API_KEY: Optional[str] = None
     
     # AI Gateway (Portkey) — all LLM calls go through Portkey
     PORTKEY_API_KEY: Optional[str] = None

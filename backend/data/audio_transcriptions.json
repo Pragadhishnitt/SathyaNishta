@@ -1,0 +1,37 @@
+[
+    {
+        "company": "State Bank of India",
+        "company_code": "SBI",
+        "audio_date": "2026-03-20",
+        "duration_minutes": 15,
+        "transcript": "This quarter, State Bank of India has delivered a strong and stable financial performance, supported by continued growth in both advances and deposits. Our balance sheet remains robust, with total assets expanding significantly, driven primarily by growth in the loan book and investment portfolio. On the liabilities side, deposits continue to form the largest component, reflecting strong customer trust and franchise strength. We have seen steady growth in savings and term deposits, which provides a stable and low-cost funding base. Borrowings have been managed efficiently, and we maintain a well-diversified liability profile. Our capital position remains strong, supported by healthy reserves and retained earnings, ensuring compliance with regulatory capital requirements. From an asset quality perspective, we have continued to see improvement, with better recoveries and controlled slippages. This has contributed to overall balance sheet strength and improved financial stability. Liquidity remains comfortable, with adequate cash and balances maintained with the Reserve Bank of India and other financial institutions. Overall, the bank is well-positioned to sustain growth while maintaining prudent risk management and financial discipline."
+    },
+    {
+        "company": "Reliance Industries",
+        "company_code": "RIL",
+        "audio_date": "2026-03-20",
+        "duration_minutes": 18,
+        "transcript": "Reliance Industries has reported a strong balance sheet performance this quarter, supported by diversified business operations across energy, retail, and digital services. Total assets have grown steadily, reflecting continued investments in infrastructure, expansion, and strategic initiatives. On the liabilities side, the company maintains a well-balanced structure, with a mix of equity and borrowings. Over the past few quarters, we have focused on maintaining a healthy debt profile while ensuring sufficient capital for growth. Equity remains strong, supported by retained earnings and strategic investments. This has enabled the company to fund expansion while maintaining financial stability. Cash flows continue to be robust, providing strong liquidity and flexibility. Our disciplined capital allocation strategy ensures that we invest in high-growth opportunities while maintaining a strong balance sheet. Overall, Reliance Industries remains well-positioned, with a solid financial foundation, enabling sustained growth across all key business segments."
+    },
+    {
+        "company": "Wipro",
+        "company_code": "WIPRO",
+        "audio_date": "2026-03-20",
+        "duration_minutes": 12,
+        "transcript": "Wipro's financial position remains stable, with a strong balance sheet supported by consistent cash flows and disciplined financial management. Total assets reflect steady growth, driven primarily by expansion in digital services and client engagements. The company maintains a conservative capital structure, with low levels of debt and strong cash reserves. This provides flexibility for future investments and strategic initiatives. Equity remains healthy, supported by retained earnings, reflecting consistent profitability over time. The company continues to prioritize operational efficiency and cost management to maintain margins. Liquidity remains strong, enabling Wipro to meet its short-term and long-term obligations comfortably. The company is well-positioned to navigate market uncertainties while continuing to invest in innovation and talent. Overall, Wipro's balance sheet reflects financial strength, stability, and a strong foundation for future growth."
+    },
+    {
+        "company": "ITC Limited",
+        "company_code": "ITC",
+        "audio_date": "2026-03-20",
+        "duration_minutes": 14,
+        "transcript": "ITC Limited continues to demonstrate a strong and resilient balance sheet, supported by its diversified business portfolio across FMCG, cigarettes, hotels, and paperboards. Total assets have grown steadily, reflecting investments in capacity expansion and new product development. The company maintains a strong equity base, supported by consistent profitability and retained earnings. One of the key strengths of ITC's balance sheet is its low debt position, which provides significant financial flexibility. The company relies primarily on internal accruals to fund its growth initiatives. Cash flows remain stable and strong, enabling continued investment in strategic areas while maintaining shareholder returns. The company continues to focus on improving operational efficiency and expanding its FMCG business. Overall, ITC's financial position remains robust, with a strong balance sheet and sustainable growth outlook."
+    },
+    {
+        "company": "Hindustan Unilever",
+        "company_code": "HUL",
+        "audio_date": "2026-03-20",
+        "duration_minutes": 11,
+        "transcript": "Hindustan Unilever has delivered a stable financial performance, supported by consistent growth in its core FMCG business. The balance sheet remains strong, with efficient utilization of capital and a focus on profitability. Total assets reflect steady business operations, while the company maintains a strong equity base supported by retained earnings. The company operates with minimal debt, which enhances financial stability. Liquidity remains strong, supported by healthy cash flows from operations. This enables the company to invest in brand building, innovation, and distribution expansion. The company continues to focus on improving margins and driving volume growth across categories. Efficient working capital management has further strengthened the balance sheet. Overall, Hindustan Unilever remains well-positioned, with a strong and efficient balance sheet supporting long-term growth."
+    }
+]
