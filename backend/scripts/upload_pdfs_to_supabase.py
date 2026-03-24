@@ -15,9 +15,9 @@ if not url or not key:
 
 supabase: Client = create_client(supabase_url=url, supabase_key=key)
 
-repo_root = Path(__file__).resolve().parents[2]
-financial_dir = repo_root / "backend" / "app" / "agents" / "financial" / "annual_reports"
-regulatory_dir = repo_root / "backend" / "app" / "agents" / "compliance" / "legal_docs"
+repo_root = Path("/app")
+financial_dir = repo_root / "app" / "agents" / "financial" / "annual_reports"
+regulatory_dir = repo_root / "app" / "agents" / "compliance" / "legal_docs"
 
 # 1. Ensure Buckets exist
 buckets = [b.name for b in supabase.storage.list_buckets()]

@@ -1,4 +1,4 @@
-import { CircleDashed, CheckCircle2, AlertTriangle, FileText } from "lucide-react";
+import { CircleDashed, CheckCircle2, AlertTriangle, FileText, Download } from "lucide-react";
 
 export interface AgentEvent {
   agent: string;
@@ -102,6 +102,41 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading }: Invest
                   </div>
                 ))}
               </div>
+            </div>
+            
+            {/* Report Download Action */}
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => {
+                  const reportContent = `SathyaNishta Investigation Report
+===============================
+Verdict: ${synthesis.verdict}
+Risk Score: ${synthesis.fraud_risk_score.toFixed(1)}/10
+
+Detailed Evidence:
+${synthesis.evidence.map(e => `- [${e.source}] (${e.severity}): ${e.finding}`).join('\n')}
+
+Agent Activity Log:
+${agentEvents.filter(a => a.status === 'complete').map(a => 
+  `${a.agent.toUpperCase()} AGENT (Risk: ${a.risk_score}/10)
+  ${a.findings?.map(f => `* ${f}`).join('\n  ')}`
+).join('\n\n')}
+`;
+                  const blob = new Blob([reportContent], { type: 'text/plain' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `sathyanishta_report_${new Date().toISOString().split('T')[0]}.txt`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm font-medium transition-colors"
+              >
+                <Download size={16} />
+                Download Report
+              </button>
             </div>
           </div>
         )}
