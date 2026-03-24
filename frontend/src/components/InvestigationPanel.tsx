@@ -1,4 +1,7 @@
-import { CircleDashed, CheckCircle2, AlertTriangle, FileText, Download } from "lucide-react";
+import { useRef, useState } from "react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import { CircleDashed, CheckCircle2, AlertTriangle, FileText, Download, Loader2 } from "lucide-react";
 
 export interface AgentEvent {
   agent: string;
@@ -26,8 +29,38 @@ interface InvestigationPanelProps {
 }
 
 export function InvestigationPanel({ agentEvents, synthesis, isLoading }: InvestigationPanelProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadPDF = async () => {
+    if (!panelRef.current) return;
+    try {
+      setIsDownloading(true);
+      const canvas = await html2canvas(panelRef.current, {
+        scale: 2,
+        backgroundColor: "#12121E",
+        logging: false,
+        useCORS: true
+      });
+      
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "px",
+        format: [canvas.width, canvas.height]
+      });
+      
+      pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+      pdf.save(`SathyaNishta_Investigation_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error("Failed to generate PDF", error);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   return (
-    <div className="w-full rounded-xl border border-indigo-500/20 bg-[#12121e] overflow-hidden my-4 shadow-xl shadow-indigo-500/5">
+    <div ref={panelRef} className="w-full rounded-xl border border-indigo-500/20 bg-[#12121e] overflow-hidden my-4 shadow-xl shadow-indigo-500/5">
       
       {/* Header */}
       <div className="border-b border-indigo-500/20 bg-indigo-500/10 p-4">
@@ -105,37 +138,14 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading }: Invest
             </div>
             
             {/* Report Download Action */}
-            <div className="mt-6 flex justify-end">
+            <div data-html2canvas-ignore="true" className="mt-6 flex justify-end">
               <button
-                onClick={() => {
-                  const reportContent = `SathyaNishta Investigation Report
-===============================
-Verdict: ${synthesis.verdict}
-Risk Score: ${synthesis.fraud_risk_score.toFixed(1)}/10
-
-Detailed Evidence:
-${synthesis.evidence.map(e => `- [${e.source}] (${e.severity}): ${e.finding}`).join('\n')}
-
-Agent Activity Log:
-${agentEvents.filter(a => a.status === 'complete').map(a => 
-  `${a.agent.toUpperCase()} AGENT (Risk: ${a.risk_score}/10)
-  ${a.findings?.map(f => `* ${f}`).join('\n  ')}`
-).join('\n\n')}
-`;
-                  const blob = new Blob([reportContent], { type: 'text/plain' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `sathyanishta_report_${new Date().toISOString().split('T')[0]}.txt`;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm font-medium transition-colors"
+                onClick={handleDownloadPDF}
+                disabled={isDownloading}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-600/50 text-white rounded-md text-sm font-medium transition-colors"
               >
-                <Download size={16} />
-                Download Report
+                {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                {isDownloading ? "Generating PDF..." : "Download Official Report"}
               </button>
             </div>
           </div>

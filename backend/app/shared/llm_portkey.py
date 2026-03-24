@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from typing import Any, Dict, List, Optional
+from tenacity import retry, wait_exponential, stop_after_attempt
 
 from app.core.config import settings
 
@@ -39,7 +40,11 @@ def get_portkey_client():
 
     from portkey_ai import Portkey  # local import to keep startup resilient if deps change
 
-    kwargs: Dict[str, Any] = {"api_key": settings.PORTKEY_API_KEY}
+    kwargs: Dict[str, Any] = {
+        "api_key": settings.PORTKEY_API_KEY,
+        "timeout": 60.0,
+        "max_retries": 2,
+    }
 
     parsed_config = _parse_portkey_config(settings.PORTKEY_CONFIG_ID)
     if parsed_config is not None:
@@ -48,6 +53,11 @@ def get_portkey_client():
     return Portkey(**kwargs)
 
 
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(3),
+    reraise=True
+)
 def chat_complete(
     *,
     user_prompt: str,
