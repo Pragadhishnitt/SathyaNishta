@@ -65,8 +65,6 @@ services:
       context: ./frontend
     container_name: sathya-frontend
     restart: unless-stopped
-    env_file:
-      - ./frontend/.env.local
     tty: true
     stdin_open: true
     environment:
