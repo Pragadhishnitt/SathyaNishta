@@ -2,11 +2,15 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { LogOut, LogIn, Activity, TrendingUp } from "lucide-react";
+import { LogOut, LogIn, Activity, TrendingUp, Shield } from "lucide-react";
+import { useThreads } from "@/context/ThreadContext";
 
 export function Navbar() {
   const { data: session } = useSession();
   const router = useRouter();
+  const { threads, currentThreadId } = useThreads();
+  const currentThread = threads.find(t => t.id === currentThreadId);
+  const isForensicMode = currentThread?.mode === "sathyanishta";
 
   return (
     <nav className="glass-card border-0 border-b border-white/[0.06] sticky top-0 z-50">
@@ -30,7 +34,18 @@ export function Navbar() {
             </div>
           </div>
         </div>
-
+        {/* Center Section: SathyaNishta Indicator */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+          {isForensicMode && (
+            <div className="flex items-center gap-2 animate-fade-in">
+              <Shield size={16} className="text-neon-indigo animate-pulse-glow" />
+              <span className="text-white font-bold text-sm tracking-[0.2em] uppercase opacity-90">
+                SathyaNishta
+              </span>
+              <div className="w-1.5 h-1.5 rounded-full bg-neon-indigo animate-pulse" />
+            </div>
+          )}
+        </div>
         {/* Auth Section */}
         <div className="flex items-center gap-3">
           {session ? (

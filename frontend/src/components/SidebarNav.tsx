@@ -4,24 +4,28 @@ import { useRouter, usePathname } from "next/navigation";
 import { MessageSquare, Plus, Settings, User, GitCompare, Shield, Zap, Edit2, Trash2, Check, X } from "lucide-react";
 import { useThreads, Thread } from "@/context/ThreadContext";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 
 export function SidebarNav() {
   const router = useRouter();
   const pathname = usePathname();
+  const { data: session } = useSession();
   const { threads, currentThreadId, setCurrentThreadId, addThread, renameThread, deleteThread } = useThreads();
 
   return (
     <aside className="w-[240px] bg-surface-1 flex flex-col h-full border-r border-white/[0.04]">
       {/* New Chat Button */}
-      <div className="p-3 pt-4">
-        <button
-          onClick={() => addThread("standard")}
-          className="flex w-full items-center justify-center gap-2 rounded-xl p-2.5 text-sm font-medium transition-all bg-gradient-to-r from-blue-500/10 to-indigo-600/10 hover:from-blue-500/20 hover:to-indigo-600/20 border border-blue-500/20 hover:border-blue-500/30 text-blue-400 hover:shadow-blue-500/20 group"
-        >
-          <Plus size={15} className="group-hover:rotate-90 transition-transform duration-300" />
-          New Chat
-        </button>
-      </div>
+      {session && (
+        <div className="p-3 pt-4">
+          <button
+            onClick={() => addThread("standard")}
+            className="flex w-full items-center justify-center gap-2 rounded-xl p-2.5 text-sm font-medium transition-all bg-gradient-to-r from-blue-500/10 to-indigo-600/10 hover:from-blue-500/20 hover:to-indigo-600/20 border border-blue-500/20 hover:border-blue-500/30 text-blue-400 hover:shadow-blue-500/20 group"
+          >
+            <Plus size={15} className="group-hover:rotate-90 transition-transform duration-300" />
+            New Chat
+          </button>
+        </div>
+      )}
 
       {/* Navigation */}
       <div className="px-3 mt-2">
@@ -44,27 +48,45 @@ export function SidebarNav() {
       </div>
 
       {/* Recent Chats */}
-      <div className="flex-1 overflow-y-auto px-3 mt-4 custom-scrollbar">
-        <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2 px-2 flex justify-between items-center">
-          Recent Chats
-          <span className="text-[8px] bg-white/[0.05] px-1.5 py-0.5 rounded opacity-50">{threads.length}</span>
+      {session ? (
+        <div className="flex-1 overflow-y-auto px-3 mt-4 custom-scrollbar">
+          <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2 px-2 flex justify-between items-center">
+            Recent Chats
+            <span className="text-[8px] bg-white/[0.05] px-1.5 py-0.5 rounded opacity-50">{threads.length}</span>
+          </div>
+          <div className="space-y-0.5">
+            {threads.map((thread) => (
+              <HistoryItem 
+                key={thread.id} 
+                thread={thread}
+                active={currentThreadId === thread.id}
+                onClick={() => {
+                  setCurrentThreadId(thread.id);
+                  if (pathname !== "/") router.push("/");
+                }}
+                onRename={(title) => renameThread(thread.id, title)}
+                onDelete={() => deleteThread(thread.id)}
+              />
+            ))}
+          </div>
         </div>
-        <div className="space-y-0.5">
-          {threads.map((thread) => (
-            <HistoryItem 
-              key={thread.id} 
-              thread={thread}
-              active={currentThreadId === thread.id}
-              onClick={() => {
-                setCurrentThreadId(thread.id);
-                if (pathname !== "/") router.push("/");
-              }}
-              onRename={(title) => renameThread(thread.id, title)}
-              onDelete={() => deleteThread(thread.id)}
-            />
-          ))}
+      ) : (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-white/[0.03] flex items-center justify-center">
+            <User size={20} className="text-gray-600" />
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-400">Sign in required</p>
+            <p className="text-[10px] text-gray-600 mt-1">Authenticate to save and view your chat history</p>
+          </div>
+          <button 
+            onClick={() => router.push("/auth/login")}
+            className="text-[10px] font-semibold text-blue-400 hover:text-blue-300 transition-colors"
+          >
+            Go to Login
+          </button>
         </div>
-      </div>
+      )}
 
       {/* Footer */}
       <div className="border-t border-white/[0.04] p-3 space-y-0.5">
