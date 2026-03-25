@@ -2,13 +2,13 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import '@/styles/globals.css'
 import { AuthProvider } from '@/components/AuthProvider'
-import { Navbar } from '@/components/Navbar'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
 export const metadata: Metadata = {
-    title: 'Sathya Nishta',
-    description: 'AI-Powered Investigation Platform',
+    title: 'Sathya Nishta — AI Forensic Investigation Platform',
+    description: 'Multi-agent AI system for financial fraud detection, compliance verification, and forensic investigation powered by LangGraph.',
+    keywords: ['fraud detection', 'financial investigation', 'AI forensics', 'compliance'],
 }
 
 export default function RootLayout({
@@ -17,10 +17,9 @@ export default function RootLayout({
     children: React.ReactNode
 }) {
     return (
-        <html lang="en">
-            <body className={inter.className}>
+        <html lang="en" className="dark">
+            <body className={`${inter.className} antialiased`}>
                 <AuthProvider>
-                    <Navbar />
                     {children}
                 </AuthProvider>
             </body>

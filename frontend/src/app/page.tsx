@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { Navbar } from "@/components/Navbar";
 import { SidebarNav } from "@/components/SidebarNav";
 import { ChatInput } from "@/components/ChatInput";
 import { ChatMessage, Message } from "@/components/ChatMessage";
 import { InvestigationPanel, AgentEvent, SynthesisResult } from "@/components/InvestigationPanel";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
-import { AlertCircle, Lock } from "lucide-react";
+import { AlertCircle, Lock, Shield, X } from "lucide-react";
 
 type Mode = "standard" | "sathyanishta";
 
@@ -23,23 +24,21 @@ export default function Home() {
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   const handleSubmit = async (query: string) => {
-    // Add user message
     setMessages(prev => [...prev, { role: "user", content: query }]);
-    
+
     if (mode === "standard") {
-      // Standard dummy response
       setIsLoading(true);
       setTimeout(() => {
-        setMessages(prev => [...prev, { 
-          role: "assistant", 
-          content: "This is a standard chat response. Turn on Sathyanishta Mode to trigger a deep multi-agent forensic investigation." 
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: "This is a standard chat response. Toggle Sathyanishta Mode to trigger a deep multi-agent forensic investigation."
         }]);
         setIsLoading(false);
       }, 1000);
       return;
     }
 
-    // Sathyanishta Mode - Trigger Investigation SSE stream
+    // Sathyanishta Mode — SSE stream
     setAgentEvents([]);
     setSynthesis(null);
     setIsLoading(true);
@@ -50,7 +49,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query, mode }),
       });
-      
+
       const { stream_url } = await res.json();
       const es = new EventSource(stream_url);
 
@@ -72,9 +71,9 @@ export default function Home() {
 
       es.addEventListener("complete", () => {
         setIsLoading(false);
-        setMessages(prev => [...prev, { 
-          role: "assistant", 
-          content: "Investigation complete. Please review the detailed risk scorecard and evidence matrix in the panel above." 
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: "Investigation complete. Review the detailed risk scorecard and evidence matrix in the panel above."
         }]);
         es.close();
       });
@@ -98,73 +97,85 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen bg-[#0f0f0f] text-white">
-      <SidebarNav />
-      
-      <main className="flex flex-col flex-1 overflow-hidden">
-        {/* Top bar */}
-        <header className="flex items-center gap-3 px-6 py-3 border-b border-white/10 mt-1">
-          <span className="font-semibold px-2">Sathya Nishta</span>
-          <span className="text-xs text-gray-400 bg-white/5 py-1 px-3 rounded-full">
-            ET Markets · Market ChatGPT Next Gen
-          </span>
-        </header>
+    <div className="flex flex-col h-screen bg-surface-0 text-white">
+      <Navbar />
+      <div className="flex flex-1 overflow-hidden">
+        <SidebarNav />
 
-        {/* Chat area */}
-        <div className="flex-1 overflow-y-auto px-6 pt-8 pb-32 max-w-4xl mx-auto w-full space-y-6">
-          {messages.length === 0 && <WelcomeScreen mode={mode} />}
-          
-          {messages.map((m, i) => (
-            <ChatMessage key={i} message={m} />
-          ))}
+        <main className="flex flex-col flex-1 overflow-hidden relative">
+          {/* Subtle background gradient */}
+          <div className="absolute inset-0 pointer-events-none opacity-30">
+            <div className="absolute top-0 left-1/4 w-96 h-96 bg-neon-indigo/5 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-600/5 rounded-full blur-3xl" />
+          </div>
 
-          {/* Sathyanishta Mode Inline Investigation Panel */}
-          {mode === "sathyanishta" && (agentEvents.length > 0 || synthesis) && (
-            <InvestigationPanel
-              agentEvents={agentEvents}
-              synthesis={synthesis}
-              isLoading={isLoading}
-            />
-          )}
-        </div>
+          {/* Chat area */}
+          <div className="flex-1 overflow-y-auto px-6 pt-6 pb-32 max-w-4xl mx-auto w-full space-y-4 relative z-10">
+            {messages.length === 0 && <WelcomeScreen mode={mode} />}
 
-        <ChatInput
-          mode={mode}
-          onModeToggle={handleModeToggle}
-          onSubmit={handleSubmit}
-          isLoading={isLoading}
-        />
-      </main>
+            {messages.map((m, i) => (
+              <ChatMessage key={i} message={m} />
+            ))}
+
+            {/* Investigation Panel */}
+            {mode === "sathyanishta" && (agentEvents.length > 0 || synthesis) && (
+              <InvestigationPanel
+                agentEvents={agentEvents}
+                synthesis={synthesis}
+                isLoading={isLoading}
+              />
+            )}
+          </div>
+
+          <ChatInput
+            mode={mode}
+            onModeToggle={handleModeToggle}
+            onSubmit={handleSubmit}
+            isLoading={isLoading}
+          />
+        </main>
+      </div>
 
       {/* Login Required Modal */}
       {showLoginModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-gradient-to-br from-blue-900/95 to-purple-900/95 rounded-xl border border-white/20 p-8 max-w-md shadow-2xl">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+          <div className="glass-card neon-border-indigo p-6 max-w-sm w-full mx-4 animate-slide-up">
+            {/* Close */}
+            <button
+              onClick={() => setShowLoginModal(false)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              <X size={16} />
+            </button>
+
             <div className="flex items-center gap-3 mb-4">
-              <div className="bg-red-500/20 p-3 rounded-lg">
-                <AlertCircle className="w-6 h-6 text-red-400" />
+              <div className="w-10 h-10 rounded-xl bg-neon-indigo/10 flex items-center justify-center animate-pulse-glow">
+                <Shield size={20} className="text-neon-indigo" />
               </div>
-              <h2 className="text-xl font-bold text-white">Login Required</h2>
+              <div>
+                <h2 className="text-base font-bold text-white">Authentication Required</h2>
+                <p className="text-xs text-gray-500">Sathyanishta Mode access</p>
+              </div>
             </div>
-            
-            <p className="text-gray-300 mb-6">
-              Sathyanishta Mode requires authentication to access advanced investigation features.
+
+            <p className="text-sm text-gray-400 mb-5 leading-relaxed">
+              Deep investigation mode requires authentication to access advanced multi-agent forensic analysis.
             </p>
 
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               <button
                 onClick={() => {
                   setShowLoginModal(false);
                   router.push("/auth/login");
                 }}
-                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition"
+                className="btn-primary w-full flex items-center justify-center gap-2 py-2.5"
               >
-                <Lock className="w-4 h-4" />
-                Sign In
+                <Lock size={14} />
+                Sign In to Continue
               </button>
               <button
                 onClick={() => setShowLoginModal(false)}
-                className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white font-medium py-3 px-4 rounded-lg transition"
+                className="btn-ghost w-full py-2.5"
               >
                 Stay in Standard Mode
               </button>

@@ -26,6 +26,7 @@ class InvestigationState(TypedDict, total=False):
     graph_findings:      AgentFinding
     audio_findings:      AgentFinding
     compliance_findings: AgentFinding
+    news_findings:       AgentFinding
 
     # ── Reflection gate (Team A writes, Team B reads for UI) ────────
     reflection_passed:   bool
