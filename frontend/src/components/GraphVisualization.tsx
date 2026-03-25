@@ -55,7 +55,7 @@ export function GraphVisualization({ data }: GraphVisualizationProps) {
           font: { color: "#94a3b8", size: 10, strokeWidth: 0, face: "JetBrains Mono" },
           arrows: "to",
           width: e.suspicious ? 3 : 1.5,
-          smooth: { type: "curvedCW", roundness: 0.2 },
+          smooth: { enabled: true, type: "curvedCW", roundness: 0.2 },
           dashes: !e.suspicious,
           shadow: e.suspicious ? { enabled: true, color: "rgba(239, 68, 68, 0.4)", size: 8 } : false,
         }))
@@ -63,7 +63,7 @@ export function GraphVisualization({ data }: GraphVisualizationProps) {
 
       const network = new VisNetwork(
         containerRef.current!,
-        { nodes, edges },
+        { nodes: nodes as any, edges: edges as any },
         {
           physics: {
             forceAtlas2Based: { gravitationalConstant: -30, centralGravity: 0.005, springLength: 120 },
