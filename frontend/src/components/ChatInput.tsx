@@ -1,4 +1,6 @@
-import { ArrowUp, Sparkles, Loader2 } from "lucide-react";
+import { ArrowUp, Sparkles, Loader2, LogIn } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 interface ChatInputProps {
   mode: "standard" | "sathyanishta";
@@ -8,6 +10,9 @@ interface ChatInputProps {
 }
 
 export function ChatInput({ mode, onModeToggle, onSubmit, isLoading }: ChatInputProps) {
+  const { data: session } = useSession();
+  const router = useRouter();
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
@@ -35,18 +40,21 @@ export function ChatInput({ mode, onModeToggle, onSubmit, isLoading }: ChatInput
       >
         <textarea
           name="query"
+          disabled={!session}
           placeholder={
-            isSathya
+            !session
+              ? "Sign in to start a conversation..."
+              : isSathya
               ? "Investigate a company — e.g., 'Investigate FraudCorp for circular trading'..."
               : "Ask a question or request an investigation..."
           }
-          className="w-full resize-none bg-transparent p-4 pb-2 pr-12 outline-none text-white text-sm placeholder:text-gray-500"
+          className="w-full resize-none bg-transparent p-4 pb-2 pr-12 outline-none text-white text-sm placeholder:text-gray-500 disabled:cursor-not-allowed"
           rows={1}
           autoFocus
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
-              if (e.currentTarget.value.trim() && !isLoading) {
+              if (e.currentTarget.value.trim() && !isLoading && session) {
                 onSubmit(e.currentTarget.value);
                 e.currentTarget.value = "";
               }
@@ -69,28 +77,38 @@ export function ChatInput({ mode, onModeToggle, onSubmit, isLoading }: ChatInput
               size={13}
               className={`transition-all duration-300 ${isSathya ? "text-neon-indigo" : ""}`}
             />
-            {isSathya ? "SathyaNishta Mode" : "Market Insights"}
+            {isSathya ? "SathyaNishta Mode" : "SathyaNishta Mode"}
             {isSathya && (
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-neon-indigo" />
             )}
           </button>
 
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={isLoading}
-            className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 ${
-              isLoading
-                ? "bg-neon-indigo/20 text-neon-indigo"
-                : "bg-white text-black hover:bg-gray-200 hover:scale-105 active:scale-95"
-            }`}
-          >
-            {isLoading ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <ArrowUp size={16} />
-            )}
-          </button>
+          {/* Submit / Login Button */}
+          {session ? (
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 ${
+                isLoading
+                  ? "bg-neon-indigo/20 text-neon-indigo"
+                  : "bg-white text-black hover:bg-gray-200 hover:scale-105 active:scale-95"
+              }`}
+            >
+              {isLoading ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <ArrowUp size={16} />
+              )}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => router.push("/auth/login")}
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-all hover:scale-105"
+            >
+              <LogIn size={15} />
+            </button>
+          )}
         </div>
       </form>
 

@@ -155,20 +155,26 @@ export default function Home() {
 
           {/* Chat area */}
           <div className="flex-1 overflow-y-auto px-6 pt-6 pb-32 max-w-4xl mx-auto w-full space-y-4 relative z-10">
-            {(currentThread.messages || []).length === 0 && <WelcomeScreen mode={mode} />}
+            {!session ? (
+              <WelcomeScreen mode={mode} />
+            ) : (
+              <>
+                {(currentThread.messages || []).length === 0 && <WelcomeScreen mode={mode} />}
 
-            {(currentThread.messages || []).map((m, i) => (
-              <ChatMessage key={i} message={m} />
-            ))}
+                {(currentThread.messages || []).map((m, i) => (
+                  <ChatMessage key={i} message={m} />
+                ))}
 
-            {/* Investigation Panel */}
-            {currentThread.mode === "sathyanishta" && (currentThread.agentEvents?.length || currentThread.synthesis) && (
-              <InvestigationPanel
-                agentEvents={currentThread.agentEvents || []}
-                synthesis={currentThread.synthesis || null}
-                isLoading={isLoading}
-                investigationId={currentThread.investigationId}
-              />
+                {/* Investigation Panel */}
+                {currentThread.mode === "sathyanishta" && (currentThread.agentEvents?.length || currentThread.synthesis) && (
+                  <InvestigationPanel
+                    agentEvents={currentThread.agentEvents || []}
+                    synthesis={currentThread.synthesis || null}
+                    isLoading={isLoading}
+                    investigationId={currentThread.investigationId}
+                  />
+                )}
+              </>
             )}
           </div>
 

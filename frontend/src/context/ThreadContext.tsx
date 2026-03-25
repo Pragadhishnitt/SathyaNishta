@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Message } from "@/components/ChatMessage";
 import { AgentEvent, SynthesisResult } from "@/components/InvestigationPanel";
+import { useSession } from "next-auth/react";
 
 export type Mode = "standard" | "sathyanishta";
 
@@ -30,34 +31,55 @@ interface ThreadContextType {
 const ThreadContext = createContext<ThreadContextType | undefined>(undefined);
 
 export function ThreadProvider({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<string>("");
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Load from localStorage on mount
+  // Sync with session
   useEffect(() => {
-    const saved = localStorage.getItem("market-chat-threads");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setThreads(parsed);
-        if (parsed.length > 0) setCurrentThreadId(parsed[0].id);
-      } catch (e) {
-        console.error("Failed to load threads", e);
+    if (status === "loading") return;
+
+    if (!session) {
+      // Clear state if not logged in
+      setThreads([]);
+      setCurrentThreadId("");
+      setIsInitialized(true);
+    } else if (!isInitialized) {
+      // Load from localStorage if logged in and not yet initialized
+      const saved = localStorage.getItem("market-chat-threads");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setThreads(parsed);
+          if (parsed.length > 0) {
+            setCurrentThreadId(parsed[0].id);
+          } else {
+            // Create default thread if empty
+            const id = Math.random().toString(36).substring(7);
+            const defaultThread: Thread = { id, title: "New Market Chat", messages: [], mode: "standard", createdAt: Date.now() };
+            setThreads([defaultThread]);
+            setCurrentThreadId(id);
+          }
+        } catch (e) {
+          console.error("Failed to load threads", e);
+        }
+      } else {
+        // Create initial thread
+        const id = Math.random().toString(36).substring(7);
+        setThreads([{ id, title: "New Market Chat", messages: [], mode: "standard", createdAt: Date.now() }]);
+        setCurrentThreadId(id);
       }
-    } else {
-      // Default thread
-      const id = Math.random().toString(36).substring(7);
-      setThreads([{ id, title: "New Market Chat", messages: [], mode: "standard", createdAt: Date.now() }]);
-      setCurrentThreadId(id);
+      setIsInitialized(true);
     }
-  }, []);
+  }, [session, status, isInitialized]);
 
-  // Save to localStorage on change
+  // Save to localStorage on change - ONLY if logged in
   useEffect(() => {
-    if (threads.length > 0) {
+    if (isInitialized && session && threads.length > 0) {
       localStorage.setItem("market-chat-threads", JSON.stringify(threads));
     }
-  }, [threads]);
+  }, [threads, isInitialized, session]);
 
   const addThread = (mode: Mode) => {
     const id = Math.random().toString(36).substring(7);
