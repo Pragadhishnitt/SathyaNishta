@@ -1,4 +1,5 @@
 import { User, Shield } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 
 export interface Message {
   role: "user" | "assistant";
@@ -30,8 +31,20 @@ export function ChatMessage({ message }: { message: Message }) {
         <div className="font-semibold text-xs text-gray-400 uppercase tracking-wide">
           {isUser ? "You" : "Sathya Nishta"}
         </div>
-        <div className="text-sm leading-relaxed text-gray-200 whitespace-pre-wrap">
-          {message.content}
+        <div className="text-sm leading-relaxed text-gray-200 prose prose-invert prose-sm max-w-none">
+          <ReactMarkdown
+            components={{
+              p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+              ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
+              ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
+              li: ({ children }) => <li>{children}</li>,
+              strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+              em: ({ children }) => <em className="italic text-gray-300">{children}</em>,
+              div: ({ children }) => <div className="mb-2 last:mb-0">{children}</div>,
+            }}
+          >
+            {message.content}
+          </ReactMarkdown>
         </div>
       </div>
     </div>

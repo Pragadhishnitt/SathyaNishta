@@ -42,8 +42,8 @@ services:
       - ./contracts:/contracts
     labels:
       - "traefik.enable=true"
-      # API routes (/api/investigate)
-      - "traefik.http.routers.backend-api.rule=PathPrefix(`/api/investigate`)"
+      # API routes (/api/investigate, /api/chat, /api/report)
+      - "traefik.http.routers.backend-api.rule=PathPrefix(`/api`) && !PathPrefix(`/api/auth`)"
       - "traefik.http.routers.backend-api.entrypoints=web"
       - "traefik.http.services.backend-api.loadbalancer.server.port=8000"
       # Health route

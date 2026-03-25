@@ -3,14 +3,15 @@
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { LogOut, LogIn, Activity, TrendingUp, Shield } from "lucide-react";
-import { useThreads } from "@/context/ThreadContext";
+import { useThreads, Mode } from "@/context/ThreadContext";
 
-export function Navbar() {
+export function Navbar({ mode }: { mode?: Mode }) {
   const { data: session } = useSession();
   const router = useRouter();
   const { threads, currentThreadId } = useThreads();
+  
   const currentThread = threads.find(t => t.id === currentThreadId);
-  const isForensicMode = currentThread?.mode === "sathyanishta";
+  const isForensicMode = mode === "sathyanishta" || currentThread?.mode === "sathyanishta";
 
   return (
     <nav className="glass-card border-0 border-b border-white/[0.06] sticky top-0 z-50">

@@ -27,17 +27,27 @@ async def chat_standard(request: ChatRequest):
         # Add a system prompt for MarketChatGPT personality
         system_msg = {
             "role": "system", 
-            "content": "You are MarketChatGPT by ET. You are a helpful AI financial assistant. You provide concise, data-driven insights about stock markets, companies, and economy. If the user asks for a deep forensic audit or fraud investigation, suggest they enable 'SathyaNishta Mode' for multi-agent analysis."
+            "content": "You are MarketChatGPT by ET. You provide concise, data-driven insights about stock markets, companies, and economy. IMPORTANT: Always format your response using professional markdown (bolding, lists, etc). At the end of every response, ALWAYS add a line: '*Note: Use SathyaNishta Mode for in-depth forensic investigation and multi-agent fraud analysis.*'"
         }
         
         response = client.chat.completions.create(
             messages=[system_msg] + formatted_messages,
-            stream=False # Keep it simple for now, can add streaming later if needed
+            stream=False
         )
         
+        # Robust content extraction (handles both object and dict responses)
+        content = None
+        try:
+            content = response.choices[0].message.content
+        except (AttributeError, IndexError):
+            try:
+                content = response.get("choices", [{}])[0].get("message", {}).get("content")
+            except Exception:
+                content = str(response)
+
         return {
             "role": "assistant",
-            "content": response.choices[0].message.content
+            "content": content
         }
     except Exception as e:
         _logger.error(f"Chat error: {str(e)}")
