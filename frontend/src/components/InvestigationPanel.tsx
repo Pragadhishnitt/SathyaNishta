@@ -51,7 +51,17 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading }: Invest
       });
       
       pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-      pdf.save(`SathyaNishta_Investigation_${new Date().toISOString().split('T')[0]}.pdf`);
+      
+      // Create blob and trigger download
+      const pdfBlob = pdf.output("blob");
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `SathyaNishta_Investigation_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Failed to generate PDF", error);
     } finally {
@@ -63,7 +73,7 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading }: Invest
     <div ref={panelRef} className="w-full rounded-xl border border-indigo-500/20 bg-[#12121e] overflow-hidden my-4 shadow-xl shadow-indigo-500/5">
       
       {/* Header */}
-      <div className="border-b border-indigo-500/20 bg-indigo-500/10 p-4">
+      <div className="border-b border-indigo-500/20 bg-indigo-500/10 p-4 flex items-center justify-between">
         <h3 className="flex items-center gap-2 font-medium text-indigo-300">
           {isLoading ? (
             <CircleDashed size={16} className="animate-spin" />
@@ -72,6 +82,20 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading }: Invest
           )}
           {isLoading ? "Running Deep Investigation..." : "Investigation Complete"}
         </h3>
+        {!isLoading && synthesis && (
+          <button
+            onClick={handleDownloadPDF}
+            disabled={isDownloading}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition-colors text-sm font-medium text-white"
+          >
+            {isDownloading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Download size={16} />
+            )}
+            {isDownloading ? "Exporting..." : "Export PDF"}
+          </button>
+        )}
       </div>
 
       {/* Agents Timeline */}
