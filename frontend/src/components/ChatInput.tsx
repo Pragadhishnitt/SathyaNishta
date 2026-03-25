@@ -29,7 +29,7 @@ export function ChatInput({ mode, onModeToggle, onSubmit, isLoading }: ChatInput
         onSubmit={handleSubmit}
         className={`relative flex flex-col w-full rounded-2xl glass-card overflow-hidden transition-all duration-300 ${
           isSathya
-            ? "neon-border-indigo shadow-neon-indigo"
+            ? "border-neon-indigo/50"
             : "border-white/[0.06] hover:border-white/10"
         }`}
       >
@@ -61,7 +61,7 @@ export function ChatInput({ mode, onModeToggle, onSubmit, isLoading }: ChatInput
             onClick={onModeToggle}
             className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[11px] font-semibold transition-all duration-300 ${
               isSathya
-                ? "bg-neon-indigo/15 text-neon-indigo border border-neon-indigo/30 shadow-neon-indigo"
+                ? "bg-neon-indigo/15 text-neon-indigo border border-neon-indigo/30"
                 : "bg-white/[0.03] text-gray-500 border border-white/[0.06] hover:bg-white/[0.06] hover:text-gray-300"
             }`}
           >
@@ -69,12 +69,9 @@ export function ChatInput({ mode, onModeToggle, onSubmit, isLoading }: ChatInput
               size={13}
               className={`transition-all duration-300 ${isSathya ? "text-neon-indigo" : ""}`}
             />
-            {isSathya ? "SATHYANISHTA MODE" : "Standard Mode"}
+            {isSathya ? "SathyaNishta Mode" : "Market Insights"}
             {isSathya && (
-              <span className="flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-1.5 w-1.5 rounded-full bg-neon-indigo opacity-75" />
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-neon-indigo" />
-              </span>
             )}
           </button>
 

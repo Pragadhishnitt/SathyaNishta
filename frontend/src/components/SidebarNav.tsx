@@ -1,13 +1,14 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { MessageSquare, Plus, Settings, User, GitCompare, Shield, Zap } from "lucide-react";
-import { useThreads } from "@/context/ThreadContext";
+import { MessageSquare, Plus, Settings, User, GitCompare, Shield, Zap, Edit2, Trash2, Check, X } from "lucide-react";
+import { useThreads, Thread } from "@/context/ThreadContext";
+import { useState } from "react";
 
 export function SidebarNav() {
   const router = useRouter();
   const pathname = usePathname();
-  const { threads, currentThreadId, setCurrentThreadId, addThread } = useThreads();
+  const { threads, currentThreadId, setCurrentThreadId, addThread, renameThread, deleteThread } = useThreads();
 
   return (
     <aside className="w-[240px] bg-surface-1 flex flex-col h-full border-r border-white/[0.04]">
@@ -52,13 +53,14 @@ export function SidebarNav() {
           {threads.map((thread) => (
             <HistoryItem 
               key={thread.id} 
-              title={thread.title || "New Chat"} 
+              thread={thread}
               active={currentThreadId === thread.id}
-              mode={thread.mode}
               onClick={() => {
                 setCurrentThreadId(thread.id);
                 if (pathname !== "/") router.push("/");
               }}
+              onRename={(title) => renameThread(thread.id, title)}
+              onDelete={() => deleteThread(thread.id)}
             />
           ))}
         </div>
@@ -109,16 +111,42 @@ function NavItem({
 }
 
 function HistoryItem({ 
-  title, 
+  thread, 
   active = false, 
-  mode,
-  onClick 
+  onClick,
+  onRename,
+  onDelete
 }: { 
-  title: string; 
+  thread: Thread; 
   active?: boolean; 
-  mode?: "standard" | "sathyanishta";
   onClick: () => void;
+  onRename: (title: string) => void;
+  onDelete: () => void;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(thread.title);
+
+  const handleRename = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (editValue.trim() && editValue !== thread.title) {
+      onRename(editValue);
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancel = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditValue(thread.title);
+    setIsEditing(false);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm("Delete this chat?")) {
+      onDelete();
+    }
+  };
+
   return (
     <div
       onClick={onClick}
@@ -128,16 +156,51 @@ function HistoryItem({
           : "text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]"
       }`}
     >
-      <div className={`p-1 rounded-md ${mode === 'sathyanishta' ? 'bg-neon-indigo/10' : 'bg-blue-500/10'}`}>
-        {mode === 'sathyanishta' ? (
+      <div className={`p-1 rounded-md shrink-0 ${thread.mode === 'sathyanishta' ? 'bg-neon-indigo/10' : 'bg-blue-500/10'}`}>
+        {thread.mode === 'sathyanishta' ? (
           <Shield size={12} className="text-neon-indigo" />
         ) : (
           <MessageSquare size={12} className="text-blue-400" />
         )}
       </div>
-      <span className="truncate flex-1">{title}</span>
-      {active && (
-        <div className={`absolute left-0 w-0.5 h-4 rounded-full ${mode === 'sathyanishta' ? 'bg-neon-indigo' : 'bg-blue-400'}`} />
+
+      {isEditing ? (
+        <div className="flex items-center gap-1 flex-1 min-w-0" onClick={e => e.stopPropagation()}>
+          <input
+            autoFocus
+            className="bg-surface-1 border border-white/10 rounded px-1.5 py-0.5 w-full outline-none text-white text-[11px]"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleRename(e as any);
+              if (e.key === 'Escape') handleCancel(e as any);
+            }}
+          />
+          <button onClick={handleRename} className="text-emerald-400 hover:text-emerald-300"><Check size={12}/></button>
+          <button onClick={handleCancel} className="text-gray-500 hover:text-gray-400"><X size={12}/></button>
+        </div>
+      ) : (
+        <>
+          <span className="truncate flex-1">{thread.title || "New Chat"}</span>
+          <div className="hidden group-hover:flex items-center gap-1.5 transition-opacity">
+            <button 
+              onClick={(e) => { e.stopPropagation(); setIsEditing(true); setEditValue(thread.title); }}
+              className="text-gray-500 hover:text-white transition-colors"
+            >
+              <Edit2 size={11} />
+            </button>
+            <button 
+              onClick={handleDelete}
+              className="text-gray-500 hover:text-red-400 transition-colors"
+            >
+              <Trash2 size={11} />
+            </button>
+          </div>
+        </>
+      )}
+
+      {active && !isEditing && (
+        <div className={`absolute left-0 w-0.5 h-4 rounded-full ${thread.mode === 'sathyanishta' ? 'bg-neon-indigo' : 'bg-blue-400'}`} />
       )}
     </div>
   );

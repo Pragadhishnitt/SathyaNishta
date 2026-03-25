@@ -1,6 +1,10 @@
 import logging
 import os
 
+def get_logger(name):
+    """Alias for setup_logger to support different import styles."""
+    return setup_logger(name)
+
 def setup_logger(name):
     # Retrieve log level from environment variable, default to DEBUG
     log_level = os.getenv("LOG_LEVEL", "DEBUG").upper()

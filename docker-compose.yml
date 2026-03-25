@@ -71,6 +71,8 @@ services:
       - NEXT_TELEMETRY_DISABLED=1
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
+      - NEXTAUTH_URL=http://localhost:8090
+      - NEXTAUTH_SECRET=hackathon-market-chat-secret-2026
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"

@@ -13,6 +13,7 @@ export interface Thread {
   mode: Mode;
   agentEvents?: AgentEvent[];
   synthesis?: SynthesisResult | null;
+  investigationId?: string;
   createdAt: number;
 }
 
@@ -22,6 +23,8 @@ interface ThreadContextType {
   setCurrentThreadId: (id: string) => void;
   addThread: (mode: Mode) => string;
   updateThread: (id: string, updates: Partial<Thread> | ((prev: Thread) => Partial<Thread>)) => void;
+  renameThread: (id: string, title: string) => void;
+  deleteThread: (id: string) => void;
 }
 
 const ThreadContext = createContext<ThreadContextType | undefined>(undefined);
@@ -80,8 +83,27 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  const setInvestigationId = (threadId: string, invId: string) => {
+    updateThread(threadId, { investigationId: invId });
+  };
+
+  const renameThread = (id: string, title: string) => {
+    setThreads(prev => prev.map(t => t.id === id ? { ...t, title } : t));
+  };
+
+  const deleteThread = (id: string) => {
+    setThreads(prev => {
+      const filtered = prev.filter(t => t.id !== id);
+      if (currentThreadId === id && filtered.length > 0) {
+        setCurrentThreadId(filtered[0].id);
+      }
+      return filtered;
+    });
+  };
+
+
   return (
-    <ThreadContext.Provider value={{ threads, currentThreadId, setCurrentThreadId, addThread, updateThread }}>
+    <ThreadContext.Provider value={{ threads, currentThreadId, setCurrentThreadId, addThread, updateThread, renameThread, deleteThread }}>
       {children}
     </ThreadContext.Provider>
   );

@@ -37,6 +37,7 @@ interface InvestigationPanelProps {
   agentEvents: AgentEvent[];
   synthesis: SynthesisResult | null;
   isLoading: boolean;
+  investigationId?: string;
 }
 
 const AGENT_META: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
@@ -64,7 +65,7 @@ function getVerdictStyle(verdict: string) {
   }
 }
 
-export function InvestigationPanel({ agentEvents, synthesis, isLoading }: InvestigationPanelProps) {
+export function InvestigationPanel({ agentEvents, synthesis, isLoading, investigationId }: InvestigationPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
@@ -80,11 +81,28 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading }: Invest
   };
 
   const handleDownloadPDF = async () => {
+    if (investigationId) {
+      try {
+        setIsDownloading(true);
+        // Direct download from backend
+        window.location.href = `/api/investigate/${investigationId}/report`;
+        return;
+      } catch (error) {
+        console.error("Backend report failed, falling back to client-side", error);
+      } finally {
+        // Wait a bit before resetting loading state as window.location.href 
+        // doesn't block but triggers a download
+        setTimeout(() => setIsDownloading(false), 2000);
+      }
+    }
+
+    // Fallback to client-side screenshot if no ID or backend failed
     if (!panelRef.current) return;
     try {
       setIsDownloading(true);
       const canvas = await html2canvas(panelRef.current, {
-        scale: 2, backgroundColor: "#0a0a0f", logging: false, useCORS: true,
+        scale: 1.5, // Reduced from 2 for better size
+        backgroundColor: "#0a0a0f", logging: false, useCORS: true,
       });
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [canvas.width, canvas.height] });

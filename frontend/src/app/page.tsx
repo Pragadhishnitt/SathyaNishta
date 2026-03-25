@@ -37,10 +37,17 @@ export default function Home() {
     const userMsg: Message = { role: "user", content: query };
     const updatedMessages = [...(currentThread.messages || []), userMsg];
     
-    // Update title on first message
+    // Automatic better naming
     let title = currentThread.title;
     if (!currentThread.messages || currentThread.messages.length === 0) {
-      title = query.length > 30 ? query.substring(0, 30) + "..." : query;
+      if (mode === "sathyanishta") {
+        // Try to extract company name (capitalized word after 'investigate' or just first capitalized)
+        const companyMatch = query.match(/investigate\s+([A-Z][a-z]+)/i) || query.match(/([A-Z][a-z]+)/);
+        const company = companyMatch ? companyMatch[1] : null;
+        title = company ? `Forensic: ${company}` : `Investigation: ${query.substring(0, 15)}...`;
+      } else {
+        title = query.length > 25 ? query.substring(0, 25) + "..." : query;
+      }
     }
 
     updateThread(currentThreadId, { messages: updatedMessages, title });
@@ -75,7 +82,10 @@ export default function Home() {
         body: JSON.stringify({ query, mode }),
       });
 
-      const { stream_url } = await res.json();
+      const { stream_url, investigation_id } = await res.json();
+      if (investigation_id) {
+        updateThread(currentThreadId, { investigationId: investigation_id });
+      }
       const es = new EventSource(stream_url);
 
       es.addEventListener("agent_start", (e) => {
@@ -157,6 +167,7 @@ export default function Home() {
                 agentEvents={currentThread.agentEvents || []}
                 synthesis={currentThread.synthesis || null}
                 isLoading={isLoading}
+                investigationId={currentThread.investigationId}
               />
             )}
           </div>
