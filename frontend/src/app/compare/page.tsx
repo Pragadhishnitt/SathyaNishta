@@ -13,6 +13,7 @@ interface CompanyInvestigation {
   agentEvents: AgentEvent[];
   synthesis: SynthesisResult | null;
   isLoading: boolean;
+  investigationId?: string;
 }
 
 const INITIAL_STATE: CompanyInvestigation = {
@@ -60,7 +61,10 @@ export default function ComparePage() {
         body: JSON.stringify({ query: `Investigate ${companyName}`, mode: "sathyanishta" }),
       });
 
-      const { stream_url } = await res.json();
+      const { stream_url, investigation_id } = await res.json();
+      if (investigation_id) {
+        setter(prev => ({ ...prev, investigationId: investigation_id }));
+      }
       const es = new EventSource(stream_url);
 
       es.addEventListener("agent_start", (e) => {
@@ -186,6 +190,7 @@ export default function ComparePage() {
                       agentEvents={companyA.agentEvents}
                       synthesis={companyA.synthesis}
                       isLoading={companyA.isLoading}
+                      investigationId={companyA.investigationId}
                     />
                   </div>
                 </div>
@@ -198,6 +203,7 @@ export default function ComparePage() {
                       agentEvents={companyB.agentEvents}
                       synthesis={companyB.synthesis}
                       isLoading={companyB.isLoading}
+                      investigationId={companyB.investigationId}
                     />
                   </div>
                 </div>
