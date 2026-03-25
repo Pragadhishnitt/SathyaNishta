@@ -307,6 +307,52 @@ def audio_node(state: InvestigationState) -> Dict[str, Any]:
     }
 
 
+# ── News Agent Node ───────────────────────────────────────────
+
+def news_node(state: InvestigationState) -> Dict[str, Any]:
+    """Run NewsAgent — Tavily/DDG search + LLM risk analysis on recent news."""
+    company = state.get("company_name", "Unknown")
+    _logger.info(f"News Agent: starting analysis for {company}")
+
+    try:
+        from app.agents.news.news_agent import NewsAgent
+        agent = NewsAgent()
+
+        # Search for recent news
+        articles = agent.search(company, max_results=5)
+        # Analyze with LLM
+        analysis = agent.analyze(company, articles)
+
+        findings: List[str] = analysis.get("findings", [])
+        evidence: Dict[str, str] = {
+            "sentiment": analysis.get("sentiment", "unknown"),
+            "article_count": str(len(articles)),
+            "search_source": articles[0].get("source", "N/A") if articles else "N/A",
+        }
+
+        if analysis.get("crisis_detected"):
+            crisis = analysis.get("crisis_summary", "Crisis detected")
+            findings.insert(0, f"⚠ CRISIS: {crisis}")
+            evidence["crisis_detected"] = "true"
+
+        risk_score = analysis.get("risk_score", 3.0)
+
+        # Add article titles as evidence
+        for i, article in enumerate(articles[:3]):
+            evidence[f"article_{i+1}"] = article.get("title", "")[:100]
+
+        finding = _build_finding(risk_score, findings[:10], evidence)
+
+    except Exception as e:
+        _logger.error(f"News Agent failed: {e}")
+        finding = _build_finding(2.0, [f"News analysis error: {str(e)[:100]}"], {})
+
+    return {
+        "news_findings": finding,
+        "messages": [f"News Agent: {finding['evidence'].get('sentiment', 'N/A')} — score {finding['risk_score']}/10"],
+    }
+
+
 # ── Reflection Agent Node ─────────────────────────────────────
 
 def reflection_node(state: InvestigationState) -> Dict[str, Any]:
@@ -370,10 +416,11 @@ Return ONLY JSON (no markdown):
 def synthesis_node(state: InvestigationState) -> Dict[str, Any]:
     """Compute weighted fraud_risk_score + verdict from agent findings."""
     weights = {
-        "financial": 0.25,
-        "graph": 0.35,
-        "compliance": 0.30,
+        "financial": 0.22,
+        "graph": 0.30,
+        "compliance": 0.25,
         "audio": 0.10,
+        "news": 0.13,
     }
 
     total_weight = 0.0

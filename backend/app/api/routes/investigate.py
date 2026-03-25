@@ -118,7 +118,7 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
         _logger.info(f"[{inv_id}] Starting LangGraph execution for {company}")
 
         # Track which agents have started
-        agent_names = {"financial", "graph", "compliance", "audio", "reflection", "synthesis"}
+        agent_names = {"financial", "graph", "compliance", "audio", "news", "reflection", "synthesis"}
 
         # Stream node-level updates from LangGraph
         async for event in graph.astream(initial_state, stream_mode="updates"):
@@ -136,7 +136,7 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
                         "data": {"agent": next_agent, "timestamp": f"T+{node_data.get('iteration_count', 0)}s"},
                     })
 
-            elif node_name in ("financial", "graph", "compliance", "audio"):
+            elif node_name in ("financial", "graph", "compliance", "audio", "news"):
                 # Agent completed — emit agent_done with findings
                 findings_key = f"{node_name}_findings"
                 findings = node_data.get(findings_key, {})

@@ -19,3 +19,5 @@ langgraph==0.2.20
 langchain-google-genai==1.0.8
 tenacity==8.5.0
 supabase==2.8.0
+tavily-python>=0.5.0
+duckduckgo-search>=7.0.0

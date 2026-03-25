@@ -24,6 +24,7 @@ from app.agents.nodes import (
     compliance_node,
     financial_node,
     graph_node,
+    news_node,
     reflection_node,
     synthesis_node,
 )
@@ -31,7 +32,7 @@ from app.agents.nodes import (
 
 # Agent execution order per mode
 STANDARD_SEQUENCE = ["financial", "graph", "compliance"]
-SATHYANISHTA_SEQUENCE = ["financial", "graph", "compliance", "audio", "reflection"]
+SATHYANISHTA_SEQUENCE = ["financial", "graph", "compliance", "audio", "news", "reflection"]
 
 
 def _supervisor_node(state: InvestigationState) -> Dict[str, Any]:
@@ -51,6 +52,7 @@ def _supervisor_node(state: InvestigationState) -> Dict[str, Any]:
         "graph":      "graph_findings",
         "compliance": "compliance_findings",
         "audio":      "audio_findings",
+        "news":       "news_findings",
         "reflection": "reflection_passed",
     }
 
@@ -86,6 +88,7 @@ def build_investigation_graph():
     graph.add_node("graph", graph_node)
     graph.add_node("compliance", compliance_node)
     graph.add_node("audio", audio_node)
+    graph.add_node("news", news_node)
     graph.add_node("reflection", reflection_node)
     graph.add_node("synthesis", synthesis_node)
 
@@ -98,12 +101,13 @@ def build_investigation_graph():
         "graph":      "graph",
         "compliance": "compliance",
         "audio":      "audio",
+        "news":       "news",
         "reflection": "reflection",
         "synthesis":  "synthesis",
     })
 
     # Each agent loops back to supervisor
-    for agent in ["financial", "graph", "compliance", "audio", "reflection"]:
+    for agent in ["financial", "graph", "compliance", "audio", "news", "reflection"]:
         graph.add_edge(agent, "supervisor")
 
     # Synthesis terminates the graph
