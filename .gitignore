@@ -19,6 +19,7 @@ yarn-error.log*
 /frontend/.next/
 out/
 build/
+next-env.d.ts
 
 # Testing
 coverage/
