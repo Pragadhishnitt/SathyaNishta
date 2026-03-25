@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { LogOut, LogIn, Shield, Activity } from "lucide-react";
+import { LogOut, LogIn, Activity, TrendingUp } from "lucide-react";
 
 export function Navbar() {
   const { data: session } = useSession();
@@ -16,17 +16,18 @@ export function Navbar() {
           className="flex items-center gap-2.5 cursor-pointer group"
           onClick={() => router.push("/")}
         >
-          <div className="relative w-8 h-8 rounded-lg bg-gradient-to-br from-neon-indigo to-purple-600 flex items-center justify-center animate-pulse-glow">
-            <Shield size={16} className="text-white" />
+          <div className="relative w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center animate-pulse-glow shadow-lg shadow-blue-500/20">
+            <Activity size={16} className="text-white" />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-white font-bold text-sm tracking-tight">
-              Sathya Nishta
-            </span>
-            <span className="hidden sm:flex items-center gap-1.5 text-[10px] font-medium text-neon-indigo/80 bg-neon-indigo/10 border border-neon-indigo/20 rounded-full px-2.5 py-0.5">
-              <Activity size={10} />
-              COMMAND CENTER
-            </span>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <span className="text-white font-bold text-sm tracking-tight">
+                MarketChatGPT
+              </span>
+              <span className="text-[9px] font-medium text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded px-1.5 py-0">
+                by ET
+              </span>
+            </div>
           </div>
         </div>
 

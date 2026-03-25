@@ -2,13 +2,13 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import '@/styles/globals.css'
 import { AuthProvider } from '@/components/AuthProvider'
+import { ThreadProvider } from '@/context/ThreadContext'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
 export const metadata: Metadata = {
-    title: 'Sathya Nishta — AI Forensic Investigation Platform',
-    description: 'Multi-agent AI system for financial fraud detection, compliance verification, and forensic investigation powered by LangGraph.',
-    keywords: ['fraud detection', 'financial investigation', 'AI forensics', 'compliance'],
+    title: 'MarketChatGPT by ET — Next-Gen Financial Intelligence',
+    description: 'Advanced AI system for market analysis and financial forensics.',
 }
 
 export default function RootLayout({
@@ -17,10 +17,12 @@ export default function RootLayout({
     children: React.ReactNode
 }) {
     return (
-        <html lang="en" className="dark">
+        <html lang="en" className="dark font-inter">
             <body className={`${inter.className} antialiased`}>
                 <AuthProvider>
-                    {children}
+                    <ThreadProvider>
+                        {children}
+                    </ThreadProvider>
                 </AuthProvider>
             </body>
         </html>

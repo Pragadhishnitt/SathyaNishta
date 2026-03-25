@@ -11,37 +11,62 @@ import { InvestigationPanel, AgentEvent, SynthesisResult } from "@/components/In
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { AlertCircle, Lock, Shield, X } from "lucide-react";
 
-type Mode = "standard" | "sathyanishta";
+import { useThreads, Thread, Mode } from "@/context/ThreadContext";
 
 export default function Home() {
   const router = useRouter();
   const { data: session } = useSession();
+  const { threads, currentThreadId, setCurrentThreadId, addThread, updateThread } = useThreads();
   const [mode, setMode] = useState<Mode>("standard");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [agentEvents, setAgentEvents] = useState<AgentEvent[]>([]);
-  const [synthesis, setSynthesis] = useState<SynthesisResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
 
+  // Get current thread from context
+  const currentThread = threads.find(t => t.id === currentThreadId) || threads[0] || {
+    id: "default",
+    title: "New Chat",
+    messages: [],
+    mode: "standard"
+  };
+
+  const handleNewChat = () => {
+    addThread(mode);
+  };
+
   const handleSubmit = async (query: string) => {
-    setMessages(prev => [...prev, { role: "user", content: query }]);
+    const userMsg: Message = { role: "user", content: query };
+    const updatedMessages = [...(currentThread.messages || []), userMsg];
+    
+    // Update title on first message
+    let title = currentThread.title;
+    if (!currentThread.messages || currentThread.messages.length === 0) {
+      title = query.length > 30 ? query.substring(0, 30) + "..." : query;
+    }
+
+    updateThread(currentThreadId, { messages: updatedMessages, title });
+    setIsLoading(true);
 
     if (mode === "standard") {
-      setIsLoading(true);
-      setTimeout(() => {
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: "This is a standard chat response. Toggle Sathyanishta Mode to trigger a deep multi-agent forensic investigation."
-        }]);
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: updatedMessages }),
+        });
+        const data = await res.json();
+        updateThread(currentThreadId, { 
+          messages: [...updatedMessages, { role: "assistant", content: data.content }] 
+        });
+      } catch (error) {
+        console.error("Standard chat error:", error);
+      } finally {
         setIsLoading(false);
-      }, 1000);
+      }
       return;
     }
 
     // Sathyanishta Mode — SSE stream
-    setAgentEvents([]);
-    setSynthesis(null);
-    setIsLoading(true);
+    updateThread(currentThreadId, { agentEvents: [], synthesis: null });
 
     try {
       const res = await fetch("/api/investigate", {
@@ -55,26 +80,33 @@ export default function Home() {
 
       es.addEventListener("agent_start", (e) => {
         const d = JSON.parse(e.data);
-        setAgentEvents(prev => [...prev, { ...d, status: "running" }]);
+        updateThread(currentThreadId, (prev: Thread) => ({ 
+          agentEvents: [...(prev.agentEvents || []), { ...d, status: "running" }] 
+        }));
       });
 
       es.addEventListener("agent_done", (e) => {
         const d = JSON.parse(e.data);
-        setAgentEvents(prev => prev.map(a =>
-          a.agent === d.agent ? { ...a, ...d, status: "complete" } : a
-        ));
+        updateThread(currentThreadId, (prev: Thread) => ({
+          agentEvents: (prev.agentEvents || []).map(a => 
+            a.agent === d.agent ? { ...a, ...d, status: "complete" } : a
+          )
+        }));
       });
 
       es.addEventListener("synthesis", (e) => {
-        setSynthesis(JSON.parse(e.data));
+        const d = JSON.parse(e.data);
+        updateThread(currentThreadId, { synthesis: d });
       });
 
       es.addEventListener("complete", () => {
         setIsLoading(false);
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: "Investigation complete. Review the detailed risk scorecard and evidence matrix in the panel above."
-        }]);
+        updateThread(currentThreadId, (prev: Thread) => ({
+          messages: [...(prev.messages || []), {
+            role: "assistant",
+            content: "Investigation complete. Review the detailed risk scorecard and evidence matrix in the panel above."
+          }]
+        }));
         es.close();
       });
 
@@ -93,7 +125,9 @@ export default function Home() {
       setShowLoginModal(true);
       return;
     }
-    setMode(m => m === "standard" ? "sathyanishta" : "standard");
+    const newMode = mode === "standard" ? "sathyanishta" : "standard";
+    setMode(newMode);
+    updateThread(currentThreadId, { mode: newMode });
   };
 
   return (
@@ -111,17 +145,17 @@ export default function Home() {
 
           {/* Chat area */}
           <div className="flex-1 overflow-y-auto px-6 pt-6 pb-32 max-w-4xl mx-auto w-full space-y-4 relative z-10">
-            {messages.length === 0 && <WelcomeScreen mode={mode} />}
+            {(currentThread.messages || []).length === 0 && <WelcomeScreen mode={mode} />}
 
-            {messages.map((m, i) => (
+            {(currentThread.messages || []).map((m, i) => (
               <ChatMessage key={i} message={m} />
             ))}
 
             {/* Investigation Panel */}
-            {mode === "sathyanishta" && (agentEvents.length > 0 || synthesis) && (
+            {currentThread.mode === "sathyanishta" && (currentThread.agentEvents?.length || currentThread.synthesis) && (
               <InvestigationPanel
-                agentEvents={agentEvents}
-                synthesis={synthesis}
+                agentEvents={currentThread.agentEvents || []}
+                synthesis={currentThread.synthesis || null}
                 isLoading={isLoading}
               />
             )}
@@ -136,11 +170,11 @@ export default function Home() {
         </main>
       </div>
 
+
       {/* Login Required Modal */}
       {showLoginModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
           <div className="glass-card neon-border-indigo p-6 max-w-sm w-full mx-4 animate-slide-up">
-            {/* Close */}
             <button
               onClick={() => setShowLoginModal(false)}
               className="absolute top-3 right-3 text-gray-500 hover:text-gray-300 transition-colors"
@@ -153,13 +187,13 @@ export default function Home() {
                 <Shield size={20} className="text-neon-indigo" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-white">Authentication Required</h2>
-                <p className="text-xs text-gray-500">Sathyanishta Mode access</p>
+                <h2 className="text-base font-bold text-white">MarketChatGPT Pro</h2>
+                <p className="text-xs text-gray-500">SathyaNishta Mode access</p>
               </div>
             </div>
 
             <p className="text-sm text-gray-400 mb-5 leading-relaxed">
-              Deep investigation mode requires authentication to access advanced multi-agent forensic analysis.
+              Deep forensic investigation mode requires a Pro account to access advanced multi-agent analysis.
             </p>
 
             <div className="space-y-2.5">
@@ -171,7 +205,7 @@ export default function Home() {
                 className="btn-primary w-full flex items-center justify-center gap-2 py-2.5"
               >
                 <Lock size={14} />
-                Sign In to Continue
+                Sign In to Unlock SathyaNishta
               </button>
               <button
                 onClick={() => setShowLoginModal(false)}

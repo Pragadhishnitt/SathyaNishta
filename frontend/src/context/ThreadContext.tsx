@@ -1,0 +1,96 @@
+"use client";
+
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { Message } from "@/components/ChatMessage";
+import { AgentEvent, SynthesisResult } from "@/components/InvestigationPanel";
+
+export type Mode = "standard" | "sathyanishta";
+
+export interface Thread {
+  id: string;
+  title: string;
+  messages: Message[];
+  mode: Mode;
+  agentEvents?: AgentEvent[];
+  synthesis?: SynthesisResult | null;
+  createdAt: number;
+}
+
+interface ThreadContextType {
+  threads: Thread[];
+  currentThreadId: string;
+  setCurrentThreadId: (id: string) => void;
+  addThread: (mode: Mode) => string;
+  updateThread: (id: string, updates: Partial<Thread> | ((prev: Thread) => Partial<Thread>)) => void;
+}
+
+const ThreadContext = createContext<ThreadContextType | undefined>(undefined);
+
+export function ThreadProvider({ children }: { children: React.ReactNode }) {
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [currentThreadId, setCurrentThreadId] = useState<string>("");
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("market-chat-threads");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setThreads(parsed);
+        if (parsed.length > 0) setCurrentThreadId(parsed[0].id);
+      } catch (e) {
+        console.error("Failed to load threads", e);
+      }
+    } else {
+      // Default thread
+      const id = Math.random().toString(36).substring(7);
+      setThreads([{ id, title: "New Market Chat", messages: [], mode: "standard", createdAt: Date.now() }]);
+      setCurrentThreadId(id);
+    }
+  }, []);
+
+  // Save to localStorage on change
+  useEffect(() => {
+    if (threads.length > 0) {
+      localStorage.setItem("market-chat-threads", JSON.stringify(threads));
+    }
+  }, [threads]);
+
+  const addThread = (mode: Mode) => {
+    const id = Math.random().toString(36).substring(7);
+    const newThread: Thread = {
+      id,
+      title: "New Chat",
+      messages: [],
+      mode,
+      createdAt: Date.now(),
+    };
+    setThreads(prev => [newThread, ...prev]);
+    setCurrentThreadId(id);
+    return id;
+  };
+
+  const updateThread = (id: string, updatesOrUpdater: Partial<Thread> | ((prev: Thread) => Partial<Thread>)) => {
+    setThreads(prevThreads => prevThreads.map(t => {
+      if (t.id === id) {
+        const u = typeof updatesOrUpdater === "function" ? updatesOrUpdater(t) : updatesOrUpdater;
+        return { ...t, ...u };
+      }
+      return t;
+    }));
+  };
+
+  return (
+    <ThreadContext.Provider value={{ threads, currentThreadId, setCurrentThreadId, addThread, updateThread }}>
+      {children}
+    </ThreadContext.Provider>
+  );
+}
+
+export function useThreads() {
+  const context = useContext(ThreadContext);
+  if (context === undefined) {
+    throw new Error("useThreads must be used within a ThreadProvider");
+  }
+  return context;
+}

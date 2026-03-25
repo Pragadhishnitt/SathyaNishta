@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { SidebarNav } from "@/components/SidebarNav";
 import { InvestigationPanel, AgentEvent, SynthesisResult } from "@/components/InvestigationPanel";
-import { GitCompare, ArrowRight, Loader2, Shield, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { GitCompare, ArrowRight, Loader2, Shield, AlertTriangle, CheckCircle2, Zap } from "lucide-react";
 
 interface CompanyInvestigation {
   name: string;
@@ -22,22 +22,28 @@ const INITIAL_STATE: CompanyInvestigation = {
   isLoading: false,
 };
 
+import { useThreads } from "@/context/ThreadContext";
+
 export default function ComparePage() {
   const router = useRouter();
   const { data: session } = useSession();
+  const { threads, currentThreadId, setCurrentThreadId, addThread, updateThread } = useThreads();
   const [query, setQuery] = useState("");
   const [companyA, setCompanyA] = useState<CompanyInvestigation>({ ...INITIAL_STATE });
   const [companyB, setCompanyB] = useState<CompanyInvestigation>({ ...INITIAL_STATE });
   const [isRunning, setIsRunning] = useState(false);
 
+  // Redirect if not logged in
+  if (!session) {
+    if (typeof window !== "undefined") router.push("/auth/login?callbackUrl=/compare");
+    return <div className="h-screen bg-surface-0 flex items-center justify-center">Redirecting...</div>;
+  }
+
   const parseCompanies = (input: string): [string, string] | null => {
-    // Parse "CompanyA vs CompanyB" or "Compare CompanyA and CompanyB"
     const vsMatch = input.match(/(.+?)\s+(?:vs\.?|versus|compared?\s+(?:to|with))\s+(.+)/i);
     if (vsMatch) return [vsMatch[1].trim(), vsMatch[2].trim()];
-
     const andMatch = input.match(/compare\s+(.+?)\s+(?:and|&)\s+(.+)/i);
     if (andMatch) return [andMatch[1].trim(), andMatch[2].trim()];
-
     return null;
   };
 
@@ -97,13 +103,10 @@ export default function ComparePage() {
     if (!parsed) return;
 
     setIsRunning(true);
-
-    // Fire both investigations in parallel
     await Promise.all([
       startInvestigation(parsed[0], setCompanyA),
       startInvestigation(parsed[1], setCompanyB),
     ]);
-
     setIsRunning(false);
   };
 
@@ -117,85 +120,118 @@ export default function ComparePage() {
 
         <main className="flex flex-col flex-1 overflow-hidden">
           {/* Header */}
-          <div className="border-b border-white/[0.04] p-5 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-neon-indigo/10 flex items-center justify-center">
-              <GitCompare size={18} className="text-neon-indigo" />
+          <div className="border-b border-white/[0.04] p-5 flex items-center gap-3 bg-surface-1/50 backdrop-blur-md sticky top-0 z-20">
+            <div className="w-10 h-10 rounded-xl bg-neon-indigo/10 flex items-center justify-center border border-neon-indigo/20 shadow-neon-indigo/5">
+              <GitCompare size={20} className="text-neon-indigo" />
             </div>
             <div>
-              <h1 className="text-base font-bold">Compare Mode</h1>
-              <p className="text-xs text-gray-500">Side-by-side forensic investigation of two companies</p>
+              <h1 className="text-base font-bold text-white tracking-tight">Comparative Forensics <span className="text-[10px] bg-neon-indigo/20 text-neon-indigo px-1.5 py-0.5 rounded ml-2 align-middle">PRO</span></h1>
+              <p className="text-[11px] text-gray-500">Dual-stream multi-agent analysis for market-side peer comparison</p>
             </div>
           </div>
 
           {/* Compare Input */}
-          <div className="p-5 border-b border-white/[0.04]">
-            <form onSubmit={handleSubmit} className="max-w-2xl mx-auto">
-              <div className="flex gap-2">
-                <div className="flex-1 relative">
+          <div className="p-6 border-b border-white/[0.04] bg-surface-1/30">
+            <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
+              <div className="flex gap-3">
+                <div className="flex-1 relative group">
+                  <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-neon-indigo transition-colors">
+                    <Shield size={16} />
+                  </div>
                   <input
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="e.g., FraudCorp vs Wipro"
-                    className="w-full px-4 py-3 glass-card rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-neon-indigo/30 focus:shadow-neon-indigo transition-all border border-white/[0.06]"
+                    placeholder="Compare FraudCorp vs Wipro..."
+                    className="w-full pl-11 pr-4 py-3.5 glass-card rounded-2xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-neon-indigo/40 focus:ring-1 focus:ring-neon-indigo/40 hover:border-white/10 transition-all border border-white/[0.08] shadow-inner"
                     disabled={isRunning}
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={isRunning || !parseCompanies(query)}
-                  className="btn-primary flex items-center gap-2 px-5 disabled:opacity-50"
+                  className="btn-primary flex items-center gap-2 px-8 rounded-2xl disabled:opacity-50 whitespace-nowrap shadow-neon-indigo/20"
                 >
                   {isRunning ? (
-                    <Loader2 size={15} className="animate-spin" />
+                    <Loader2 size={16} className="animate-spin" />
                   ) : (
                     <>
-                      <GitCompare size={15} />
-                      Compare
+                      <GitCompare size={16} />
+                      Analyze Matchup
                     </>
                   )}
                 </button>
               </div>
-              <p className="text-[10px] text-gray-600 mt-2">
-                Use "vs" or "compared to" — e.g., "Adani vs Reliance" or "Compare TCS and Infosys"
-              </p>
+              <div className="flex items-center gap-4 mt-3 ml-1">
+                <p className="text-[10px] text-gray-500 flex items-center gap-1">
+                  <span className="w-1 h-1 rounded-full bg-neon-indigo shadow-neon-indigo animate-pulse" />
+                  Try "Adani vs Reliance"
+                </p>
+                <p className="text-[10px] text-gray-400 font-medium">
+                  SSE Streams Active
+                </p>
+              </div>
             </form>
           </div>
 
           {/* Split Screen Results */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
             {hasResults ? (
-              <div className="grid grid-cols-2 gap-0 h-full">
+              <div className="grid grid-cols-2 gap-px bg-white/[0.04] h-full min-h-[600px]">
                 {/* Company A */}
-                <div className="border-r border-white/[0.04] p-4 overflow-y-auto">
+                <div className="bg-surface-0 p-5 overflow-y-auto">
                   <CompanyHeader name={companyA.name} synthesis={companyA.synthesis} isLoading={companyA.isLoading} />
-                  <InvestigationPanel
-                    agentEvents={companyA.agentEvents}
-                    synthesis={companyA.synthesis}
-                    isLoading={companyA.isLoading}
-                  />
+                  <div className="mt-4">
+                    <InvestigationPanel
+                      agentEvents={companyA.agentEvents}
+                      synthesis={companyA.synthesis}
+                      isLoading={companyA.isLoading}
+                    />
+                  </div>
                 </div>
 
                 {/* Company B */}
-                <div className="p-4 overflow-y-auto">
+                <div className="bg-surface-0 p-5 overflow-y-auto">
                   <CompanyHeader name={companyB.name} synthesis={companyB.synthesis} isLoading={companyB.isLoading} />
-                  <InvestigationPanel
-                    agentEvents={companyB.agentEvents}
-                    synthesis={companyB.synthesis}
-                    isLoading={companyB.isLoading}
-                  />
+                  <div className="mt-4">
+                    <InvestigationPanel
+                      agentEvents={companyB.agentEvents}
+                      synthesis={companyB.synthesis}
+                      isLoading={companyB.isLoading}
+                    />
+                  </div>
                 </div>
               </div>
             ) : (
               /* Empty state */
-              <div className="flex flex-col items-center justify-center h-full text-center animate-fade-in">
-                <div className="w-16 h-16 rounded-2xl bg-neon-indigo/10 flex items-center justify-center border border-neon-indigo/20 mb-4 animate-float">
-                  <GitCompare size={28} className="text-neon-indigo" />
+              <div className="flex flex-col items-center justify-center h-full text-center animate-fade-in p-8">
+                <div className="relative mb-8">
+                  <div className="absolute inset-0 bg-neon-indigo/20 blur-2xl rounded-full scale-150 animate-pulse-glow" />
+                  <div className="relative w-24 h-24 rounded-3xl bg-surface-1 flex items-center justify-center border border-neon-indigo/30 shadow-2xl animate-float">
+                    <GitCompare size={40} className="text-neon-indigo" />
+                  </div>
                 </div>
-                <h2 className="text-lg font-bold mb-1">Comparative Analysis</h2>
-                <p className="text-sm text-gray-500 max-w-md">
-                  Enter two company names to run parallel forensic investigations and compare risk profiles side by side.
+                <h2 className="text-2xl font-bold mb-3 tracking-tight">Competitive Intelligence</h2>
+                <p className="text-gray-400 max-w-md leading-relaxed mb-8">
+                  Execute parallel multi-agent forensic investigations to compare risk benchmarks and financial anomalies across market peers.
                 </p>
+                <div className="grid grid-cols-3 gap-4 w-full max-w-xl">
+                  <div className="glass-card p-4 rounded-2xl border-white/[0.04]">
+                    <div className="text-neon-indigo mb-2 flex justify-center"><Shield size={18} /></div>
+                    <div className="text-[10px] font-bold text-gray-300 uppercase mb-1">Risk Benchmarking</div>
+                    <div className="text-[10px] text-gray-500">Side-by-side fraud score comparison</div>
+                  </div>
+                  <div className="glass-card p-4 rounded-2xl border-white/[0.04]">
+                    <div className="text-purple-400 mb-2 flex justify-center"><Zap size={18} /></div>
+                    <div className="text-[10px] font-bold text-gray-300 uppercase mb-1">Dual Agent SSE</div>
+                    <div className="text-[10px] text-gray-500">Real-time parallel event tracking</div>
+                  </div>
+                  <div className="glass-card p-4 rounded-2xl border-white/[0.04]">
+                    <div className="text-blue-400 mb-2 flex justify-center"><GitCompare size={18} /></div>
+                    <div className="text-[10px] font-bold text-gray-300 uppercase mb-1">Peer Analysis</div>
+                    <div className="text-[10px] text-gray-500">Cross-company anomaly detection</div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
