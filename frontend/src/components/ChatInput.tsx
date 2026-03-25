@@ -1,4 +1,6 @@
-import { ArrowUp, Sparkles, Loader2 } from "lucide-react";
+import { ArrowUp, Sparkles, Loader2, LogIn } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 interface ChatInputProps {
   mode: "standard" | "sathyanishta";
@@ -8,6 +10,9 @@ interface ChatInputProps {
 }
 
 export function ChatInput({ mode, onModeToggle, onSubmit, isLoading }: ChatInputProps) {
+  const { data: session } = useSession();
+  const router = useRouter();
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
@@ -29,24 +34,27 @@ export function ChatInput({ mode, onModeToggle, onSubmit, isLoading }: ChatInput
         onSubmit={handleSubmit}
         className={`relative flex flex-col w-full rounded-2xl glass-card overflow-hidden transition-all duration-300 ${
           isSathya
-            ? "neon-border-indigo shadow-neon-indigo"
+            ? "border-neon-indigo/50"
             : "border-white/[0.06] hover:border-white/10"
         }`}
       >
         <textarea
           name="query"
+          disabled={!session}
           placeholder={
-            isSathya
+            !session
+              ? "Sign in to start a conversation..."
+              : isSathya
               ? "Investigate a company — e.g., 'Investigate FraudCorp for circular trading'..."
               : "Ask a question or request an investigation..."
           }
-          className="w-full resize-none bg-transparent p-4 pb-2 pr-12 outline-none text-white text-sm placeholder:text-gray-500"
+          className="w-full resize-none bg-transparent p-4 pb-2 pr-12 outline-none text-white text-sm placeholder:text-gray-500 disabled:cursor-not-allowed"
           rows={1}
           autoFocus
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
-              if (e.currentTarget.value.trim() && !isLoading) {
+              if (e.currentTarget.value.trim() && !isLoading && session) {
                 onSubmit(e.currentTarget.value);
                 e.currentTarget.value = "";
               }
@@ -61,7 +69,7 @@ export function ChatInput({ mode, onModeToggle, onSubmit, isLoading }: ChatInput
             onClick={onModeToggle}
             className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[11px] font-semibold transition-all duration-300 ${
               isSathya
-                ? "bg-neon-indigo/15 text-neon-indigo border border-neon-indigo/30 shadow-neon-indigo"
+                ? "bg-neon-indigo/15 text-neon-indigo border border-neon-indigo/30"
                 : "bg-white/[0.03] text-gray-500 border border-white/[0.06] hover:bg-white/[0.06] hover:text-gray-300"
             }`}
           >
@@ -69,31 +77,38 @@ export function ChatInput({ mode, onModeToggle, onSubmit, isLoading }: ChatInput
               size={13}
               className={`transition-all duration-300 ${isSathya ? "text-neon-indigo" : ""}`}
             />
-            {isSathya ? "SATHYANISHTA MODE" : "Standard Mode"}
+            {isSathya ? "SathyaNishta Mode" : "SathyaNishta Mode"}
             {isSathya && (
-              <span className="flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-1.5 w-1.5 rounded-full bg-neon-indigo opacity-75" />
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-neon-indigo" />
-              </span>
             )}
           </button>
 
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={isLoading}
-            className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 ${
-              isLoading
-                ? "bg-neon-indigo/20 text-neon-indigo"
-                : "bg-white text-black hover:bg-gray-200 hover:scale-105 active:scale-95"
-            }`}
-          >
-            {isLoading ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <ArrowUp size={16} />
-            )}
-          </button>
+          {/* Submit / Login Button */}
+          {session ? (
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 ${
+                isLoading
+                  ? "bg-neon-indigo/20 text-neon-indigo"
+                  : "bg-white text-black hover:bg-gray-200 hover:scale-105 active:scale-95"
+              }`}
+            >
+              {isLoading ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <ArrowUp size={16} />
+              )}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => router.push("/auth/login")}
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-all hover:scale-105"
+            >
+              <LogIn size={15} />
+            </button>
+          )}
         </div>
       </form>
 
