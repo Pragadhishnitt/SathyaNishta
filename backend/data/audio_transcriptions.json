@@ -33,5 +33,40 @@
         "audio_date": "2026-03-20",
         "duration_minutes": 11,
         "transcript": "Hindustan Unilever has delivered a stable financial performance, supported by consistent growth in its core FMCG business. The balance sheet remains strong, with efficient utilization of capital and a focus on profitability. Total assets reflect steady business operations, while the company maintains a strong equity base supported by retained earnings. The company operates with minimal debt, which enhances financial stability. Liquidity remains strong, supported by healthy cash flows from operations. This enables the company to invest in brand building, innovation, and distribution expansion. The company continues to focus on improving margins and driving volume growth across categories. Efficient working capital management has further strengthened the balance sheet. Overall, Hindustan Unilever remains well-positioned, with a strong and efficient balance sheet supporting long-term growth."
+    },
+    {
+        "company": "AlphaTech Solutions",
+        "company_code": "ATS",
+        "audio_date": "2026-03-26",
+        "duration_minutes": 16,
+        "transcript": "AlphaTech Solutions has delivered a strong financial performance this year, with total assets reaching 120,000. The company continues to focus on growth and expansion, supported by solid operational performance reflected in EBITDA of 18,000. While liabilities stand at 70,000, the company believes its capital structure remains efficient and well-managed. Debt levels of 40,000 are being utilized to support expansion initiatives, and management is confident in its ability to generate returns from these investments. However, cash reserves remain relatively modest at 5,000, and the company continues to optimize liquidity management. Overall, the company maintains confidence in its financial position and long-term growth strategy."
+    },
+    {
+        "company": "GreenField Retail",
+        "company_code": "GFR",
+        "audio_date": "2026-03-26",
+        "duration_minutes": 14,
+        "transcript": "GreenField Retail has shown steady growth, with total assets of 90,000 and expanding operations across regions. The company has focused on scaling its retail footprint, supported by EBITDA of 8,000. Liabilities are currently at 65,000, with debt contributing significantly at 42,000. While this reflects investment in expansion, it also indicates reliance on external financing. Cash reserves remain limited at 3,000, and management is actively working on improving liquidity and operational efficiency. Despite these factors, the company remains optimistic about future growth prospects."
+    },
+    {
+        "company": "Urban Infra Ltd",
+        "company_code": "UIL",
+        "audio_date": "2026-03-26",
+        "duration_minutes": 15,
+        "transcript": "Urban Infra Limited continues to expand its infrastructure portfolio, with total assets of 150,000 driven by large-scale projects. EBITDA stands at 9,000, reflecting ongoing project execution. The company's liabilities are high at 130,000, with debt alone accounting for 100,000. This reflects significant investment in capital-intensive projects. Cash reserves are currently low at 2,000, and the company is focused on managing liquidity while continuing project development. Management remains confident that future cash flows will support financial obligations."
+    },
+    {
+        "company": "NextGen Pharma",
+        "company_code": "NGP",
+        "audio_date": "2026-03-26",
+        "duration_minutes": 13,
+        "transcript": "NextGen Pharma has reported steady performance, with total assets of 80,000 and EBITDA of 11,000. The company continues to invest in research and product development. Liabilities stand at 50,000, with debt at 20,000, reflecting moderate leverage. Cash reserves of 4,000 provide some liquidity support, though management aims to strengthen this further. The company maintains a balanced approach to growth and financial management, focusing on long-term sustainability."
+    },
+    {
+        "company": "SkyHigh Aviation",
+        "company_code": "SHA",
+        "audio_date": "2026-03-26",
+        "duration_minutes": 14,
+        "transcript": "SkyHigh Aviation continues to operate in a challenging environment, with total assets of 110,000 and EBITDA of 5,000. The company is focused on recovery and operational efficiency. Liabilities are significantly high at 100,000, with debt accounting for 85,000. This reflects the capital-intensive nature of the aviation industry. Cash reserves remain constrained at 1,500, and the company is actively exploring ways to improve liquidity and manage obligations. Management remains optimistic about recovery in demand and future performance."
     }
 ]
