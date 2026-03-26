@@ -35,6 +35,8 @@ services:
       dockerfile: Dockerfile
     container_name: sathya-backend
     restart: unless-stopped
+    ports:
+      - "8000:8000"
     env_file:
       - .env
     volumes:
@@ -65,6 +67,8 @@ services:
       context: ./frontend
     container_name: sathya-frontend
     restart: unless-stopped
+    ports:
+      - "3000:3000"
     tty: true
     stdin_open: true
     environment:
