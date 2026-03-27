@@ -158,9 +158,9 @@ export function EmailReportModal({
           <button
             onClick={handleClose}
             disabled={isLoading}
-            className="text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-50"
+            className="absolute top-4 right-4 text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-50"
           >
-            <X size={20} />
+            <X size={16} />
           </button>
         </div>
 

@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import List, Optional
 import smtplib
+import os
+import re
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
@@ -22,11 +24,19 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@sathyanishta.com")
 
 class EmailReportRequest(BaseModel):
-    recipients: List[EmailStr]
+    recipients: List[str]
     subject: Optional[str] = None
     message: Optional[str] = None
     investigation_data: dict
     report_type: str = "investigation"  # investigation, brief, compare
+
+    def validate_email(self, email: str) -> bool:
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        return re.match(pattern, email) is not None
+
+    def get_valid_recipients(self) -> List[str]:
+        """Get only valid email addresses"""
+        return [email for email in self.recipients if self.validate_email(email)]
 
 def send_investigation_report_email(
     recipients: List[str], 
@@ -282,7 +292,15 @@ async def send_report_email(
             detail="At least one recipient is required"
         )
     
-    if len(request.recipients) > 10:
+    # Validate and filter recipients
+    valid_recipients = request.get_valid_recipients()
+    if len(valid_recipients) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid email addresses provided"
+        )
+    
+    if len(valid_recipients) > 10:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Maximum 10 recipients allowed"
@@ -293,7 +311,7 @@ async def send_report_email(
     
     try:
         send_investigation_report_email(
-            recipients=request.recipients,
+            recipients=valid_recipients,
             subject=subject,
             message=request.message or "",
             investigation_data=request.investigation_data,
@@ -301,8 +319,8 @@ async def send_report_email(
         )
         
         return {
-            "message": f"Report successfully sent to {len(request.recipients)} recipient(s)",
-            "recipients": request.recipients
+            "message": f"Report successfully sent to {len(valid_recipients)} recipient(s)",
+            "recipients": valid_recipients
         }
         
     except Exception as e:
