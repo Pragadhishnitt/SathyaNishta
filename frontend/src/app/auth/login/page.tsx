@@ -129,7 +129,12 @@ export default function LoginPage() {
           })
         });
 
-        const data = await response.json();
+        let data;
+        try {
+          data = await response.json();
+        } catch (e) {
+          data = { detail: 'Server error. Please try again.' };
+        }
 
         if (!response.ok) {
           if (response.status === 400 && data.detail === 'Email already registered') {
@@ -160,7 +165,12 @@ export default function LoginPage() {
           })
         });
 
-        const data = await response.json();
+        let data;
+        try {
+          data = await response.json();
+        } catch (e) {
+          data = { detail: 'Server error. Please try again.' };
+        }
 
         if (!response.ok) {
           if (response.status === 401) {
@@ -204,7 +214,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen auth-bg flex items-center justify-center p-4">
+    <div className="min-h-screen auth-bg flex items-center justify-center p-4 overflow-y-auto">
       {/* Background orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-neon-indigo/[0.07] rounded-full blur-[100px] animate-float" />
@@ -212,7 +222,7 @@ export default function LoginPage() {
         <div className="absolute top-1/2 left-1/2 w-[300px] h-[300px] bg-neon-cyan/[0.03] rounded-full blur-[80px]" />
       </div>
 
-      <div className="w-full max-w-md relative z-10 animate-slide-up">
+      <div className="w-full max-w-md relative z-10 animate-slide-up my-8">
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2.5 mb-3">

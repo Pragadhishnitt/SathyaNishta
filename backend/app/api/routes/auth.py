@@ -146,7 +146,7 @@ async def register(user: UserCreate, db: Session = Depends(get_session), request
     # Send verification email
     send_verification_email(user.email, verification_token)
     
-    return db_user
+    return UserResponse.model_validate(db_user)
 
 @router.post("/verify-email")
 async def verify_email(verification: EmailVerification, db: Session = Depends(get_session)):
