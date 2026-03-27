@@ -86,6 +86,7 @@ services:
       - NEXTAUTH_URL=http://127.0.0.1:8090
       - NEXTAUTH_SECRET=hackathon-market-chat-secret-2026
       - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NEXT_PUBLIC_APP_URL=http://127.0.0.1:8090
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
