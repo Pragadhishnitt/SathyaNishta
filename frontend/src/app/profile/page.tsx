@@ -40,39 +40,43 @@ export default function ProfilePage() {
       return;
     }
 
-    // Load user profile
-    loadUserProfile();
+    // Fetch user profile
+    if (session) {
+      fetchProfile();
+    }
   }, [session]);
 
-  const loadUserProfile = async () => {
+  const fetchProfile = async () => {
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('/api/auth/me', {
+      const response = await fetch('/api/profile', {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${(session as any)?.accessToken || ''}`,
+        },
       });
 
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        console.error('Profile fetch error:', e);
+        return;
+      }
+
       if (response.ok) {
-        const userData = await response.json();
         setProfile({
-          name: userData.name || "",
-          email: userData.email || "",
-          company: userData.company || "",
-          role: userData.role || "",
-          bio: userData.bio || "",
-          isVerified: userData.is_verified || false,
-          isPremium: userData.is_premium || false,
-          createdAt: userData.created_at ? new Date(userData.created_at).toLocaleDateString() : "",
-          lastLogin: userData.last_login ? new Date(userData.last_login).toLocaleDateString() : ""
+          name: data.name || '',
+          email: data.email || '',
+          company: data.company || '',
+          role: data.role || '',
+          bio: data.bio || '',
+          isVerified: data.is_verified || false,
+          isPremium: data.is_premium || false,
+          createdAt: data.created_at ? new Date(data.created_at).toLocaleDateString() : '',
+          lastLogin: data.last_login ? new Date(data.last_login).toLocaleDateString() : ''
         });
-        
-        setEditForm({
-          name: userData.name || "",
-          company: userData.company || "",
-          role: userData.role || "",
-          bio: userData.bio || ""
-        });
+      } else {
+        console.error('Profile fetch failed:', data);
       }
     } catch (error) {
       console.error('Failed to load profile:', error);
@@ -98,27 +102,31 @@ export default function ProfilePage() {
   const handleSave = async () => {
     setIsLoading(true);
     setMessage("");
+    setMessageType("");
 
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('/api/auth/me', {
+      const response = await fetch('/api/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${session?.accessToken || ''}`,
         },
-        body: JSON.stringify(editForm)
+        body: JSON.stringify(editForm),
       });
 
       if (response.ok) {
         const updatedUser = await response.json();
-        setProfile(prev => ({
-          ...prev,
-          name: updatedUser.name,
-          company: updatedUser.company,
-          role: updatedUser.role,
-          bio: updatedUser.bio
-        }));
+        setProfile({
+          name: updatedUser.name || '',
+          email: updatedUser.email || '',
+          company: updatedUser.company || '',
+          role: updatedUser.role || '',
+          bio: updatedUser.bio || '',
+          isVerified: updatedUser.is_verified || false,
+          isPremium: updatedUser.is_premium || false,
+          createdAt: updatedUser.created_at || '',
+          lastLogin: updatedUser.last_login || ''
+        });
         
         setIsEditing(false);
         setMessage("Profile updated successfully!");
@@ -153,9 +161,8 @@ export default function ProfilePage() {
       <Navbar />
       <div className="flex flex-1 overflow-hidden">
         <SidebarNav />
-
-        <main className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto p-6">
+        <main className="flex-1 overflow-y-auto px-6 py-6">
+          <div className="max-w-4xl mx-auto">
             {/* Header */}
             <div className="mb-8">
               <h1 className="text-2xl font-bold gradient-text mb-2">Profile Settings</h1>
