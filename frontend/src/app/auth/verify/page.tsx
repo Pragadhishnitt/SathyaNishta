@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, CheckCircle, XCircle, Loader2, ArrowRight } from "lucide-react";
 
-export default function VerifyEmailPage() {
+function VerifyEmailPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -129,5 +129,22 @@ export default function VerifyEmailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen auth-bg flex items-center justify-center p-4">
+        <div className="w-full max-w-md relative z-10">
+          <div className="glass-card neon-border-indigo p-8 text-center">
+            <Loader2 size={32} className="animate-spin text-neon-indigo mx-auto mb-4" />
+            <p className="text-gray-400">Loading...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <VerifyEmailPageContent />
+    </Suspense>
   );
 }

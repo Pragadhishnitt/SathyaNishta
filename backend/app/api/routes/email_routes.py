@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 import smtplib
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 
 from ...core.db import get_session
@@ -15,11 +15,11 @@ from ...core.rate_limit import check_rate_limit, email_limiter
 router = APIRouter()
 
 # Email configuration
-SMTP_HOST = "smtp.gmail.com"  # Configure based on your email provider
-SMTP_PORT = 587
-SMTP_USER = "your-email@gmail.com"  # Configure in environment
-SMTP_PASSWORD = "your-app-password"  # Configure in environment
-FROM_EMAIL = "noreply@sathyanishta.com"
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@sathyanishta.com")
 
 class EmailReportRequest(BaseModel):
     recipients: List[EmailStr]
@@ -36,6 +36,9 @@ def send_investigation_report_email(
     report_type: str
 ):
     """Send investigation report email"""
+    if not SMTP_USER or not SMTP_PASSWORD or "your-email" in SMTP_USER:
+        print(f"Skipping investigation report email to {recipients} - SMTP credentials not configured")
+        return
     
     # Generate HTML content based on report type
     if report_type == "investigation":
@@ -49,12 +52,12 @@ def send_investigation_report_email(
     
     try:
         for recipient in recipients:
-            msg = MimeMultipart("alternative")
+            msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
             msg["From"] = FROM_EMAIL
             msg["To"] = recipient
             
-            html_part = MimeText(html_content, "html")
+            html_part = MIMEText(html_content, "html")
             msg.attach(html_part)
             
             server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)

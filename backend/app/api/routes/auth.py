@@ -3,10 +3,11 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import Optional
+import os
 import secrets
 import smtplib
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 from ...core.db import get_session
 from ...models.user import User
@@ -18,14 +19,18 @@ router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 # Email configuration
-SMTP_HOST = "smtp.gmail.com"  # Configure based on your email provider
-SMTP_PORT = 587
-SMTP_USER = "your-email@gmail.com"  # Configure in environment
-SMTP_PASSWORD = "your-app-password"  # Configure in environment
-FROM_EMAIL = "noreply@sathyanishta.com"
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@sathyanishta.com")
 
 def send_verification_email(email: str, token: str):
     """Send email verification link"""
+    if not SMTP_USER or not SMTP_PASSWORD or "your-email" in SMTP_USER:
+        print(f"Skipping verification email to {email} - SMTP credentials not configured")
+        return
+
     verification_url = f"http://127.0.0.1:3000/auth/verify?token={token}"
     
     html_content = f"""
@@ -45,12 +50,12 @@ def send_verification_email(email: str, token: str):
     """
     
     try:
-        msg = MimeMultipart("alternative")
+        msg = MIMEMultipart("alternative")
         msg["Subject"] = "Verify your Sathya Nishta account"
         msg["From"] = FROM_EMAIL
         msg["To"] = email
         
-        html_part = MimeText(html_content, "html")
+        html_part = MIMEText(html_content, "html")
         msg.attach(html_part)
         
         server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
@@ -63,6 +68,10 @@ def send_verification_email(email: str, token: str):
 
 def send_password_reset_email(email: str, token: str):
     """Send password reset link"""
+    if not SMTP_USER or not SMTP_PASSWORD or "your-email" in SMTP_USER:
+        print(f"Skipping password reset email to {email} - SMTP credentials not configured")
+        return
+
     reset_url = f"http://127.0.0.1:3000/auth/reset-password?token={token}"
     
     html_content = f"""
@@ -83,12 +92,12 @@ def send_password_reset_email(email: str, token: str):
     """
     
     try:
-        msg = MimeMultipart("alternative")
+        msg = MIMEMultipart("alternative")
         msg["Subject"] = "Reset your Sathya Nishta password"
         msg["From"] = FROM_EMAIL
         msg["To"] = email
         
-        html_part = MimeText(html_content, "html")
+        html_part = MIMEText(html_content, "html")
         msg.attach(html_part)
         
         server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)

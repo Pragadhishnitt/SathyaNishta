@@ -240,11 +240,11 @@ export default function Home() {
 
       {/* Login Required Modal */}
       {showLoginModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
-          <div className="glass-card neon-border-indigo p-6 max-w-sm w-full mx-4 animate-slide-up">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] animate-fade-in">
+          <div className="glass-card neon-border-indigo p-6 max-w-sm w-full mx-4 animate-slide-up relative">
             <button
               onClick={() => setShowLoginModal(false)}
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-300 transition-colors"
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-300 transition-colors"
             >
               <X size={16} />
             </button>

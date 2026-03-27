@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.health import router as health_router
 from app.api.routes.auth import router as auth_router
-from app.api.routes.email import router as email_router
+from app.api.routes.email_routes import router as email_router
 from app.api.routes.investigate import router as investigate_router
 from app.api.routes.chat import router as chat_router
 from app.api.routes.report import router as report_router
