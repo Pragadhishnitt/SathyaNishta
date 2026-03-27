@@ -75,12 +75,17 @@ services:
       - /app/node_modules
     tty: true
     stdin_open: true
+    env_file:
+      - .env
     environment:
       - NEXT_TELEMETRY_DISABLED=1
+      - NODE_ENV=development
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
+      - FAST_REFRESH=true
       - NEXTAUTH_URL=http://127.0.0.1:8090
       - NEXTAUTH_SECRET=hackathon-market-chat-secret-2026
+      - NEXT_PUBLIC_API_URL=http://backend:8000
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
