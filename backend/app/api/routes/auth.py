@@ -11,7 +11,7 @@ from email.mime.multipart import MIMEMultipart
 
 from ...core.db import get_session
 from ...models.user import User
-from ...schemas.user import UserCreate, UserLogin, UserResponse, PasswordReset, PasswordResetConfirm, EmailVerification
+from ...schemas.user import UserCreate, UserLogin, UserResponse, UserUpdate, PasswordReset, PasswordResetConfirm, EmailVerification
 from ...core.security import get_password_hash, verify_password, create_access_token, get_current_user
 from ...core.rate_limit import check_rate_limit, login_limiter, register_limiter, password_reset_limiter
 
