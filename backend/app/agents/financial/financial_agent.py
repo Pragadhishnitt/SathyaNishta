@@ -19,6 +19,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from sqlalchemy import text, create_engine
 from sqlmodel import Session
+from tenacity import retry, wait_exponential, stop_after_attempt
 
 from ..base_agent import BaseAgent
 from ...shared.logger import setup_logger
@@ -298,6 +299,11 @@ class FinancialAgent(BaseAgent):
     # ---------------------------------------------------------------
     # LLM Analysis: Use Portkey to analyze financial documents
     # ---------------------------------------------------------------
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(3),
+        reraise=True
+    )
     def _analyze_with_llm(self, documents: List[Dict], analysis_prompt: str) -> Dict[str, Any]:
         """Use LLM to analyze financial documents and extract insights."""
         if not self.llm_client or not documents:
@@ -633,6 +639,11 @@ Use this exact format:
     # ---------------------------------------------------------------
     # Internal helper: query financial_filings table
     # ---------------------------------------------------------------
+    @retry(
+        wait=wait_exponential(multiplier=1, min=1, max=5),
+        stop=stop_after_attempt(3),
+        reraise=True
+    )
     def _query_financial_filings(self, company_name: str, doc_type: str, period: Optional[str] = None) -> List[Dict[str, Any]]:
         """Query financial_filings table for company data."""
         if not self.engine:

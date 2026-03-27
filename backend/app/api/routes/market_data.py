@@ -2,6 +2,7 @@ import yfinance as yf
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import asyncio
+from tenacity import retry, wait_exponential, stop_after_attempt
 
 router = APIRouter(prefix="/api/market", tags=["market"])
 
@@ -11,6 +12,11 @@ class MarketDataResponse(BaseModel):
     sensex: dict
 
 
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(3),
+    reraise=True
+)
 def fetch_ticker_data(symbol):
     """Fetch ticker data with timeout"""
     try:

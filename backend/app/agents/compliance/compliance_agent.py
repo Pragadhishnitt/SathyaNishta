@@ -17,6 +17,7 @@ It routes to the corresponding handler and returns the tool's output dict.
 import json
 import os
 from typing import Any, Callable, Dict, List, Optional
+from tenacity import retry, wait_exponential, stop_after_attempt
 
 # Load .env if present (for local dev)
 from dotenv import load_dotenv
@@ -97,6 +98,11 @@ class ComplianceAgent(BaseAgent):
         """Cross-reference financial findings against IndAS accounting standards."""
         return self._call_llm("verify_indas_compliance", params, task)
 
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(3),
+        reraise=True
+    )
     def rag_legal_query(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
         """Perform semantic search on regulatory documents using Supabase pgvector."""
         query = params.get("query")

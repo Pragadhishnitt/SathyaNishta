@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime
 from sqlalchemy import create_engine, text
 from sqlmodel import Session
+from tenacity import retry, wait_exponential, stop_after_attempt
 
 from ..base_agent import BaseAgent
 from ...shared.logger import setup_logger
@@ -67,6 +68,11 @@ class AudioAgent(BaseAgent):
     # RAG Helper Methods
     # =====================================================================
 
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(3),
+        reraise=True
+    )
     def _retrieve_audio_documents(self, company: str, query: str, top_k: int = 3) -> List[Dict]:
         """Retrieve most relevant audio transcripts using semantic search"""
         try:
@@ -140,6 +146,11 @@ class AudioAgent(BaseAgent):
             self.logger.error(f"Error retrieving documents: {e}")
             return []
 
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(3),
+        reraise=True
+    )
     def _analyze_with_llm(self, transcript_content: str, analysis_type: str) -> Dict[str, Any]:
         """Analyze audio transcript content using Portkey LLM"""
         if not self.llm_client:
@@ -465,6 +476,11 @@ Respond with ONLY valid JSON:
             self.logger.error(f"Error in analyze_transcript_content: {e}")
             return {"error": str(e), "status": "failed"}
 
+    @retry(
+        wait=wait_exponential(multiplier=1, min=1, max=5),
+        stop=stop_after_attempt(3),
+        reraise=True
+    )
     def detect_deception_markers_with_timestamps(self, company: str) -> Dict[str, Any]:
         """
         Detect deception markers and enrich with timeline percentages for frontend heatmap.

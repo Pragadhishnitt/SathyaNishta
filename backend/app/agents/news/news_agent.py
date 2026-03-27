@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional
 
 from app.shared.logger import setup_logger
 from app.shared.llm_portkey import chat_complete
+from tenacity import retry, wait_exponential, stop_after_attempt
 
 _logger = setup_logger("news_agent")
 
@@ -37,6 +38,11 @@ class NewsAgent:
         except ImportError:
             _logger.warning("NewsAgent: tavily package not installed — will use DuckDuckGo fallback")
 
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(3),
+        reraise=True
+    )
     def _search_tavily(self, company: str, max_results: int = 5) -> List[Dict[str, str]]:
         """Search via Tavily API (returns clean, RAG-optimized content)."""
         if not self._tavily_client:
@@ -61,6 +67,11 @@ class NewsAgent:
             _logger.warning(f"Tavily search failed: {e}")
             return []
 
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(3),
+        reraise=True
+    )
     def _search_duckduckgo(self, company: str, max_results: int = 5) -> List[Dict[str, str]]:
         """Fallback: search via DuckDuckGo (free, no API key)."""
         try:

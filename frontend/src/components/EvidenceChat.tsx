@@ -17,7 +17,27 @@ export function EvidenceChat({ investigationContext }: { investigationContext: a
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("Analyzing evidence...");
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (loading) {
+      const messages = [
+        "Thinking...",
+        "Searching evidence...",
+        "Compiling info...",
+        "Evaluating risk...",
+        "Synthesizing response..."
+      ];
+      let i = 0;
+      interval = setInterval(() => {
+        setLoadingMessage(messages[i % messages.length]);
+        i++;
+      }, 1500);
+    }
+    return () => clearInterval(interval);
+  }, [loading]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -77,8 +97,8 @@ export function EvidenceChat({ investigationContext }: { investigationContext: a
         {loading && (
           <div className="flex justify-start">
             <div className="rounded-lg px-3 py-2 text-xs bg-white/[0.03] border border-white/[0.08] text-gray-400 flex items-center gap-2">
-              <Loader2 size={12} className="animate-spin" />
-              Analyzing evidence...
+              <Loader2 size={12} className="animate-spin text-neon-indigo" />
+              <span className="animate-pulse">{loadingMessage}</span>
             </div>
           </div>
         )}

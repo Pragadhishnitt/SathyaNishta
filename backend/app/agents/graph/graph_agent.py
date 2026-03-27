@@ -17,6 +17,7 @@ import json
 from typing import Any, Callable, Dict, List, Optional
 
 from neo4j import GraphDatabase
+from tenacity import retry, wait_exponential, stop_after_attempt
 
 from ..base_agent import BaseAgent
 from ...shared.logger import setup_logger
@@ -47,6 +48,11 @@ class GraphAgent(BaseAgent):
             "detect_circular_loops": self.detect_circular_loops,
         }
 
+    @retry(
+        wait=wait_exponential(multiplier=1, min=1, max=5),
+        stop=stop_after_attempt(3),
+        reraise=True
+    )
     def get_graph_payload(self, entity_name: str, max_hops: int = 5) -> Dict[str, Any]:
         """Return Neo4j subgraph as serializable node/edge objects for UI rendering."""
         if not self.neo4j_driver:
@@ -136,6 +142,11 @@ class GraphAgent(BaseAgent):
         # Use LLM to generate the Cypher query
         return self._call_llm("generate_cypher_query", params, task)
 
+    @retry(
+        wait=wait_exponential(multiplier=1, min=1, max=5),
+        stop=stop_after_attempt(3),
+        reraise=True
+    )
     def run_cypher_query(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
         """Executes a Cypher query against Neo4j and returns structured results."""
         query = params.get("query")

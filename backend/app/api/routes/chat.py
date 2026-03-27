@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Any
 from app.shared.llm_portkey import get_portkey_client
 from app.shared.logger import get_logger
+from tenacity import retry, wait_exponential, stop_after_attempt
 
 router = APIRouter()
 _logger = get_logger(__name__)
@@ -19,11 +20,14 @@ class ChatRequest(BaseModel):
 @router.post("/chat")
 async def chat_standard(request: ChatRequest):
     """Chat endpoint supporting both standard and evidence-grounded forensic modes."""
+    _logger.info(f"Incoming chat request: {len(request.messages)} messages, context={'present' if request.investigation_context else 'none'}")
+    
     try:
         client = get_portkey_client()
         
         # Format messages for Portkey
         formatted_messages = [{"role": m.role, "content": m.content} for m in request.messages]
+        _logger.debug(f"Formatted {len(formatted_messages)} messages for Portkey")
         
         if request.investigation_context:
             ctx = request.investigation_context
@@ -55,28 +59,41 @@ async def chat_standard(request: ChatRequest):
                 "response, ALWAYS add a line: '*Note: Use SathyaNishta Mode for in-depth forensic "
                 "investigation and multi-agent fraud analysis.*'"
             )
-
+        
+        _logger.debug(f"Generated system prompt length: {len(system_content)}")
         system_msg = {"role": "system", "content": system_content}
         
-        response = client.chat.completions.create(
-            messages=[system_msg] + formatted_messages,
-            stream=False
+        @retry(
+            wait=wait_exponential(multiplier=1, min=2, max=10),
+            stop=stop_after_attempt(3),
+            reraise=True
         )
+        def call_portkey():
+            _logger.info("Calling Portkey chat.completions.create (with retries)...")
+            return client.chat.completions.create(
+                messages=[system_msg] + formatted_messages,
+                stream=False
+            )
+
+        response = call_portkey()
+        _logger.info("Portkey response received")
         
         # Robust content extraction (handles both object and dict responses)
         content = None
         try:
-            content = response.choices[0].message.content
-        except (AttributeError, IndexError):
-            try:
+            if hasattr(response, "choices"):
+                content = response.choices[0].message.content
+            else:
                 content = response.get("choices", [{}])[0].get("message", {}).get("content")
-            except Exception:
-                content = str(response)
+        except Exception as exc:
+            _logger.error(f"Failed to extract content from Portkey response: {exc}")
+            content = str(response)
 
+        _logger.info(f"Returning chat response: {len(content) if content else 0} chars")
         return {
             "role": "assistant",
             "content": content
         }
     except Exception as e:
-        _logger.error(f"Chat error: {str(e)}")
+        _logger.error(f"Chat endpoint error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
