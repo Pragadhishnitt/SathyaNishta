@@ -15,6 +15,11 @@ from ...schemas.user import UserCreate, UserLogin, UserResponse, UserUpdate, Pas
 from ...core.security import get_password_hash, verify_password, create_access_token, get_current_user
 from ...core.rate_limit import check_rate_limit, login_limiter, register_limiter, password_reset_limiter
 
+# Add this for debugging
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
@@ -111,42 +116,64 @@ def send_password_reset_email(email: str, token: str):
 @router.post("/register", response_model=UserResponse)
 async def register(user: UserCreate, db: Session = Depends(get_session), request: Request = None):
     """Register a new user"""
-    # Apply rate limiting
-    client_ip = request.client.host if request else "unknown"
-    check_rate_limit(register_limiter, user.email, "Too many registration attempts. Please try again later.")
-    
-    # Check if user already exists
-    db_user = db.query(User).filter(User.email == user.email).first()
-    if db_user:
+    try:
+        # Debug logging
+        logger.info(f"Registration attempt: {user.email}")
+        logger.info(f"User data: {user.dict()}")
+        
+        # Apply rate limiting
+        client_ip = request.client.host if request else "unknown"
+        check_rate_limit(register_limiter, user.email, "Too many registration attempts. Please try again later.")
+        
+        # Check if user already exists
+        db_user = db.query(User).filter(User.email == user.email).first()
+        if db_user:
+            logger.warning(f"Email already registered: {user.email}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        
+        # Create new user
+        hashed_password = get_password_hash(user.password)
+        verification_token = secrets.token_urlsafe(32)
+        verification_expires = datetime.utcnow() + timedelta(hours=24)
+        
+        db_user = User(
+            email=user.email,
+            name=user.name,
+            hashed_password=hashed_password,
+            company=user.company,
+            role=user.role,
+            bio=user.bio,
+            verification_token=verification_token,
+            verification_expires=verification_expires
+        )
+        
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        
+        # Send verification email
+        send_verification_email(user.email, verification_token)
+        
+        logger.info(f"User registered successfully: {user.email}")
+        return UserResponse.model_validate(db_user)
+        
+    except ValueError as e:
+        # Handle validation errors from Pydantic validators
+        logger.error(f"Validation error: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            detail=str(e)
         )
-    
-    # Create new user
-    hashed_password = get_password_hash(user.password)
-    verification_token = secrets.token_urlsafe(32)
-    verification_expires = datetime.utcnow() + timedelta(hours=24)
-    
-    db_user = User(
-        email=user.email,
-        name=user.name,
-        hashed_password=hashed_password,
-        company=user.company,
-        role=user.role,
-        bio=user.bio,
-        verification_token=verification_token,
-        verification_expires=verification_expires
-    )
-    
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    
-    # Send verification email
-    send_verification_email(user.email, verification_token)
-    
-    return UserResponse.model_validate(db_user)
+    except Exception as e:
+        # Log the error for debugging
+        logger.error(f"Registration error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Registration failed. Please try again."
+        )
 
 @router.post("/verify-email")
 async def verify_email(verification: EmailVerification, db: Session = Depends(get_session)):

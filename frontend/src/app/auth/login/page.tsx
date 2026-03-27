@@ -214,7 +214,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen auth-bg flex items-center justify-center p-4 overflow-y-auto">
+    <div className="min-h-screen auth-bg flex flex-col items-center justify-center py-12 px-4 relative overflow-y-auto">
       {/* Background orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-neon-indigo/[0.07] rounded-full blur-[100px] animate-float" />
