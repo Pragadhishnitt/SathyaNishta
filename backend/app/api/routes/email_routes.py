@@ -120,7 +120,7 @@ def generate_investigation_html(data: dict, custom_message: str) -> str:
     </head>
     <body>
         <div class="header">
-            <h1 style="margin: 0; font-size: 24px;">🔍 Forensic Investigation Report</h1>
+            <h1 style="margin: 0; font-size: 24px;">\U0001F50D Forensic Investigation Report</h1>
             <p style="margin: 8px 0 0 0; opacity: 0.9;">Sathya Nishta AI-Powered Analysis</p>
         </div>
         
@@ -138,20 +138,20 @@ def generate_investigation_html(data: dict, custom_message: str) -> str:
             </div>
             
             <div class="section">
-                <h3 style="color: #1f2937; margin-bottom: 12px;">🔍 Key Findings</h3>
+                <h3 style="color: #1f2937; margin-bottom: 12px;">\U0001F50D Key Findings</h3>
                 {evidence_html or '<p style="color: #6b7280;">No significant findings detected.</p>'}
             </div>
             
             {synthesis.get('summary') and f"""
             <div class="section">
-                <h3 style="color: #1f2937; margin-bottom: 12px;">📝 Executive Summary</h3>
+                <h3 style="color: #1f2937; margin-bottom: 12px;">\U0001F4DD Executive Summary</h3>
                 <p style="color: #4b5563; line-height: 1.6;">{synthesis['summary']}</p>
             </div>
             """}
             
             {synthesis.get('recommendations') and f"""
             <div class="section">
-                <h3 style="color: #1f2937; margin-bottom: 12px;">💡 Recommendations</h3>
+                <h3 style="color: #1f2937; margin-bottom: 12px;">\U0001F4A1 Recommendations</h3>
                 <ul style="color: #4b5563; line-height: 1.6;">
                     {"".join([f"<li>{rec}</li>" for rec in synthesis['recommendations']])}
                 </ul>
@@ -184,7 +184,7 @@ def generate_brief_html(data: dict, custom_message: str) -> str:
     </head>
     <body>
         <div class="header">
-            <h1 style="margin: 0; font-size: 24px;">📊 Market Intelligence Brief</h1>
+            <h1 style="margin: 0; font-size: 24px;">\U0001F4CA Market Intelligence Brief</h1>
             <p style="margin: 8px 0 0 0; opacity: 0.9;">Sathya Nishta AI Analysis</p>
         </div>
         
@@ -220,7 +220,7 @@ def generate_compare_html(data: dict, custom_message: str) -> str:
     </head>
     <body>
         <div class="header">
-            <h1 style="margin: 0; font-size: 24px;">⚖️ Comparison Analysis Report</h1>
+            <h1 style="margin: 0; font-size: 24px;">\u2696\ufe0f Comparison Analysis Report</h1>
             <p style="margin: 8px 0 0 0; opacity: 0.9;">Sathya Nishta AI Comparison</p>
         </div>
         
@@ -256,7 +256,7 @@ def generate_default_html(data: dict, custom_message: str) -> str:
     </head>
     <body>
         <div class="header">
-            <h1 style="margin: 0; font-size: 24px;">📄 Sathya Nishta Report</h1>
+            <h1 style="margin: 0; font-size: 24px;">\U0001F4C4 Sathya Nishta Report</h1>
             <p style="margin: 8px 0 0 0; opacity: 0.9;">AI-Powered Analysis</p>
         </div>
         
