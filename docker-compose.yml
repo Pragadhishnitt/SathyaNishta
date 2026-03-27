@@ -65,10 +65,14 @@ services:
   frontend:
     build:
       context: ./frontend
+      target: development
     container_name: sathya-frontend
     restart: unless-stopped
     ports:
       - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     tty: true
     stdin_open: true
     environment:

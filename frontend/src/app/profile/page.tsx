@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { SidebarNav } from "@/components/SidebarNav";
 import { User, Mail, Building, Briefcase, Edit2, Save, X, CheckCircle, AlertCircle, Shield, Calendar } from "lucide-react";
+import { Session } from "@/types/session";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -51,7 +52,7 @@ export default function ProfilePage() {
       const response = await fetch('/api/profile', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${(session as any)?.accessToken || ''}`,
+          'Authorization': `Bearer ${(session as any)?.user?.accessToken || ''}`,
         },
       });
 
@@ -109,7 +110,7 @@ export default function ProfilePage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.accessToken || ''}`,
+          'Authorization': `Bearer ${(session as any)?.user?.accessToken || ''}`,
         },
         body: JSON.stringify(editForm),
       });
