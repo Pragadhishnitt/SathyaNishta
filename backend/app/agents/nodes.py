@@ -414,18 +414,28 @@ Return ONLY JSON (no markdown):
 # ── Synthesis Node ─────────────────────────────────────────────
 
 def synthesis_node(state: InvestigationState) -> Dict[str, Any]:
-    """Compute weighted fraud_risk_score + verdict from agent findings."""
+    """Compute weighted fraud_risk_score + verdict from agent findings.
+    
+    Weights have been rebalanced to prioritize the News Agent (25%).
+    Implements a 'High Signal Override': If multiple agents detect high risk,
+    the final verdict is escalated regardless of the weighted average.
+    """
     weights = {
-        "financial": 0.22,
-        "graph": 0.30,
-        "compliance": 0.25,
-        "audio": 0.10,
-        "news": 0.13,
+        "news": 0.25,        # Prioritized (was 0.13)
+        "graph": 0.25,       # (was 0.30)
+        "compliance": 0.20,  # (was 0.25)
+        "financial": 0.20,   # (was 0.22)
+        "audio": 0.10,       # (unchanged)
     }
 
     total_weight = 0.0
     weighted_sum = 0.0
     all_evidence = []
+    
+    # Track individual high-risk signals for override logic
+    high_risk_count = 0      # Score >= 7.0
+    critical_risk_count = 0  # Score >= 8.5
+    max_individual_score = 0.0
 
     for agent_key, weight in weights.items():
         findings_key = f"{agent_key}_findings"
@@ -434,34 +444,58 @@ def synthesis_node(state: InvestigationState) -> Dict[str, Any]:
             score = finding.get("risk_score", 0.0)
             weighted_sum += score * weight
             total_weight += weight
+            
+            if score > max_individual_score:
+                max_individual_score = score
+            
+            if score >= 8.5:
+                critical_risk_count += 1
+            if score >= 7.0:
+                high_risk_count += 1
 
             for f in finding.get("findings", []):
                 all_evidence.append({
                     "source": agent_key.title(),
                     "finding": f,
                     "severity": (
-                        "CRITICAL" if score >= 8 else
-                        "HIGH" if score >= 6 else
-                        "MEDIUM" if score >= 4 else
+                        "CRITICAL" if score >= 8.5 else
+                        "HIGH" if score >= 7.0 else
+                        "MEDIUM" if score >= 4.0 else
                         "LOW"
                     ),
                 })
 
-    fraud_risk_score = round(weighted_sum / total_weight, 1) if total_weight > 0 else 0.0
+    # 1. Base Weighted Score
+    base_score = weighted_sum / total_weight if total_weight > 0 else 0.0
+    
+    # 2. Apply Overrides
+    # If any single agent is CRITICAL, floor the score to 7.5 (High Risk)
+    if critical_risk_count >= 1:
+        base_score = max(base_score, 7.5)
+        
+    # If TWO or more agents are HIGH or CRITICAL, floor the score to 8.0 (Critical floor)
+    if high_risk_count >= 2:
+        base_score = max(base_score, 8.2)
 
-    if fraud_risk_score >= 8:
+    fraud_risk_score = round(base_score, 1)
+
+    # 3. Determine Verdict based on boosted score
+    if fraud_risk_score >= 8.0:
         verdict = "CRITICAL"
-    elif fraud_risk_score >= 6:
+    elif fraud_risk_score >= 6.5:
         verdict = "HIGH_RISK"
-    elif fraud_risk_score >= 4:
+    elif fraud_risk_score >= 4.0:
         verdict = "CAUTION"
     else:
         verdict = "SAFE"
+
+    company = state.get("company_name", "Unknown")
+    _logger.info(f"Synthesis Complete: {company} -> {verdict} ({fraud_risk_score})")
 
     return {
         "fraud_risk_score": fraud_risk_score,
         "verdict": verdict,
         "evidence": all_evidence,
         "investigation_complete": True,
-        "messages": [f"Synthesis: score={fraud_risk_score}, verdict={verdict}"],
+        "messages": [f"Synthesis: score={fraud_risk_score}, verdict={verdict} (High-Signal Detected: {high_risk_count})"],
     }
