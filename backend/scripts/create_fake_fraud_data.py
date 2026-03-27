@@ -41,10 +41,50 @@ def insert_fraud_data():
     """
     
     finance_metadata = json.dumps({"is_synthetic": True, "notes": "fake fraud data"})
-    audio_metadata = json.dumps({"is_synthetic": True, "notes": "fake fraud data"})
+    audio_trans_metadata = json.dumps({"is_synthetic": True, "notes": "fake fraud data"})
+    
+    # Detailed metadata for AudioAgent to detect markers and tone
+    audio_file_metadata = {
+        "is_synthetic": True,
+        "tone_analysis": {
+            "overall_tone": "defensive/anxious",
+            "confidence": 0.92,
+            "segments": [
+                {"start": 10, "end": 25, "tone": "hesitant", "transcript": "uh, mostly confident"},
+                {"start": 45, "end": 60, "tone": "defensive", "transcript": "totally normal... don't know why everyone is so focused"}
+            ]
+        },
+        "deception_analysis": {
+            "likelihood": 0.85,
+            "hedging_count": 4,
+            "avoidance_count": 2,
+            "explanation": "Significant presence of hedging ('mostly', 'eventually') and defensive topic avoidance regarding offshore transfers.",
+            "markers": [
+                {"type": "hedging", "text": "mostly confident", "confidence": 0.8},
+                {"type": "detachment", "text": "didn't personally authorize", "confidence": 0.9}
+            ]
+        }
+    }
 
     with Session(engine) as session:
-        # 1. Insert Financial Data
+        # 0. Ensure audio_files table exists (since it's missing in Supabase)
+        session.execute(text("""
+            CREATE TABLE IF NOT EXISTS audio_files (
+                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                company_name VARCHAR(255) NOT NULL,
+                call_type VARCHAR(50),
+                period VARCHAR(20),
+                call_date DATE,
+                file_key TEXT NOT NULL,
+                duration_sec INT,
+                transcript TEXT,
+                participants JSONB DEFAULT '[]',
+                metadata JSONB DEFAULT '{}',
+                created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+            );
+        """))
+        
+        # 1. Insert Financial Data (Vector Search Data)
         session.execute(
             text("""
                 INSERT INTO financial_filings (id, company_name, company_ticker, period, doc_type, content_chunk, metadata)
@@ -61,7 +101,7 @@ def insert_fraud_data():
             }
         )
         
-        # 2. Insert Audio Data
+        # 2. Insert Audio Transcription (Vector Search Data)
         session.execute(
             text("""
                 INSERT INTO audio_transcriptions (company_name, company_code, transcript_date, content_chunk, chunk_number, metadata)
@@ -73,12 +113,31 @@ def insert_fraud_data():
                 "date": datetime.now().date(),
                 "content": audio_content,
                 "chunk": 1,
-                "meta": audio_metadata
+                "meta": audio_trans_metadata
             }
         )
+        
+        # 3. Insert Audio File Metadata (Agent Tool Query Data)
+        session.execute(
+            text("""
+                INSERT INTO audio_files (company_name, call_type, period, call_date, file_key, duration_sec, transcript, metadata)
+                VALUES (:company, :call_type, :period, :date, :file_key, :duration, :transcript, CAST(:meta AS jsonb))
+            """),
+            {
+                "company": company,
+                "call_type": "earnings_call",
+                "period": "Q3-2024",
+                "date": datetime.now().date(),
+                "file_key": "synthetic_fraud_call.wav",
+                "duration": 120,
+                "transcript": audio_content,
+                "meta": json.dumps(audio_file_metadata)
+            }
+        )
+        
         session.commit()
         
-    print(f"✅ Fraud data for {company} inserted into Supabase.")
+    print(f"✅ Fraud data for {company} inserted into Supabase (Financial + Audio + Tables).")
     print("\n" + "="*50)
     print("NEO4J CIRCULAR TRADING SETUP")
     print("="*50)
