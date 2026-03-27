@@ -120,7 +120,7 @@ export function WelcomeScreen({ mode }: { mode: "standard" | "sathyanishta" }) {
     fetchMarketData();
 
     // Set up interval for every 10 minutes (600000 ms) to avoid rate limiting
-    const interval = setInterval(fetchMarketData, 600000);
+    const interval = setInterval(fetchMarketData, 5000);
 
     return () => clearInterval(interval);
   }, []);

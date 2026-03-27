@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { SidebarNav } from "@/components/SidebarNav";
 import { InvestigationPanel, AgentEvent, SynthesisResult } from "@/components/InvestigationPanel";
-import { GitCompare, ArrowRight, Loader2, Shield, AlertTriangle, CheckCircle2, Zap } from "lucide-react";
+import { GitCompare, ArrowRight, Loader2, Shield, AlertTriangle, CheckCircle2, Zap, Sparkles } from "lucide-react";
 
 interface CompanyInvestigation {
   name: string;
@@ -48,56 +48,7 @@ export default function ComparePage() {
     return null;
   };
 
-  const startInvestigation = async (
-    companyName: string,
-    setter: React.Dispatch<React.SetStateAction<CompanyInvestigation>>
-  ) => {
-    setter(prev => ({ ...prev, name: companyName, isLoading: true, agentEvents: [], synthesis: null }));
-
-    try {
-      const res = await fetch("/api/investigate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: `Investigate ${companyName}`, mode: "sathyanishta" }),
-      });
-
-      const { stream_url, investigation_id } = await res.json();
-      if (investigation_id) {
-        setter(prev => ({ ...prev, investigationId: investigation_id }));
-      }
-      const es = new EventSource(stream_url);
-
-      es.addEventListener("agent_start", (e) => {
-        const d = JSON.parse(e.data);
-        setter(prev => ({ ...prev, agentEvents: [...prev.agentEvents, { ...d, status: "running" }] }));
-      });
-
-      es.addEventListener("agent_done", (e) => {
-        const d = JSON.parse(e.data);
-        setter(prev => ({
-          ...prev,
-          agentEvents: prev.agentEvents.map(a => a.agent === d.agent ? { ...a, ...d, status: "complete" } : a),
-        }));
-      });
-
-      es.addEventListener("synthesis", (e) => {
-        setter(prev => ({ ...prev, synthesis: JSON.parse(e.data) }));
-      });
-
-      es.addEventListener("complete", () => {
-        setter(prev => ({ ...prev, isLoading: false }));
-        es.close();
-      });
-
-      es.onerror = () => {
-        setter(prev => ({ ...prev, isLoading: false }));
-        es.close();
-      };
-    } catch (error) {
-      console.error("Investigation failed:", error);
-      setter(prev => ({ ...prev, isLoading: false }));
-    }
-  };
+  const [comparisonSummary, setComparisonSummary] = useState<any>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,11 +58,71 @@ export default function ComparePage() {
     if (!parsed) return;
 
     setIsRunning(true);
-    await Promise.all([
-      startInvestigation(parsed[0], setCompanyA),
-      startInvestigation(parsed[1], setCompanyB),
-    ]);
-    setIsRunning(false);
+    setCompanyA({ ...INITIAL_STATE, name: parsed[0], isLoading: true });
+    setCompanyB({ ...INITIAL_STATE, name: parsed[1], isLoading: true });
+    setComparisonSummary(null);
+
+    try {
+      const res = await fetch("/api/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          company_a: parsed[0], 
+          company_b: parsed[1], 
+          mode: "sathyanishta" 
+        }),
+      });
+
+      const { stream_url, investigation_id_a, investigation_id_b } = await res.json();
+      setCompanyA(prev => ({ ...prev, investigationId: investigation_id_a }));
+      setCompanyB(prev => ({ ...prev, investigationId: investigation_id_b }));
+
+      const es = new EventSource(stream_url);
+
+      es.addEventListener("agent_start", (e) => {
+        const d = JSON.parse(e.data);
+        const setter = d.company_slot === "A" ? setCompanyA : setCompanyB;
+        setter(prev => ({ ...prev, agentEvents: [...prev.agentEvents, { ...d, status: "running" }] }));
+      });
+
+      es.addEventListener("agent_done", (e) => {
+        const d = JSON.parse(e.data);
+        const setter = d.company_slot === "A" ? setCompanyA : setCompanyB;
+        setter(prev => ({
+          ...prev,
+          agentEvents: prev.agentEvents.map(a => a.agent === d.agent ? { ...a, ...d, status: "complete" } : a),
+        }));
+      });
+
+      es.addEventListener("synthesis", (e) => {
+        const d = JSON.parse(e.data);
+        const setter = d.company_slot === "A" ? setCompanyA : setCompanyB;
+        setter(prev => ({ ...prev, synthesis: d }));
+      });
+
+      es.addEventListener("comparison_synthesis", (e) => {
+        setComparisonSummary(JSON.parse(e.data));
+      });
+
+      es.addEventListener("complete", () => {
+        setIsRunning(false);
+        setCompanyA(prev => ({ ...prev, isLoading: false }));
+        setCompanyB(prev => ({ ...prev, isLoading: false }));
+        es.close();
+      });
+
+      es.onerror = () => {
+        setIsRunning(false);
+        setCompanyA(prev => ({ ...prev, isLoading: false }));
+        setCompanyB(prev => ({ ...prev, isLoading: false }));
+        es.close();
+      };
+    } catch (error) {
+      console.error("Comparison failed:", error);
+      setIsRunning(false);
+      setCompanyA(prev => ({ ...prev, isLoading: false }));
+      setCompanyB(prev => ({ ...prev, isLoading: false }));
+    }
   };
 
   const hasResults = companyA.agentEvents.length > 0 || companyB.agentEvents.length > 0;
@@ -181,32 +192,60 @@ export default function ComparePage() {
           {/* Split Screen Results */}
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {hasResults ? (
-              <div className="grid grid-cols-2 gap-px bg-white/[0.04] h-full min-h-[600px]">
-                {/* Company A */}
-                <div className="bg-surface-0 p-5 overflow-y-auto">
-                  <CompanyHeader name={companyA.name} synthesis={companyA.synthesis} isLoading={companyA.isLoading} />
-                  <div className="mt-4">
-                    <InvestigationPanel
-                      agentEvents={companyA.agentEvents}
-                      synthesis={companyA.synthesis}
-                      isLoading={companyA.isLoading}
-                      investigationId={companyA.investigationId}
-                      companyName={companyA.name}
-                    />
+              <div className="flex flex-col h-full overflow-hidden">
+                {/* Comparison Summary Banner */}
+                {comparisonSummary && (
+                  <div className="bg-neon-indigo/5 border-b border-neon-indigo/20 p-4 animate-slide-up">
+                    <div className="max-w-5xl mx-auto flex items-start gap-4">
+                      <div className="p-2 rounded-lg bg-neon-indigo/10 text-neon-indigo mt-0.5">
+                        <Sparkles size={18} />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-1">
+                          <h3 className="text-sm font-bold text-white tracking-wide uppercase">AI Matchup Verdict</h3>
+                          <span className="text-[10px] font-bold text-neon-indigo bg-neon-indigo/10 px-2 py-0.5 rounded border border-neon-indigo/20">
+                            RELIABILITY WINNER: {comparisonSummary.winner_on_reliability}
+                          </span>
+                        </div>
+                        <p className="text-xs text-indigo-100/70 leading-relaxed mb-3">
+                          {comparisonSummary.comparison_summary}
+                        </p>
+                        <div className="flex items-center gap-2 text-[10px] text-gray-500 font-mono">
+                          <AlertTriangle size={12} className="text-amber-400" />
+                          KEY RISKS: {comparisonSummary.key_risks_compared}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {/* Company B */}
-                <div className="bg-surface-0 p-5 overflow-y-auto">
-                  <CompanyHeader name={companyB.name} synthesis={companyB.synthesis} isLoading={companyB.isLoading} />
-                  <div className="mt-4">
-                    <InvestigationPanel
-                      agentEvents={companyB.agentEvents}
-                      synthesis={companyB.synthesis}
-                      isLoading={companyB.isLoading}
-                      investigationId={companyB.investigationId}
-                      companyName={companyB.name}
-                    />
+                <div className="grid grid-cols-2 gap-px bg-white/[0.04] flex-1 min-h-[600px] overflow-hidden">
+                  {/* Company A */}
+                  <div className="bg-surface-0 p-5 overflow-y-auto custom-scrollbar">
+                    <CompanyHeader name={companyA.name} synthesis={companyA.synthesis} isLoading={companyA.isLoading} />
+                    <div className="mt-4">
+                      <InvestigationPanel
+                        agentEvents={companyA.agentEvents}
+                        synthesis={companyA.synthesis}
+                        isLoading={companyA.isLoading}
+                        investigationId={companyA.investigationId}
+                        companyName={companyA.name}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Company B */}
+                  <div className="bg-surface-0 p-5 overflow-y-auto custom-scrollbar">
+                    <CompanyHeader name={companyB.name} synthesis={companyB.synthesis} isLoading={companyB.isLoading} />
+                    <div className="mt-4">
+                      <InvestigationPanel
+                        agentEvents={companyB.agentEvents}
+                        synthesis={companyB.synthesis}
+                        isLoading={companyB.isLoading}
+                        investigationId={companyB.investigationId}
+                        companyName={companyB.name}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

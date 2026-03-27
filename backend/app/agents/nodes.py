@@ -414,6 +414,11 @@ Return ONLY JSON (no markdown):
         return {
             "reflection_passed": parsed.get("passed", True),
             "reflection_notes": parsed.get("reflection_notes", "Findings reviewed"),
+            "reflection_findings": {
+                "risk_score": 0.0,
+                "findings": [parsed.get("reflection_notes", "Findings reviewed")],
+                "evidence": {}
+            },
             "messages": [
                 f"Reflection Agent: {'✅ Passed' if parsed.get('passed') else '⚠️ Adjusted'} — {parsed.get('reflection_notes', '')}"
             ],
