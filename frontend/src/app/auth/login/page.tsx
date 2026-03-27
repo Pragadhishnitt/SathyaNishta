@@ -254,21 +254,23 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Name field for sign up */}
             {isSignUp && (
-              <div className="relative group">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  placeholder="Full name"
-                  className={`w-full pl-10 pr-4 py-3 bg-white/[0.03] border rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
-                    errors.name 
-                      ? 'border-neon-red/40 focus:border-neon-red/60' 
-                      : 'border-white/[0.06] focus:border-neon-indigo/40'
-                  }`}
-                />
+              <div className="space-y-1">
+                <div className="relative group">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    placeholder="Full name"
+                    className={`w-full pl-10 pr-4 py-3 bg-white/[0.03] border rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
+                      errors.name 
+                        ? 'border-neon-red/40 focus:border-neon-red/60' 
+                        : 'border-white/[0.06] focus:border-neon-indigo/40'
+                    }`}
+                  />
+                </div>
                 {errors.name && (
-                  <p className="mt-1 text-xs text-neon-red flex items-center gap-1">
+                  <p className="text-xs text-neon-red flex items-center gap-1 px-1">
                     <AlertCircle size={10} />
                     {errors.name}
                   </p>
@@ -277,21 +279,23 @@ export default function LoginPage() {
             )}
 
             {/* Email */}
-            <div className="relative group">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                placeholder="Email address"
-                className={`w-full pl-10 pr-4 py-3 bg-white/[0.03] border rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
-                  errors.email 
-                    ? 'border-neon-red/40 focus:border-neon-red/60' 
-                    : 'border-white/[0.06] focus:border-neon-indigo/40'
-                }`}
-              />
+            <div className="space-y-1">
+              <div className="relative group">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  placeholder="Email address"
+                  className={`w-full pl-10 pr-4 py-3 bg-white/[0.03] border rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
+                    errors.email 
+                      ? 'border-neon-red/40 focus:border-neon-red/60' 
+                      : 'border-white/[0.06] focus:border-neon-indigo/40'
+                  }`}
+                />
+              </div>
               {errors.email && (
-                <p className="mt-1 text-xs text-neon-red flex items-center gap-1">
+                <p className="text-xs text-neon-red flex items-center gap-1 px-1">
                   <AlertCircle size={10} />
                   {errors.email}
                 </p>
@@ -299,28 +303,31 @@ export default function LoginPage() {
             </div>
 
             {/* Password */}
-            <div className="relative group">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
-              <input
-                type={showPassword ? "text" : "password"}
-                value={formData.password}
-                onChange={(e) => handleInputChange('password', e.target.value)}
-                placeholder="Password"
-                className={`w-full pl-10 pr-10 py-3 bg-white/[0.03] border rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
-                  errors.password 
-                    ? 'border-neon-red/40 focus:border-neon-red/60' 
-                    : 'border-white/[0.06] focus:border-neon-indigo/40'
-                }`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-              >
-                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
+            <div className="space-y-1">
+              <div className="relative group">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={formData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  placeholder="Password"
+                  className={`w-full pl-10 pr-10 py-3 bg-white/[0.03] border rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
+                    errors.password 
+                      ? 'border-neon-red/40 focus:border-neon-red/60' 
+                      : 'border-white/[0.06] focus:border-neon-indigo/40'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+              
               {errors.password && (
-                <p className="mt-1 text-xs text-neon-red flex items-center gap-1">
+                <p className="text-xs text-neon-red flex items-center gap-1 px-1">
                   <AlertCircle size={10} />
                   {errors.password}
                 </p>
@@ -328,10 +335,10 @@ export default function LoginPage() {
               
               {/* Password strength indicator for sign up */}
               {isSignUp && formData.password && (
-                <div className="mt-2">
+                <div className="pt-1 px-1">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-gray-500">Password strength</span>
-                    <span className={`text-xs font-medium ${
+                    <span className="text-[10px] text-gray-500">Password strength</span>
+                    <span className={`text-[10px] font-medium ${
                       passwordStrength <= 1 ? 'text-red-400' :
                       passwordStrength === 2 ? 'text-orange-400' :
                       passwordStrength === 3 ? 'text-yellow-400' :
@@ -340,9 +347,9 @@ export default function LoginPage() {
                       {getPasswordStrengthText()}
                     </span>
                   </div>
-                  <div className="w-full bg-white/[0.1] rounded-full h-1.5">
+                  <div className="w-full bg-white/[0.1] rounded-full h-1">
                     <div 
-                      className={`h-1.5 rounded-full transition-all duration-300 ${getPasswordStrengthColor()}`}
+                      className={`h-1 rounded-full transition-all duration-300 ${getPasswordStrengthColor()}`}
                       style={{ width: `${(passwordStrength / 4) * 100}%` }}
                     />
                   </div>
@@ -352,28 +359,30 @@ export default function LoginPage() {
 
             {/* Confirm Password for sign up */}
             {isSignUp && (
-              <div className="relative group">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                  placeholder="Confirm password"
-                  className={`w-full pl-10 pr-10 py-3 bg-white/[0.03] border rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
-                    errors.confirmPassword 
-                      ? 'border-neon-red/40 focus:border-neon-red/60' 
-                      : 'border-white/[0.06] focus:border-neon-indigo/40'
-                  }`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-                >
-                  {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
+              <div className="space-y-1">
+                <div className="relative group">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={formData.confirmPassword}
+                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                    placeholder="Confirm password"
+                    className={`w-full pl-10 pr-10 py-3 bg-white/[0.03] border rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
+                      errors.confirmPassword 
+                        ? 'border-neon-red/40 focus:border-neon-red/60' 
+                        : 'border-white/[0.06] focus:border-neon-indigo/40'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
                 {errors.confirmPassword && (
-                  <p className="mt-1 text-xs text-neon-red flex items-center gap-1">
+                  <p className="text-xs text-neon-red flex items-center gap-1 px-1">
                     <AlertCircle size={10} />
                     {errors.confirmPassword}
                   </p>

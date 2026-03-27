@@ -88,24 +88,26 @@ export default function ForgotPasswordPage() {
           {!isSuccess ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Email */}
-              <div className="relative group">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (error) setError("");
-                  }}
-                  placeholder="Enter your email address"
-                  className={`w-full pl-10 pr-4 py-3 bg-white/[0.03] border rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
-                    error 
-                      ? 'border-neon-red/40 focus:border-neon-red/60' 
-                      : 'border-white/[0.06] focus:border-neon-indigo/40'
-                  }`}
-                />
+              <div className="space-y-1">
+                <div className="relative group">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (error) setError("");
+                    }}
+                    placeholder="Enter your email address"
+                    className={`w-full pl-10 pr-4 py-3 bg-white/[0.03] border rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
+                      error 
+                        ? 'border-neon-red/40 focus:border-neon-red/60' 
+                        : 'border-white/[0.06] focus:border-neon-indigo/40'
+                    }`}
+                  />
+                </div>
                 {error && (
-                  <p className="mt-1 text-xs text-neon-red flex items-center gap-1">
+                  <p className="text-xs text-neon-red flex items-center gap-1 px-1">
                     <AlertCircle size={10} />
                     {error}
                   </p>

@@ -1,10 +1,10 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator, EmailStr
 from typing import Optional
 from datetime import datetime
 import re
 
 class UserBase(BaseModel):
-    email: str
+    email: EmailStr
     name: str
     company: Optional[str] = None
     role: Optional[str] = None
@@ -33,7 +33,7 @@ class UserCreate(UserBase):
         return v
 
 class UserLogin(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 class UserResponse(UserBase):
@@ -55,7 +55,7 @@ class UserUpdate(BaseModel):
     bio: Optional[str] = None
 
 class PasswordReset(BaseModel):
-    email: str
+    email: EmailStr
 
 class PasswordResetConfirm(BaseModel):
     token: str

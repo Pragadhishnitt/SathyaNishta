@@ -182,36 +182,38 @@ function ResetPasswordPageContent() {
           {!isSuccess ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* New Password */}
-              <div className="relative group">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (error) setError("");
-                  }}
-                  placeholder="New password"
-                  className={`w-full pl-10 pr-10 py-3 bg-white/[0.03] border rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
-                    error 
-                      ? 'border-neon-red/40 focus:border-neon-red/60' 
-                      : 'border-white/[0.06] focus:border-neon-indigo/40'
-                  }`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-                >
-                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
+              <div className="space-y-1">
+                <div className="relative group">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (error) setError("");
+                    }}
+                    placeholder="New password"
+                    className={`w-full pl-10 pr-10 py-3 bg-white/[0.03] border rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
+                      error 
+                        ? 'border-neon-red/40 focus:border-neon-red/60' 
+                        : 'border-white/[0.06] focus:border-neon-indigo/40'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
                 
                 {/* Password strength indicator */}
                 {password && (
-                  <div className="mt-2">
+                  <div className="pt-1 px-1">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-500">Password strength</span>
-                      <span className={`text-xs font-medium ${
+                      <span className="text-[10px] text-gray-500">Password strength</span>
+                      <span className={`text-[10px] font-medium ${
                         calculatePasswordStrength(password) <= 1 ? 'text-red-400' :
                         calculatePasswordStrength(password) === 2 ? 'text-orange-400' :
                         calculatePasswordStrength(password) === 3 ? 'text-yellow-400' :
@@ -220,9 +222,9 @@ function ResetPasswordPageContent() {
                         {getPasswordStrengthText()}
                       </span>
                     </div>
-                    <div className="w-full bg-white/[0.1] rounded-full h-1.5">
+                    <div className="w-full bg-white/[0.1] rounded-full h-1">
                       <div 
-                        className={`h-1.5 rounded-full transition-all duration-300 ${getPasswordStrengthColor()}`}
+                        className={`h-1 rounded-full transition-all duration-300 ${getPasswordStrengthColor()}`}
                         style={{ width: `${(calculatePasswordStrength(password) / 4) * 100}%` }}
                       />
                     </div>
@@ -231,29 +233,31 @@ function ResetPasswordPageContent() {
               </div>
 
               {/* Confirm Password */}
-              <div className="relative group">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    if (error) setError("");
-                  }}
-                  placeholder="Confirm new password"
-                  className={`w-full pl-10 pr-10 py-3 bg-white/[0.03] border rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
-                    error 
-                      ? 'border-neon-red/40 focus:border-neon-red/60' 
-                      : 'border-white/[0.06] focus:border-neon-indigo/40'
-                  }`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-                >
-                  {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
+              <div className="space-y-1">
+                <div className="relative group">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      if (error) setError("");
+                    }}
+                    placeholder="Confirm new password"
+                    className={`w-full pl-10 pr-10 py-3 bg-white/[0.03] border rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
+                      error 
+                        ? 'border-neon-red/40 focus:border-neon-red/60' 
+                        : 'border-white/[0.06] focus:border-neon-indigo/40'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
               </div>
 
               {/* Error */}
