@@ -102,6 +102,35 @@ def generate_investigation_html(data: dict, custom_message: str) -> str:
         </div>
         """
     
+    summary_html = ""
+    if synthesis.get('summary'):
+        summary_html = f"""
+        <div class="section">
+            <h3 style="color: #1f2937; margin-bottom: 12px;">\U0001F4DD Executive Summary</h3>
+            <p style="color: #4b5563; line-height: 1.6;">{synthesis['summary']}</p>
+        </div>
+        """
+    
+    recommendations_html = ""
+    if synthesis.get('recommendations'):
+        recs_list = "".join([f"<li>{rec}</li>" for rec in synthesis['recommendations']])
+        recommendations_html = f"""
+        <div class="section">
+            <h3 style="color: #1f2937; margin-bottom: 12px;">\U0001F4A1 Recommendations</h3>
+            <ul style="color: #4b5563; line-height: 1.6;">
+                {recs_list}
+            </ul>
+        </div>
+        """
+    
+    custom_message_html = ""
+    if custom_message:
+        custom_message_html = f"""
+        <div style="background: #f0f9ff; padding: 16px; border-radius: 8px; margin-bottom: 24px; border-left: 4px solid #0ea5e9;">
+            <p style="margin: 0;"><strong>Message from sender:</strong> {custom_message}</p>
+        </div>
+        """
+    
     return f"""
     <!DOCTYPE html>
     <html>
@@ -125,7 +154,7 @@ def generate_investigation_html(data: dict, custom_message: str) -> str:
         </div>
         
         <div class="content">
-            {custom_message and f'<div style="background: #f0f9ff; padding: 16px; border-radius: 8px; margin-bottom: 24px; border-left: 4px solid #0ea5e9;"><p style="margin: 0;"><strong>Message from sender:</strong> {custom_message}</p></div>'}
+            {custom_message_html}
             
             <div class="section">
                 <h2 style="color: #1f2937; margin-bottom: 8px;">Company: {company_name}</h2>
@@ -142,21 +171,9 @@ def generate_investigation_html(data: dict, custom_message: str) -> str:
                 {evidence_html or '<p style="color: #6b7280;">No significant findings detected.</p>'}
             </div>
             
-            {synthesis.get('summary') and f"""
-            <div class="section">
-                <h3 style="color: #1f2937; margin-bottom: 12px;">\U0001F4DD Executive Summary</h3>
-                <p style="color: #4b5563; line-height: 1.6;">{synthesis['summary']}</p>
-            </div>
-            """}
+            {summary_html}
             
-            {synthesis.get('recommendations') and f"""
-            <div class="section">
-                <h3 style="color: #1f2937; margin-bottom: 12px;">\U0001F4A1 Recommendations</h3>
-                <ul style="color: #4b5563; line-height: 1.6;">
-                    {"".join([f"<li>{rec}</li>" for rec in synthesis['recommendations']])}
-                </ul>
-            </div>
-            """}
+            {recommendations_html}
         </div>
         
         <div class="footer">
