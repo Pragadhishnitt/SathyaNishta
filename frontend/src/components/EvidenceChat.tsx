@@ -23,7 +23,7 @@ export function EvidenceChat({ investigationContext }: { investigationContext: a
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (loading) {
-      const messages = [
+      const loadingStates = [
         "Thinking...",
         "Searching evidence...",
         "Compiling info...",
@@ -32,7 +32,7 @@ export function EvidenceChat({ investigationContext }: { investigationContext: a
       ];
       let i = 0;
       interval = setInterval(() => {
-        setLoadingMessage(messages[i % messages.length]);
+        setLoadingMessage(loadingStates[i % loadingStates.length]);
         i++;
       }, 1500);
     }
@@ -52,6 +52,7 @@ export function EvidenceChat({ investigationContext }: { investigationContext: a
     setLoading(true);
 
     try {
+      console.log("Sending chat request...", { outgoing, investigationContext });
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -60,11 +61,16 @@ export function EvidenceChat({ investigationContext }: { investigationContext: a
           investigation_context: investigationContext,
         }),
       });
+      
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      
       const data = await res.json();
+      console.log("Chat response data:", data);
       const assistantContent =
         data?.content || data?.detail || "Unable to fetch an evidence-grounded answer right now.";
       setMessages((prev) => [...prev, { role: "assistant", content: assistantContent }]);
     } catch (e) {
+      console.error("EvidenceChat error:", e);
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: "Error while contacting chat service." },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
@@ -9,7 +9,7 @@ import { ChatInput } from "@/components/ChatInput";
 import { ChatMessage, Message } from "@/components/ChatMessage";
 import { InvestigationPanel, AgentEvent, SynthesisResult } from "@/components/InvestigationPanel";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
-import { AlertCircle, Lock, Shield, X } from "lucide-react";
+import { AlertCircle, Lock, Shield, X, Loader2 } from "lucide-react";
 
 import { useThreads, Thread, Mode } from "@/context/ThreadContext";
 
@@ -20,6 +20,28 @@ export default function Home() {
   const [mode, setMode] = useState<Mode>("standard");
   const [isLoading, setIsLoading] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
+
+  const loadingMessages = [
+    "Thinking...",
+    "Searching evidence...",
+    "Analyzing market data...",
+    "Correlating signals...",
+    "Synthesizing response..."
+  ];
+
+  // Cycle loading messages
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isLoading) {
+      interval = setInterval(() => {
+        setLoadingStep(prev => (prev + 1) % loadingMessages.length);
+      }, 2000);
+    } else {
+      setLoadingStep(0);
+    }
+    return () => clearInterval(interval);
+  }, [isLoading]);
 
   // Get current thread from context
   const currentThread = threads.find(t => t.id === currentThreadId) || threads[0] || {
@@ -175,6 +197,22 @@ export default function Home() {
                     companyName={(currentThread.synthesis as any)?.company_name || queryFromEvidence(currentThread)}
                     onInvestigateEntity={(entity) => handleSubmit(`Investigate ${entity}`)}
                   />
+                )}
+
+                {/* Standard Loading State */}
+                {isLoading && mode === "standard" && (
+                  <div className="flex items-start gap-4 animate-pulse">
+                    <div className="w-8 h-8 rounded-lg bg-neon-indigo/10 flex items-center justify-center flex-shrink-0">
+                      <Loader2 size={16} className="animate-spin text-neon-indigo" />
+                    </div>
+                    <div className="flex-1 space-y-2 py-1">
+                      <div className="text-xs font-semibold text-neon-indigo animate-pulse">
+                        {loadingMessages[loadingStep]}
+                      </div>
+                      <div className="h-2 bg-white/5 rounded w-3/4"></div>
+                      <div className="h-2 bg-white/5 rounded w-1/2"></div>
+                    </div>
+                  </div>
                 )}
               </>
             )}

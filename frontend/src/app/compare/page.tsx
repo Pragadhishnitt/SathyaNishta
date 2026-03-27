@@ -190,9 +190,9 @@ export default function ComparePage() {
           </div>
 
           {/* Split Screen Results */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="flex-1 overflow-y-auto custom-scrollbar bg-surface-0/50">
             {hasResults ? (
-              <div className="flex flex-col h-full overflow-hidden">
+              <div className="flex flex-col min-h-full">
                 {/* Comparison Summary Banner */}
                 {comparisonSummary && (
                   <div className="bg-neon-indigo/5 border-b border-neon-indigo/20 p-4 animate-slide-up">
@@ -219,9 +219,9 @@ export default function ComparePage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-px bg-white/[0.04] flex-1 min-h-[600px] overflow-hidden">
+                <div className="grid grid-cols-2 gap-px bg-white/[0.04] border-t border-white/[0.04]">
                   {/* Company A */}
-                  <div className="bg-surface-0 p-5 overflow-y-auto custom-scrollbar">
+                  <div className="bg-surface-0 p-5 min-h-[500px] max-h-[800px] overflow-y-auto custom-scrollbar shadow-inner">
                     <CompanyHeader name={companyA.name} synthesis={companyA.synthesis} isLoading={companyA.isLoading} />
                     <div className="mt-4">
                       <InvestigationPanel
@@ -235,7 +235,7 @@ export default function ComparePage() {
                   </div>
 
                   {/* Company B */}
-                  <div className="bg-surface-0 p-5 overflow-y-auto custom-scrollbar">
+                  <div className="bg-surface-0 p-5 min-h-[500px] max-h-[800px] overflow-y-auto custom-scrollbar shadow-inner">
                     <CompanyHeader name={companyB.name} synthesis={companyB.synthesis} isLoading={companyB.isLoading} />
                     <div className="mt-4">
                       <InvestigationPanel

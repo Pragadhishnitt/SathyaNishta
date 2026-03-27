@@ -31,7 +31,7 @@ export function ChatMessage({ message }: { message: Message }) {
         <div className="font-semibold text-xs text-gray-400 uppercase tracking-wide">
           {isUser ? "You" : "Sathya Nishta"}
         </div>
-        <div className="text-sm leading-relaxed text-gray-200 prose prose-invert prose-sm max-w-none">
+        <div className="text-base leading-relaxed text-gray-200 prose prose-invert prose-sm max-w-none">
           <ReactMarkdown
             components={{
               p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,

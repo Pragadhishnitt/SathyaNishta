@@ -258,19 +258,19 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
                   {/* Agent info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-xs text-gray-200">{meta.label}</span>
+                      <span className="font-semibold text-sm text-gray-200">{meta.label}</span>
                       {e.timestamp && (
-                        <span className="text-[10px] text-gray-600 font-mono">[{e.timestamp}]</span>
+                        <span className="text-xs text-gray-600 font-mono">[{e.timestamp}]</span>
                       )}
                     </div>
                     {isRunning && (
-                      <div className="text-[10px] text-gray-500 mt-0.5">Analyzing...</div>
+                      <div className="text-xs text-gray-500 mt-0.5">Analyzing...</div>
                     )}
                   </div>
 
                   {/* Risk score badge */}
                   {e.status === "complete" && e.risk_score !== undefined && (
-                    <div className={`text-xs font-bold font-mono text-${riskColor} bg-${riskColor}/10 px-2.5 py-1 rounded-lg border border-${riskColor}/20`}>
+                    <div className={`text-sm font-bold font-mono text-${riskColor} bg-${riskColor}/10 px-2.5 py-1 rounded-lg border border-${riskColor}/20`}>
                       {e.risk_score.toFixed(1)}
                     </div>
                   )}
@@ -289,7 +289,7 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
                     {e.findings && (
                       <ul className="space-y-1.5">
                         {e.findings.map((f, i) => (
-                          <li key={i} className="flex items-start gap-2 text-[11px] text-gray-400 leading-relaxed">
+                          <li key={i} className="flex items-start gap-2 text-xs text-gray-400 leading-relaxed">
                             <span className="text-gray-600 mt-0.5">•</span>
                             <span>{f}</span>
                           </li>
@@ -477,7 +477,7 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
                 </button>
               </div>
               {!!brief && (
-                <pre className="mt-3 p-3 rounded-lg bg-surface-0 border border-white/[0.08] text-[10px] text-gray-300 whitespace-pre-wrap font-mono max-h-72 overflow-y-auto">
+                <pre className="mt-3 p-3 rounded-lg bg-surface-0 border border-white/[0.08] text-xs text-gray-300 whitespace-pre-wrap font-mono max-h-72 overflow-y-auto">
                   {brief}
                 </pre>
               )}
