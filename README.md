@@ -56,6 +56,6 @@ The project follows a monorepo structure with clear ownership boundaries.
     ```
 
 3.  **Access**:
-    - Frontend: `http://localhost:3000`
-    - API Docs: `http://localhost:8000/docs`
-    - Traefik Dashboard: `http://localhost:8080`
+    - Frontend: `http://127.0.0.1:3000`
+    - API Docs: `http://127.0.0.1:8000/docs`
+    - Traefik Dashboard: `http://127.0.0.1:8080`

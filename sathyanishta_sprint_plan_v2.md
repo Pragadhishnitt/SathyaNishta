@@ -783,7 +783,7 @@ def financial_agent_node(state: InvestigationState) -> InvestigationState:
 ```
 
 **Team B Sprint 1 exits with:**
-- ✅ Full UI shell running at `localhost:3000`
+- ✅ Full UI shell running at `127.0.0.1:3000`
 - ✅ ET Market ChatGPT dark-theme layout: sidebar nav, chat window, input bar
 - ✅ Sathyanishta Mode chip live — switches placeholder text, opens investigation panel
 - ✅ SSE stream connects to mock backend; agent cards render live in sequence

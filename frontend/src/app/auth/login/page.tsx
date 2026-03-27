@@ -3,44 +3,204 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Mail, Lock, ArrowRight, Shield, Eye, EyeOff, Info } from "lucide-react";
+import { Mail, Lock, ArrowRight, Shield, Eye, EyeOff, Info, User, Building, Briefcase, Check, X, AlertCircle } from "lucide-react";
+
+interface FormErrors {
+  email?: string;
+  password?: string;
+  name?: string;
+  confirmPassword?: string;
+  general?: string;
+}
+
+interface FormData {
+  email: string;
+  password: string;
+  name: string;
+  confirmPassword: string;
+  company: string;
+  role: string;
+}
 
 export default function LoginPage() {
   const router = useRouter();
   const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState("demo@example.com");
-  const [password, setPassword] = useState("demo123");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState(0);
+  
+  const [formData, setFormData] = useState<FormData>({
+    email: "",
+    password: "",
+    name: "",
+    confirmPassword: "",
+    company: "",
+    role: ""
+  });
+
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const calculatePasswordStrength = (password: string): number => {
+    let strength = 0;
+    if (password.length >= 8) strength += 1;
+    if (password.length >= 12) strength += 1;
+    if (/[a-z]/.test(password)) strength += 1;
+    if (/[A-Z]/.test(password)) strength += 1;
+    if (/[0-9]/.test(password)) strength += 1;
+    if (/[^a-zA-Z0-9]/.test(password)) strength += 1;
+    return Math.min(strength, 4);
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+
+    if (!formData.email) {
+      newErrors.email = "Email is required";
+    } else if (!validateEmail(formData.email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
+
+    if (!formData.password) {
+      newErrors.password = "Password is required";
+    } else if (formData.password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters long";
+    } else if (passwordStrength < 3) {
+      newErrors.password = "Password is too weak. Include uppercase, lowercase, numbers, and special characters.";
+    }
+
+    if (isSignUp) {
+      if (!formData.name) {
+        newErrors.name = "Full name is required";
+      } else if (formData.name.length < 2) {
+        newErrors.name = "Name must be at least 2 characters long";
+      }
+
+      if (formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = "Passwords do not match";
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleInputChange = (field: keyof FormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Clear specific field error when user starts typing
+    if (errors[field as keyof FormErrors]) {
+      setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+    
+    // Update password strength
+    if (field === 'password') {
+      setPasswordStrength(calculatePasswordStrength(value));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setIsLoading(true);
-
-    if (isSignUp) {
-      setError("Sign up not implemented yet. Use demo@example.com / demo123");
-      setIsLoading(false);
+    
+    if (!validateForm()) {
       return;
     }
+    
+    setIsLoading(true);
+    setErrors({});
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    try {
+      if (isSignUp) {
+        // Sign up logic
+        const response = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+            name: formData.name,
+            company: formData.company || undefined,
+            role: formData.role || undefined
+          })
+        });
 
-    if (result?.error) {
-      setError("Invalid credentials");
+        const data = await response.json();
+
+        if (!response.ok) {
+          if (response.status === 400 && data.detail === 'Email already registered') {
+            setErrors({ email: 'This email is already registered. Try signing in instead.' });
+          } else {
+            setErrors({ general: data.detail || 'Registration failed. Please try again.' });
+          }
+        } else {
+          setIsSuccess(true);
+          // Reset form
+          setFormData({
+            email: '',
+            password: '',
+            name: '',
+            confirmPassword: '',
+            company: '',
+            role: ''
+          });
+        }
+      } else {
+        // Sign in logic
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            setErrors({ general: 'Invalid email or password' });
+          } else if (response.status === 400 && data.detail === 'Please verify your email before logging in') {
+            setErrors({ general: 'Please verify your email before logging in. Check your inbox for the verification link.' });
+          } else {
+            setErrors({ general: data.detail || 'Login failed. Please try again.' });
+          }
+        } else {
+          // Store token and user info
+          localStorage.setItem('access_token', data.access_token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          router.push('/');
+        }
+      }
+    } catch (error) {
+      console.error('Authentication error:', error);
+      setErrors({ general: 'Network error. Please check your connection and try again.' });
+    } finally {
       setIsLoading(false);
-    } else if (result?.ok) {
-      router.push("/");
     }
   };
 
   const handleGoogleSignIn = () => {
     signIn("google", { callbackUrl: "/" });
+  };
+
+  const getPasswordStrengthColor = () => {
+    if (passwordStrength <= 1) return 'bg-red-500';
+    if (passwordStrength === 2) return 'bg-orange-500';
+    if (passwordStrength === 3) return 'bg-yellow-500';
+    return 'bg-green-500';
+  };
+
+  const getPasswordStrengthText = () => {
+    if (passwordStrength <= 1) return 'Weak';
+    if (passwordStrength === 2) return 'Fair';
+    if (passwordStrength === 3) return 'Good';
+    return 'Strong';
   };
 
   return (
@@ -69,7 +229,7 @@ export default function LoginPage() {
           {/* Tabs */}
           <div className="flex gap-1 mb-6 p-1 bg-white/[0.02] rounded-xl">
             <button
-              onClick={() => { setIsSignUp(false); setError(""); }}
+              onClick={() => { setIsSignUp(false); setErrors({}); setIsSuccess(false); }}
               className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-300 ${
                 !isSignUp
                   ? "bg-neon-indigo/15 text-neon-indigo border border-neon-indigo/20 shadow-neon-indigo"
@@ -79,7 +239,7 @@ export default function LoginPage() {
               Sign In
             </button>
             <button
-              onClick={() => { setIsSignUp(true); setError(""); }}
+              onClick={() => { setIsSignUp(true); setErrors({}); setIsSuccess(false); }}
               className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-300 ${
                 isSignUp
                   ? "bg-neon-indigo/15 text-neon-indigo border border-neon-indigo/20 shadow-neon-indigo"
@@ -92,16 +252,50 @@ export default function LoginPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Name field for sign up */}
+            {isSignUp && (
+              <div className="relative group">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  placeholder="Full name"
+                  className={`w-full pl-10 pr-4 py-3 bg-white/[0.03] border rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
+                    errors.name 
+                      ? 'border-neon-red/40 focus:border-neon-red/60' 
+                      : 'border-white/[0.06] focus:border-neon-indigo/40'
+                  }`}
+                />
+                {errors.name && (
+                  <p className="mt-1 text-xs text-neon-red flex items-center gap-1">
+                    <AlertCircle size={10} />
+                    {errors.name}
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Email */}
             <div className="relative group">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
               <input
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={formData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
                 placeholder="Email address"
-                className="w-full pl-10 pr-4 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:border-neon-indigo/40 focus:bg-white/[0.05] focus:shadow-neon-indigo transition-all"
+                className={`w-full pl-10 pr-4 py-3 bg-white/[0.03] border rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
+                  errors.email 
+                    ? 'border-neon-red/40 focus:border-neon-red/60' 
+                    : 'border-white/[0.06] focus:border-neon-indigo/40'
+                }`}
               />
+              {errors.email && (
+                <p className="mt-1 text-xs text-neon-red flex items-center gap-1">
+                  <AlertCircle size={10} />
+                  {errors.email}
+                </p>
+              )}
             </div>
 
             {/* Password */}
@@ -109,10 +303,14 @@ export default function LoginPage() {
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
               <input
                 type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={formData.password}
+                onChange={(e) => handleInputChange('password', e.target.value)}
                 placeholder="Password"
-                className="w-full pl-10 pr-10 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:border-neon-indigo/40 focus:bg-white/[0.05] focus:shadow-neon-indigo transition-all"
+                className={`w-full pl-10 pr-10 py-3 bg-white/[0.03] border rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
+                  errors.password 
+                    ? 'border-neon-red/40 focus:border-neon-red/60' 
+                    : 'border-white/[0.06] focus:border-neon-indigo/40'
+                }`}
               />
               <button
                 type="button"
@@ -121,32 +319,125 @@ export default function LoginPage() {
               >
                 {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
+              {errors.password && (
+                <p className="mt-1 text-xs text-neon-red flex items-center gap-1">
+                  <AlertCircle size={10} />
+                  {errors.password}
+                </p>
+              )}
+              
+              {/* Password strength indicator for sign up */}
+              {isSignUp && formData.password && (
+                <div className="mt-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-gray-500">Password strength</span>
+                    <span className={`text-xs font-medium ${
+                      passwordStrength <= 1 ? 'text-red-400' :
+                      passwordStrength === 2 ? 'text-orange-400' :
+                      passwordStrength === 3 ? 'text-yellow-400' :
+                      'text-green-400'
+                    }`}>
+                      {getPasswordStrengthText()}
+                    </span>
+                  </div>
+                  <div className="w-full bg-white/[0.1] rounded-full h-1.5">
+                    <div 
+                      className={`h-1.5 rounded-full transition-all duration-300 ${getPasswordStrengthColor()}`}
+                      style={{ width: `${(passwordStrength / 4) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Error */}
-            {error && (
-              <div className="p-3 rounded-xl bg-neon-red/10 border border-neon-red/20 text-red-300 text-xs flex items-start gap-2 animate-slide-up">
-                <Info size={13} className="mt-0.5 flex-shrink-0" />
-                {error}
+            {/* Confirm Password for sign up */}
+            {isSignUp && (
+              <div className="relative group">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={formData.confirmPassword}
+                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                  placeholder="Confirm password"
+                  className={`w-full pl-10 pr-10 py-3 bg-white/[0.03] border rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
+                    errors.confirmPassword 
+                      ? 'border-neon-red/40 focus:border-neon-red/60' 
+                      : 'border-white/[0.06] focus:border-neon-indigo/40'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                >
+                  {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+                {errors.confirmPassword && (
+                  <p className="mt-1 text-xs text-neon-red flex items-center gap-1">
+                    <AlertCircle size={10} />
+                    {errors.confirmPassword}
+                  </p>
+                )}
               </div>
             )}
 
-            {/* Demo Credentials */}
-            {!isSignUp && (
-              <div className="p-2.5 rounded-xl bg-neon-indigo/[0.05] border border-neon-indigo/10 text-neon-indigo/70 text-[11px] flex items-center gap-2">
-                <Info size={12} className="flex-shrink-0" />
-                Demo credentials pre-filled — just click Sign In
+            {/* Optional fields for sign up */}
+            {isSignUp && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="relative group">
+                  <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
+                  <input
+                    type="text"
+                    value={formData.company}
+                    onChange={(e) => handleInputChange('company', e.target.value)}
+                    placeholder="Company (optional)"
+                    className="w-full pl-10 pr-4 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:border-neon-indigo/40 focus:bg-white/[0.05] transition-all"
+                  />
+                </div>
+                <div className="relative group">
+                  <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-neon-indigo transition-colors" />
+                  <input
+                    type="text"
+                    value={formData.role}
+                    onChange={(e) => handleInputChange('role', e.target.value)}
+                    placeholder="Role (optional)"
+                    className="w-full pl-10 pr-4 py-3 bg-white/[0.03] border border-white/[0.06] rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:border-neon-indigo/40 focus:bg-white/[0.05] transition-all"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* General Error */}
+            {errors.general && (
+              <div className="p-3 rounded-xl bg-neon-red/10 border border-neon-red/20 text-red-300 text-xs flex items-start gap-2 animate-slide-up">
+                <AlertCircle size={13} className="mt-0.5 flex-shrink-0" />
+                {errors.general}
+              </div>
+            )}
+
+            {/* Success Message */}
+            {isSuccess && (
+              <div className="p-3 rounded-xl bg-neon-emerald/10 border border-neon-emerald/20 text-emerald-300 text-xs flex items-start gap-2 animate-slide-up">
+                <Check size={13} className="mt-0.5 flex-shrink-0" />
+                <div>
+                  <strong>Registration successful!</strong> Please check your email to verify your account.
+                </div>
               </div>
             )}
 
             {/* Submit */}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || isSuccess}
               className="btn-primary w-full flex items-center justify-center gap-2 py-3 disabled:opacity-50"
             >
               {isLoading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : isSuccess ? (
+                <>
+                  <Check size={15} />
+                  Check Your Email
+                </>
               ) : (
                 <>
                   {isSignUp ? "Create Account" : "Sign In"}
@@ -154,6 +445,19 @@ export default function LoginPage() {
                 </>
               )}
             </button>
+
+            {/* Forgot Password Link */}
+            {!isSignUp && (
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => router.push('/auth/forgot-password')}
+                  className="text-neon-indigo hover:text-neon-indigo/80 text-sm transition-colors"
+                >
+                  Forgot your password?
+                </button>
+              </div>
+            )}
           </form>
 
           {/* Divider */}

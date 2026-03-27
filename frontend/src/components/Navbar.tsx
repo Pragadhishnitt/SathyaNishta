@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { LogOut, LogIn, Activity, TrendingUp, Shield } from "lucide-react";
+import { LogOut, LogIn, Activity, TrendingUp, Shield, User } from "lucide-react";
 import { useThreads, Mode } from "@/context/ThreadContext";
 
 export function Navbar({ mode }: { mode?: Mode }) {
@@ -72,6 +72,13 @@ export function Navbar({ mode }: { mode?: Mode }) {
                   </p>
                 </div>
               </div>
+              <button
+                onClick={() => router.push("/profile")}
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-300 hover:bg-white/[0.05] transition-all"
+                title="Profile"
+              >
+                <User size={16} />
+              </button>
               <button
                 onClick={() => signOut({ callbackUrl: "/auth/login" })}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-400/80 hover:text-red-300 bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 hover:border-red-500/20 transition-all"

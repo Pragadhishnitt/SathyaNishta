@@ -50,7 +50,7 @@ async def dispatch_risk_alert(company: str, score: float, verdict: str, top_find
                         "text": {"type": "plain_text", "text": "View Full Investigation"},
                         "style": "danger",
                         "url": (
-                            f"{os.getenv('APP_URL', 'http://localhost:3000')}/"
+                            f"{os.getenv('APP_URL', 'http://127.0.0.1:3000')}/"
                             f"?q=Investigate%20{company.replace(' ', '%20')}"
                         ),
                     }

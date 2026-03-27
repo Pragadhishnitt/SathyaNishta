@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.health import router as health_router
+from app.api.routes.auth import router as auth_router
+from app.api.routes.email import router as email_router
 from app.api.routes.investigate import router as investigate_router
 from app.api.routes.chat import router as chat_router
 from app.api.routes.report import router as report_router
@@ -27,6 +29,8 @@ app.add_middleware(
 
 # Mount routers
 app.include_router(health_router)
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+app.include_router(email_router, prefix="/api/email", tags=["email"])
 app.include_router(chat_router, prefix="/api")
 app.include_router(investigate_router, prefix="/api")
 app.include_router(report_router, prefix="/api")

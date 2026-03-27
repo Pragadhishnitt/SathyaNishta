@@ -1,0 +1,309 @@
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from sqlalchemy.orm import Session
+from pydantic import BaseModel, EmailStr
+from typing import List, Optional
+import smtplib
+from email.mime.text import MimeText
+from email.mime.multipart import MimeMultipart
+from datetime import datetime
+
+from ...core.db import get_session
+from ...core.security import get_current_user
+from ...models.user import User
+from ...core.rate_limit import check_rate_limit, email_limiter
+
+router = APIRouter()
+
+# Email configuration
+SMTP_HOST = "smtp.gmail.com"  # Configure based on your email provider
+SMTP_PORT = 587
+SMTP_USER = "your-email@gmail.com"  # Configure in environment
+SMTP_PASSWORD = "your-app-password"  # Configure in environment
+FROM_EMAIL = "noreply@sathyanishta.com"
+
+class EmailReportRequest(BaseModel):
+    recipients: List[EmailStr]
+    subject: Optional[str] = None
+    message: Optional[str] = None
+    investigation_data: dict
+    report_type: str = "investigation"  # investigation, brief, compare
+
+def send_investigation_report_email(
+    recipients: List[str], 
+    subject: str, 
+    message: str, 
+    investigation_data: dict,
+    report_type: str
+):
+    """Send investigation report email"""
+    
+    # Generate HTML content based on report type
+    if report_type == "investigation":
+        html_content = generate_investigation_html(investigation_data, message)
+    elif report_type == "brief":
+        html_content = generate_brief_html(investigation_data, message)
+    elif report_type == "compare":
+        html_content = generate_compare_html(investigation_data, message)
+    else:
+        html_content = generate_default_html(investigation_data, message)
+    
+    try:
+        for recipient in recipients:
+            msg = MimeMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = FROM_EMAIL
+            msg["To"] = recipient
+            
+            html_part = MimeText(html_content, "html")
+            msg.attach(html_part)
+            
+            server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.send_message(msg)
+            server.quit()
+            
+    except Exception as e:
+        print(f"Failed to send email to {recipient}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send email"
+        )
+
+def generate_investigation_html(data: dict, custom_message: str) -> str:
+    """Generate HTML for investigation report"""
+    synthesis = data.get('synthesis', {})
+    evidence = data.get('evidence', [])
+    risk_score = synthesis.get('risk_score', 0)
+    company_name = synthesis.get('company_name', 'Unknown Company')
+    
+    risk_color = '#ef4444' if risk_score >= 70 else '#f59e0b' if risk_score >= 40 else '#10b981'
+    risk_level = 'High Risk' if risk_score >= 70 else 'Medium Risk' if risk_score >= 40 else 'Low Risk'
+    
+    evidence_html = ""
+    for item in evidence[:5]:  # Show top 5 evidence items
+        evidence_html += f"""
+        <div style="background: #f8fafc; padding: 12px; margin: 8px 0; border-left: 4px solid #6366f1; border-radius: 4px;">
+            <h4 style="margin: 0 0 4px 0; color: #1f2937; font-size: 14px;">{item.get('finding', 'Unknown')}</h4>
+            <p style="margin: 0; color: #6b7280; font-size: 12px;">{item.get('source', 'Unknown source')}</p>
+        </div>
+        """
+    
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Sathya Nishta Investigation Report</title>
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #374151; }}
+            .header {{ background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 24px; text-align: center; }}
+            .content {{ padding: 24px; max-width: 600px; margin: 0 auto; }}
+            .risk-score {{ background: {risk_color}; color: white; padding: 16px; border-radius: 8px; text-align: center; margin: 16px 0; }}
+            .risk-number {{ font-size: 36px; font-weight: bold; }}
+            .section {{ margin: 24px 0; }}
+            .footer {{ background: #f3f4f6; padding: 16px; text-align: center; font-size: 12px; color: #6b7280; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1 style="margin: 0; font-size: 24px;">🔍 Forensic Investigation Report</h1>
+            <p style="margin: 8px 0 0 0; opacity: 0.9;">Sathya Nishta AI-Powered Analysis</p>
+        </div>
+        
+        <div class="content">
+            {custom_message and f'<div style="background: #f0f9ff; padding: 16px; border-radius: 8px; margin-bottom: 24px; border-left: 4px solid #0ea5e9;"><p style="margin: 0;"><strong>Message from sender:</strong> {custom_message}</p></div>'}
+            
+            <div class="section">
+                <h2 style="color: #1f2937; margin-bottom: 8px;">Company: {company_name}</h2>
+                <p style="margin: 0; color: #6b7280; font-size: 14px;">Generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
+            </div>
+            
+            <div class="risk-score">
+                <div class="risk-number">{risk_score}/100</div>
+                <div>{risk_level}</div>
+            </div>
+            
+            <div class="section">
+                <h3 style="color: #1f2937; margin-bottom: 12px;">🔍 Key Findings</h3>
+                {evidence_html or '<p style="color: #6b7280;">No significant findings detected.</p>'}
+            </div>
+            
+            {synthesis.get('summary') and f"""
+            <div class="section">
+                <h3 style="color: #1f2937; margin-bottom: 12px;">📝 Executive Summary</h3>
+                <p style="color: #4b5563; line-height: 1.6;">{synthesis['summary']}</p>
+            </div>
+            """}
+            
+            {synthesis.get('recommendations') and f"""
+            <div class="section">
+                <h3 style="color: #1f2937; margin-bottom: 12px;">💡 Recommendations</h3>
+                <ul style="color: #4b5563; line-height: 1.6;">
+                    {"".join([f"<li>{rec}</li>" for rec in synthesis['recommendations']])}
+                </ul>
+            </div>
+            """}
+        </div>
+        
+        <div class="footer">
+            <p>This report was generated by Sathya Nishta, an AI-powered forensic investigation platform.</p>
+            <p>For questions or additional analysis, please contact the investigation team.</p>
+        </div>
+    </body>
+    </html>
+    """
+
+def generate_brief_html(data: dict, custom_message: str) -> str:
+    """Generate HTML for market brief"""
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Sathya Nishta Market Brief</title>
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #374151; }}
+            .header {{ background: linear-gradient(135deg, #10b981, #06b6d4); color: white; padding: 24px; text-align: center; }}
+            .content {{ padding: 24px; max-width: 600px; margin: 0 auto; }}
+            .footer {{ background: #f3f4f6; padding: 16px; text-align: center; font-size: 12px; color: #6b7280; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1 style="margin: 0; font-size: 24px;">📊 Market Intelligence Brief</h1>
+            <p style="margin: 8px 0 0 0; opacity: 0.9;">Sathya Nishta AI Analysis</p>
+        </div>
+        
+        <div class="content">
+            {custom_message and f'<div style="background: #f0f9ff; padding: 16px; border-radius: 8px; margin-bottom: 24px; border-left: 4px solid #0ea5e9;"><p style="margin: 0;"><strong>Message from sender:</strong> {custom_message}</p></div>'}
+            
+            <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin: 16px 0;">
+                <pre style="margin: 0; font-family: monospace; font-size: 12px; white-space: pre-wrap;">{str(data)}</pre>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>This brief was generated by Sathya Nishta AI-powered market intelligence platform.</p>
+        </div>
+    </body>
+    </html>
+    """
+
+def generate_compare_html(data: dict, custom_message: str) -> str:
+    """Generate HTML for comparison report"""
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Sathya Nishta Comparison Report</title>
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #374151; }}
+            .header {{ background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; padding: 24px; text-align: center; }}
+            .content {{ padding: 24px; max-width: 600px; margin: 0 auto; }}
+            .footer {{ background: #f3f4f6; padding: 16px; text-align: center; font-size: 12px; color: #6b7280; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1 style="margin: 0; font-size: 24px;">⚖️ Comparison Analysis Report</h1>
+            <p style="margin: 8px 0 0 0; opacity: 0.9;">Sathya Nishta AI Comparison</p>
+        </div>
+        
+        <div class="content">
+            {custom_message and f'<div style="background: #f0f9ff; padding: 16px; border-radius: 8px; margin-bottom: 24px; border-left: 4px solid #0ea5e9;"><p style="margin: 0;"><strong>Message from sender:</strong> {custom_message}</p></div>'}
+            
+            <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin: 16px 0;">
+                <pre style="margin: 0; font-family: monospace; font-size: 12px; white-space: pre-wrap;">{str(data)}</pre>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>This comparison was generated by Sathya Nishta AI-powered analysis platform.</p>
+        </div>
+    </body>
+    </html>
+    """
+
+def generate_default_html(data: dict, custom_message: str) -> str:
+    """Generate default HTML for other report types"""
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Sathya Nishta Report</title>
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #374151; }}
+            .header {{ background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 24px; text-align: center; }}
+            .content {{ padding: 24px; max-width: 600px; margin: 0 auto; }}
+            .footer {{ background: #f3f4f6; padding: 16px; text-align: center; font-size: 12px; color: #6b7280; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1 style="margin: 0; font-size: 24px;">📄 Sathya Nishta Report</h1>
+            <p style="margin: 8px 0 0 0; opacity: 0.9;">AI-Powered Analysis</p>
+        </div>
+        
+        <div class="content">
+            {custom_message and f'<div style="background: #f0f9ff; padding: 16px; border-radius: 8px; margin-bottom: 24px; border-left: 4px solid #0ea5e9;"><p style="margin: 0;"><strong>Message from sender:</strong> {custom_message}</p></div>'}
+            
+            <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin: 16px 0;">
+                <pre style="margin: 0; font-family: monospace; font-size: 12px; white-space: pre-wrap;">{str(data)}</pre>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>This report was generated by Sathya Nishta AI-powered analysis platform.</p>
+        </div>
+    </body>
+    </html>
+    """
+
+@router.post("/send-report")
+async def send_report_email(
+    request: EmailReportRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+    http_request: Request = None
+):
+    """Send investigation report via email"""
+    # Apply rate limiting per user
+    check_rate_limit(email_limiter, current_user.email, "Too many email requests. Please try again later.")
+    
+    if not request.recipients:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one recipient is required"
+        )
+    
+    if len(request.recipients) > 10:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Maximum 10 recipients allowed"
+        )
+    
+    # Generate subject if not provided
+    subject = request.subject or "Sathya Nishta Investigation Report"
+    
+    try:
+        send_investigation_report_email(
+            recipients=request.recipients,
+            subject=subject,
+            message=request.message or "",
+            investigation_data=request.investigation_data,
+            report_type=request.report_type
+        )
+        
+        return {
+            "message": f"Report successfully sent to {len(request.recipients)} recipient(s)",
+            "recipients": request.recipients
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send email. Please try again later."
+        )

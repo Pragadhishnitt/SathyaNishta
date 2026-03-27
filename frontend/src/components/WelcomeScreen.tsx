@@ -77,7 +77,7 @@ export function WelcomeScreen({ mode }: { mode: "standard" | "sathyanishta" }) {
     const fetchMarketData = async () => {
       try {
         console.log('Fetching market data from backend...');
-        const response = await fetch('http://localhost:8000/api/market/indices');
+        const response = await fetch('http://127.0.0.1:8000/api/market/indices');
         
         if (!response.ok) {
           console.error('API response error:', response.status, response.statusText);

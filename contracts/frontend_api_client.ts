@@ -26,10 +26,10 @@ export class SathyaNishtaClient {
 
     /**
      * Initialize the API client
-     * @param baseUrl Backend API base URL (default: http://localhost:8000)
+     * @param baseUrl Backend API base URL (default: http://127.0.0.1:8000)
      * @param apiKey Optional API key for authentication
      */
-    constructor(baseUrl: string = "http://localhost:8000", apiKey?: string) {
+    constructor(baseUrl: string = "http://127.0.0.1:8000", apiKey?: string) {
         this.baseUrl = baseUrl.replace(/\/$/, "");  // Remove trailing slash
         this.apiKey = apiKey;
     }
@@ -221,5 +221,5 @@ export class SathyaNishtaClient {
  * Usage: import { apiClient } from './api';
  */
 export const apiClient = new SathyaNishtaClient(
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+    process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 );

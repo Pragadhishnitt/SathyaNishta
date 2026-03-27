@@ -6,12 +6,13 @@ import jsPDF from "jspdf";
 import {
   Loader2, CheckCircle2, AlertTriangle, FileText, Download,
   TrendingUp, Network, Mic, FileCheck, Newspaper, Shield, ChevronDown, ChevronUp,
-  ExternalLink, Sparkles, Search, MessageSquare,
+  ExternalLink, Sparkles, Search, MessageSquare, Mail,
 } from "lucide-react";
 import { GraphVisualization } from "./GraphVisualization";
 import { AudioTimeline } from "./AudioTimeline";
 import { EvidenceViewer } from "./EvidenceViewer";
 import { EvidenceChat } from "./EvidenceChat";
+import { EmailReportModal } from "./EmailReportModal";
 
 export interface AgentEvent {
   agent: string;
@@ -85,6 +86,7 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
   const [generatingBrief, setGeneratingBrief] = useState(false);
   const [relatedEntities, setRelatedEntities] = useState<string[]>([]);
   const [extractingEntities, setExtractingEntities] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   const toggleAgent = (agent: string) => {
     setExpandedAgents(prev => {
@@ -204,14 +206,23 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
             )}
           </h3>
           {!isLoading && synthesis && (
-            <button
-              onClick={handleDownloadPDF}
-              disabled={isDownloading}
-              className="btn-primary flex items-center gap-2 text-xs py-2 px-3"
-            >
-              {isDownloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-              {isDownloading ? "Exporting..." : "Export PDF"}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowEmailModal(true)}
+                className="btn-ghost flex items-center gap-2 text-xs py-2 px-3"
+              >
+                <Mail size={14} />
+                Email
+              </button>
+              <button
+                onClick={handleDownloadPDF}
+                disabled={isDownloading}
+                className="btn-primary flex items-center gap-2 text-xs py-2 px-3"
+              >
+                {isDownloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                {isDownloading ? "Exporting..." : "Export PDF"}
+              </button>
+            </div>
           )}
         </div>
 
@@ -502,6 +513,17 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
           source={selectedEvidence.source}
           finding={selectedEvidence.finding}
           onClose={() => setSelectedEvidence(null)}
+        />
+      )}
+
+      {/* Email Report Modal */}
+      {showEmailModal && synthesis && (
+        <EmailReportModal
+          isOpen={showEmailModal}
+          onClose={() => setShowEmailModal(false)}
+          investigationData={synthesis}
+          reportType="investigation"
+          companyName={companyName}
         />
       )}
     </>

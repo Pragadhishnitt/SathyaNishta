@@ -215,7 +215,7 @@ services:
 ```bash
 # Send 150 requests in 1 minute (should trigger 429 after 100)
 for i in {1..150}; do
-  curl -X POST http://localhost/api/v1/investigate \
+  curl -X POST http://127.0.0.1/api/v1/investigate \
     -H "X-API-Key: test-key" \
     -H "Content-Type: application/json" \
     -d '{"query": "test"}' &
@@ -225,12 +225,12 @@ done
 ### Test Authentication
 ```bash
 # Missing API key (should return 401)
-curl -X POST http://localhost/api/v1/investigate \
+curl -X POST http://127.0.0.1/api/v1/investigate \
   -H "Content-Type: application/json" \
   -d '{"query": "test"}'
 
 # Valid API key (should return 202)
-curl -X POST http://localhost/api/v1/investigate \
+curl -X POST http://127.0.0.1/api/v1/investigate \
   -H "X-API-Key: valid-key" \
   -H "Content-Type: application/json" \
   -d '{"query": "Investigate Adani"}'
@@ -239,5 +239,5 @@ curl -X POST http://localhost/api/v1/investigate \
 ### Test Health Check
 ```bash
 # Should return 200 without API key
-curl http://localhost/health
+curl http://127.0.0.1/health
 ```

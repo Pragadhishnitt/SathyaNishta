@@ -1,5 +1,6 @@
 from sqlmodel import create_engine, Session, SQLModel
 from app.core.config import settings
+from app.models.user import User
 
 # For Alembic, we might need direct connection
 engine = create_engine(settings.DATABASE_URL, echo=True)

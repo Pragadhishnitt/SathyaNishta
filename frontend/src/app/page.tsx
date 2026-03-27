@@ -12,11 +12,13 @@ import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { AlertCircle, Lock, Shield, X, Loader2 } from "lucide-react";
 
 import { useThreads, Thread, Mode } from "@/context/ThreadContext";
+import { usePremiumAuth } from "@/hooks/usePremiumAuth";
 
 export default function Home() {
   const router = useRouter();
   const { data: session } = useSession();
   const { threads, currentThreadId, setCurrentThreadId, addThread, updateThread } = useThreads();
+  const { requireAuth, requirePremium, redirectToLogin, redirectToProfile } = usePremiumAuth();
   const [mode, setMode] = useState<Mode>("standard");
   const [isLoading, setIsLoading] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -153,11 +155,19 @@ export default function Home() {
   };
 
   const handleModeToggle = () => {
-    if (!session) {
+    if (!requireAuth()) {
       setShowLoginModal(true);
       return;
     }
+    
     const newMode = mode === "standard" ? "sathyanishta" : "standard";
+    
+    // Check if trying to access premium features
+    if (newMode === "sathyanishta" && !requirePremium()) {
+      setShowLoginModal(true);
+      return;
+    }
+    
     setMode(newMode);
     updateThread(currentThreadId, { mode: newMode });
   };
@@ -255,10 +265,7 @@ export default function Home() {
 
             <div className="space-y-2.5">
               <button
-                onClick={() => {
-                  setShowLoginModal(false);
-                  router.push("/auth/login");
-                }}
+                onClick={() => redirectToLogin()}
                 className="btn-primary w-full flex items-center justify-center gap-2 py-2.5"
               >
                 <Lock size={14} />
@@ -269,6 +276,12 @@ export default function Home() {
                 className="btn-ghost w-full py-2.5"
               >
                 Stay in Standard Mode
+              </button>
+              <button
+                onClick={() => redirectToProfile()}
+                className="btn-ghost w-full py-2 text-neon-indigo hover:text-neon-indigo/80"
+              >
+                Upgrade to Premium
               </button>
             </div>
           </div>
