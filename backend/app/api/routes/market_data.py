@@ -26,9 +26,24 @@ def fetch_ticker_data(symbol):
         return {"price": 0, "change": 0, "changePercent": 0}
 
 
+# Simple in-memory cache
+_cache = {
+    "data": None,
+    "timestamp": 0
+}
+_cache_lock = asyncio.Lock()
+CACHE_TTL = 5 # seconds
+
 @router.get("/indices", response_model=MarketDataResponse)
 async def get_market_indices():
-    """Fetch NIFTY 50 and SENSEX data using yfinance"""
+    """Fetch NIFTY 50 and SENSEX data using yfinance with caching"""
+    global _cache
+    
+    async with _cache_lock:
+        now = asyncio.get_event_loop().time()
+        if _cache["data"] and (now - _cache["timestamp"]) < CACHE_TTL:
+            return _cache["data"]
+
     try:
         print("Starting market data fetch...")
         
@@ -43,10 +58,16 @@ async def get_market_indices():
         print(f"NIFTY: {nifty_quote}")
         print(f"SENSEX: {sensex_quote}")
         
-        return MarketDataResponse(
+        res = MarketDataResponse(
             nifty=nifty_quote,
             sensex=sensex_quote
         )
+        
+        async with _cache_lock:
+            _cache["data"] = res
+            _cache["timestamp"] = asyncio.get_event_loop().time()
+            
+        return res
     
     except asyncio.TimeoutError:
         print("Timeout fetching market data")
