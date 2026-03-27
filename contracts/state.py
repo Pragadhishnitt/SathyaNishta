@@ -24,7 +24,10 @@ class InvestigationState(TypedDict, total=False):
     # ── Agent findings (Team B writes, Team A reads) ────────────────
     financial_findings:  AgentFinding
     graph_findings:      AgentFinding
+    graph_payload:       Dict
     audio_findings:      AgentFinding
+    audio_timeline:      List[Dict]
+    audio_timeline_total_duration_s: float
     compliance_findings: AgentFinding
     news_findings:       AgentFinding
 

@@ -47,6 +47,57 @@ class GraphAgent(BaseAgent):
             "detect_circular_loops": self.detect_circular_loops,
         }
 
+    def get_graph_payload(self, entity_name: str, max_hops: int = 5) -> Dict[str, Any]:
+        """Return Neo4j subgraph as serializable node/edge objects for UI rendering."""
+        if not self.neo4j_driver:
+            return {"nodes": [], "edges": [], "node_count": 0, "edge_count": 0}
+
+        query = """
+        MATCH path = (start:Company {name: $name})-[:TRANSACTS_WITH*1..{max_hops}]->(end:Company)
+        WHERE start <> end
+        WITH nodes(path) AS ns, relationships(path) AS rels
+        RETURN
+            [n IN ns | {
+                id: toString(id(n)),
+                label: coalesce(n.name, toString(id(n))),
+                type: CASE WHEN coalesce(n.risk_score, 0) >= 7 THEN 'suspicious' ELSE 'entity' END,
+                risk: coalesce(n.risk_score, 0),
+                amount: coalesce(n.total_transaction_amount, 0)
+            }] AS nodes,
+            [r IN rels | {
+                source: toString(startNode(r).name),
+                target: toString(endNode(r).name),
+                amount: coalesce(r.amount, r.transaction_amount, 0),
+                date: toString(coalesce(r.date, r.transaction_date, '')),
+                suspicious: coalesce(r.is_suspicious, false)
+            }] AS edges
+        LIMIT 200
+        """.replace("{max_hops}", str(max_hops))
+
+        with self.neo4j_driver.session() as session:
+            result = session.run(query, name=entity_name)
+            all_nodes: Dict[str, Dict[str, Any]] = {}
+            all_edges: List[Dict[str, Any]] = []
+
+            for record in result:
+                for node in record["nodes"] or []:
+                    all_nodes[node["id"]] = node
+                for edge in record["edges"] or []:
+                    all_edges.append({
+                        "from": edge.get("source"),
+                        "to": edge.get("target"),
+                        "amount": edge.get("amount", 0),
+                        "suspicious": bool(edge.get("suspicious", False)),
+                        "label": f"₹{edge.get('amount', 0)} Cr" if edge.get("amount") else "",
+                    })
+
+            return {
+                "nodes": list(all_nodes.values()),
+                "edges": all_edges,
+                "node_count": len(all_nodes),
+                "edge_count": len(all_edges),
+            }
+
     def process(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """Route the incoming task to the correct graph tool.
 

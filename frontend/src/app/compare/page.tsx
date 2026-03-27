@@ -191,6 +191,7 @@ export default function ComparePage() {
                       synthesis={companyA.synthesis}
                       isLoading={companyA.isLoading}
                       investigationId={companyA.investigationId}
+                      companyName={companyA.name}
                     />
                   </div>
                 </div>
@@ -204,6 +205,7 @@ export default function ComparePage() {
                       synthesis={companyB.synthesis}
                       isLoading={companyB.isLoading}
                       investigationId={companyB.investigationId}
+                      companyName={companyB.name}
                     />
                   </div>
                 </div>

@@ -119,11 +119,14 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
 
         # Track which agents have started
         agent_names = {"financial", "graph", "compliance", "audio", "news", "reflection", "synthesis"}
+        final_state: Dict[str, object] = {}
 
         # Stream node-level updates from LangGraph
         async for event in graph.astream(initial_state, stream_mode="updates"):
             node_name = list(event.keys())[0]
             node_data = list(event.values())[0]
+            if isinstance(node_data, dict):
+                final_state.update(node_data)
 
             _logger.info(f"[{inv_id}] Node completed: {node_name}")
 
@@ -140,13 +143,34 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
                 # Agent completed — emit agent_done with findings
                 findings_key = f"{node_name}_findings"
                 findings = node_data.get(findings_key, {})
+                event_payload = {
+                    "agent": node_name,
+                    "risk_score": findings.get("risk_score", 0),
+                    "findings": findings.get("findings", [])[:5],  # limit to 5 for SSE
+                }
+
+                if node_name == "graph":
+                    event_payload["graph_data"] = node_data.get("graph_payload", {"nodes": [], "edges": []})
+                if node_name == "audio":
+                    timeline = node_data.get("audio_timeline", []) or []
+                    event_payload["deception_markers"] = [
+                        {
+                            "start": round(float(m.get("start_pct", 0)) * 100, 2),
+                            "end": round(float(m.get("end_pct", 0)) * 100, 2),
+                            "label": m.get("explanation", m.get("marker_type", "Marker")),
+                            "severity": m.get("severity", "medium"),
+                            "quote": m.get("quote", ""),
+                            "marker_type": m.get("marker_type", ""),
+                            "start_time_s": m.get("start_time_s", 0),
+                            "end_time_s": m.get("end_time_s", 0),
+                        }
+                        for m in timeline
+                    ]
+                    event_payload["audio_timeline_total_duration_s"] = node_data.get("audio_timeline_total_duration_s", 0)
+
                 await q.put({
                     "event": "agent_done",
-                    "data": {
-                        "agent": node_name,
-                        "risk_score": findings.get("risk_score", 0),
-                        "findings": findings.get("findings", [])[:5],  # limit to 5 for SSE
-                    },
+                    "data": event_payload,
                 })
 
             elif node_name == "reflection":
@@ -163,9 +187,18 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
             elif node_name == "synthesis":
                 # Final synthesis
                 synthesis_data = {
+                    "company_name": company,
                     "fraud_risk_score": node_data.get("fraud_risk_score", 0),
                     "verdict": node_data.get("verdict", "SAFE"),
                     "evidence": node_data.get("evidence", [])[:15],  # limit for SSE
+                    "financial_findings": final_state.get("financial_findings", {}),
+                    "graph_findings": final_state.get("graph_findings", {}),
+                    "compliance_findings": final_state.get("compliance_findings", {}),
+                    "audio_findings": final_state.get("audio_findings", {}),
+                    "news_findings": final_state.get("news_findings", {}),
+                    "graph_payload": final_state.get("graph_payload", {"nodes": [], "edges": []}),
+                    "audio_timeline": final_state.get("audio_timeline", []),
+                    "audio_timeline_total_duration_s": final_state.get("audio_timeline_total_duration_s", 0),
                 }
                 await q.put({"event": "synthesis", "data": synthesis_data})
 
@@ -176,6 +209,14 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
                     "query": query,
                     "mode": mode,
                     **synthesis_data,
+                    "financial_findings": final_state.get("financial_findings", {}),
+                    "graph_findings": final_state.get("graph_findings", {}),
+                    "compliance_findings": final_state.get("compliance_findings", {}),
+                    "audio_findings": final_state.get("audio_findings", {}),
+                    "news_findings": final_state.get("news_findings", {}),
+                    "graph_payload": final_state.get("graph_payload", {"nodes": [], "edges": []}),
+                    "audio_timeline": final_state.get("audio_timeline", []),
+                    "audio_timeline_total_duration_s": final_state.get("audio_timeline_total_duration_s", 0),
                 }
 
         # Mark complete

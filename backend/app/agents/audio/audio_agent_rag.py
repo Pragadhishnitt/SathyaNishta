@@ -464,3 +464,123 @@ Respond with ONLY valid JSON:
         except Exception as e:
             self.logger.error(f"Error in analyze_transcript_content: {e}")
             return {"error": str(e), "status": "failed"}
+
+    def detect_deception_markers_with_timestamps(self, company: str) -> Dict[str, Any]:
+        """
+        Detect deception markers and enrich with timeline percentages for frontend heatmap.
+        """
+        if not company:
+            return {"status": "failed", "markers": []}
+        if not self.engine:
+            return {"status": "no_data", "markers": []}
+
+        try:
+            with self.engine.connect() as connection:
+                rows = connection.execute(text("""
+                    SELECT chunk_number, content_chunk, metadata
+                    FROM audio_transcriptions
+                    WHERE company_name ILIKE :company_name
+                    ORDER BY chunk_number ASC
+                    LIMIT 30
+                """), {"company_name": f"%{company}%"}).fetchall()
+
+            chunks: List[Dict[str, Any]] = []
+            for row in rows:
+                metadata = row[2]
+                if isinstance(metadata, str):
+                    try:
+                        metadata = json.loads(metadata) if metadata else {}
+                    except Exception:
+                        metadata = {}
+                if metadata is None:
+                    metadata = {}
+                chunks.append({
+                    "chunk_index": int(row[0] or 0),
+                    "transcript_text": row[1] or "",
+                    "start_time": float(metadata.get("start_time", metadata.get("start", 0)) or 0),
+                    "end_time": float(metadata.get("end_time", metadata.get("end", 0)) or 0),
+                    "duration_total": float(metadata.get("duration_total", metadata.get("total_duration", 0)) or 0),
+                })
+
+            if not chunks:
+                return {"status": "no_data", "markers": []}
+
+            # Fallback for missing timestamps: infer by index over fixed duration.
+            if all((c["start_time"] == 0 and c["end_time"] == 0) for c in chunks):
+                inferred_total = float(len(chunks) * 120)
+                for i, c in enumerate(chunks):
+                    c["start_time"] = float(i * 120)
+                    c["end_time"] = float((i + 1) * 120)
+                    c["duration_total"] = inferred_total
+
+            total_duration = chunks[-1].get("duration_total") or chunks[-1].get("end_time") or 1
+            chunk_texts = "\n".join([
+                f"[CHUNK {c['chunk_index']} | {c['start_time']}s-{c['end_time']}s]: {c['transcript_text'][:300]}"
+                for c in chunks
+            ])
+
+            prompt = f"""Analyze this earnings call transcript for deception markers.
+For each marker found, return the CHUNK INDEX where it occurs.
+
+Transcript:
+{chunk_texts}
+
+Return JSON only:
+{{
+  "overall_likelihood": "low|medium|high",
+  "markers": [
+    {{
+      "chunk_index": <int>,
+      "marker_type": "hedging|evasion|contradiction|false_confidence|topic_deflection",
+      "quote": "<short quote>",
+      "severity": "low|medium|high",
+      "explanation": "<1 sentence>"
+    }}
+  ]
+}}"""
+
+            analysis = self._analyze_with_llm(prompt, "deception")
+            parsed_markers = analysis.get("markers")
+            if not isinstance(parsed_markers, list):
+                # Backward compatibility with existing schema
+                legacy_markers = analysis.get("deception_markers", [])
+                parsed_markers = [
+                    {
+                        "chunk_index": chunks[min(i, len(chunks) - 1)]["chunk_index"],
+                        "marker_type": "deception",
+                        "quote": m[:120],
+                        "severity": "medium",
+                        "explanation": m,
+                    }
+                    for i, m in enumerate(legacy_markers[:5])
+                ]
+
+            chunk_map = {c["chunk_index"]: c for c in chunks}
+            enriched_markers: List[Dict[str, Any]] = []
+            for marker in parsed_markers:
+                idx = int(marker.get("chunk_index", chunks[0]["chunk_index"]))
+                chunk = chunk_map.get(idx, chunks[0])
+                start_pct = (chunk.get("start_time", 0) / total_duration) if total_duration else 0
+                end_pct = (chunk.get("end_time", 0) / total_duration) if total_duration else start_pct
+                enriched_markers.append({
+                    "chunk_index": idx,
+                    "marker_type": marker.get("marker_type", "deception"),
+                    "quote": marker.get("quote", ""),
+                    "severity": marker.get("severity", "medium"),
+                    "explanation": marker.get("explanation", ""),
+                    "start_pct": round(max(0.0, min(1.0, start_pct)), 4),
+                    "end_pct": round(max(0.0, min(1.0, end_pct)), 4),
+                    "start_time_s": chunk.get("start_time", 0),
+                    "end_time_s": chunk.get("end_time", 0),
+                })
+
+            return {
+                "status": "success",
+                "overall_likelihood": analysis.get("overall_likelihood", analysis.get("likelihood", "unknown")),
+                "markers": enriched_markers,
+                "total_duration_s": total_duration,
+                "chunk_count": len(chunks),
+            }
+        except Exception as e:
+            self.logger.error(f"detect_deception_markers_with_timestamps failed: {e}")
+            return {"status": "failed", "markers": []}

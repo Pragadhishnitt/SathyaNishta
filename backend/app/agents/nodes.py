@@ -95,7 +95,7 @@ def financial_node(state: InvestigationState) -> Dict[str, Any]:
 # ── Graph Agent Node ───────────────────────────────────────────
 
 def graph_node(state: InvestigationState) -> Dict[str, Any]:
-    """Run real GraphAgent — queries Neo4j for circular loops and shared directors."""
+    """Run real GraphAgent — queries Neo4j and returns graph payload for frontend."""
     company = state.get("company_name", "Unknown")
     _logger.info(f"Graph Agent: starting analysis for {company}")
 
@@ -119,6 +119,14 @@ def graph_node(state: InvestigationState) -> Dict[str, Any]:
 
         findings: List[str] = []
         evidence: Dict[str, str] = {}
+
+        graph_payload = {"nodes": [], "edges": [], "node_count": 0, "edge_count": 0}
+        try:
+            graph_payload = agent.get_graph_payload(company, max_hops=5)
+            evidence["graph_node_count"] = str(graph_payload.get("node_count", 0))
+            evidence["graph_edge_count"] = str(graph_payload.get("edge_count", 0))
+        except Exception as e:
+            _logger.warning(f"Graph payload extraction failed: {e}")
 
         if loop_count > 0:
             for loop in loops[:5]:
@@ -148,9 +156,11 @@ def graph_node(state: InvestigationState) -> Dict[str, Any]:
     except Exception as e:
         _logger.error(f"Graph Agent failed: {e}")
         finding = _build_finding(2.0, [f"Graph analysis error: {str(e)[:100]}"], {})
+        graph_payload = {"nodes": [], "edges": [], "node_count": 0, "edge_count": 0}
 
     return {
         "graph_findings": finding,
+        "graph_payload": graph_payload,
         "messages": [f"Graph Agent: {finding['evidence'].get('cycle_count', '?')} cycles — score {finding['risk_score']}/10"],
     }
 
@@ -243,6 +253,8 @@ def audio_node(state: InvestigationState) -> Dict[str, Any]:
     """Run real AudioAgent — RAG retrieval + LLM analysis on earnings call transcripts."""
     company = state.get("company_name", "Unknown")
     _logger.info(f"Audio Agent: starting analysis for {company}")
+    timeline_data: List[Dict[str, Any]] = []
+    timeline_total_duration = 0.0
 
     try:
         from app.agents.audio.audio_agent_rag import AudioAgent
@@ -272,22 +284,25 @@ def audio_node(state: InvestigationState) -> Dict[str, Any]:
         except Exception as e:
             _logger.warning(f"Audio tone analysis failed: {e}")
 
-        # Deception marker detection
+        # Deception marker detection with timeline support
         try:
-            deception_result = agent.process({
-                "tool": "detect_deception_markers",
-                "params": {"company": company, "focus": "financial disclosures"},
-            })
+            deception_result = agent.detect_deception_markers_with_timestamps(company)
             if deception_result.get("status") == "success":
-                analysis = deception_result.get("analysis", {})
-                likelihood = analysis.get("likelihood", "unknown")
-                markers = analysis.get("deception_markers", [])
+                likelihood = deception_result.get("overall_likelihood", "unknown")
+                markers = deception_result.get("markers", [])
                 for marker in markers[:5]:
-                    findings.append(f"Deception marker: {marker} (source: earnings call)")
+                    findings.append(
+                        f"Deception marker [{marker.get('marker_type', 'deception')}] at "
+                        f"{marker.get('start_time_s', 0)}s: {marker.get('explanation', '')} "
+                        f"(source: earnings call)"
+                    )
                 evidence["deception_likelihood"] = likelihood
                 evidence["marker_count"] = str(len(markers))
+                evidence["total_duration_s"] = str(deception_result.get("total_duration_s", 0))
                 deception_score = {"low": 2.0, "medium": 5.0, "high": 8.0}.get(likelihood, 4.0)
                 scores.append(deception_score)
+                timeline_data = markers
+                timeline_total_duration = float(deception_result.get("total_duration_s", 0) or 0)
         except Exception as e:
             _logger.warning(f"Deception detection failed: {e}")
 
@@ -303,6 +318,8 @@ def audio_node(state: InvestigationState) -> Dict[str, Any]:
 
     return {
         "audio_findings": finding,
+        "audio_timeline": timeline_data,
+        "audio_timeline_total_duration_s": timeline_total_duration,
         "messages": [f"Audio Agent: {finding['evidence'].get('sentiment', 'N/A')} — score {finding['risk_score']}/10"],
     }
 
@@ -491,6 +508,15 @@ def synthesis_node(state: InvestigationState) -> Dict[str, Any]:
 
     company = state.get("company_name", "Unknown")
     _logger.info(f"Synthesis Complete: {company} -> {verdict} ({fraud_risk_score})")
+
+    if verdict in ("CRITICAL", "HIGH_RISK"):
+        try:
+            import asyncio
+            from app.shared.alert_dispatcher import dispatch_risk_alert
+            top_findings = [e["finding"] for e in all_evidence[:3]]
+            asyncio.create_task(dispatch_risk_alert(company, fraud_risk_score, verdict, top_findings))
+        except Exception as e:
+            _logger.warning(f"Alert dispatch failed: {e}")
 
     return {
         "fraud_risk_score": fraud_risk_score,

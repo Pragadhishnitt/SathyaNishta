@@ -172,6 +172,8 @@ export default function Home() {
                     synthesis={currentThread.synthesis || null}
                     isLoading={isLoading}
                     investigationId={currentThread.investigationId}
+                    companyName={(currentThread.synthesis as any)?.company_name || queryFromEvidence(currentThread)}
+                    onInvestigateEntity={(entity) => handleSubmit(`Investigate ${entity}`)}
                   />
                 )}
               </>
@@ -236,4 +238,11 @@ export default function Home() {
       )}
     </div>
   );
+}
+
+function queryFromEvidence(thread: Thread): string | undefined {
+  const finding = thread.synthesis?.evidence?.[0]?.finding;
+  if (!finding) return undefined;
+  const match = finding.match(/\b([A-Z][A-Za-z0-9&.\-\s]{2,40})\b/);
+  return match ? match[1].trim() : undefined;
 }

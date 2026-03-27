@@ -1,16 +1,17 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import {
   Loader2, CheckCircle2, AlertTriangle, FileText, Download,
   TrendingUp, Network, Mic, FileCheck, Newspaper, Shield, ChevronDown, ChevronUp,
-  ExternalLink,
+  ExternalLink, Sparkles, Search, MessageSquare,
 } from "lucide-react";
 import { GraphVisualization } from "./GraphVisualization";
 import { AudioTimeline } from "./AudioTimeline";
 import { EvidenceViewer } from "./EvidenceViewer";
+import { EvidenceChat } from "./EvidenceChat";
 
 export interface AgentEvent {
   agent: string;
@@ -31,6 +32,14 @@ export interface SynthesisResult {
     finding: string;
     severity: string;
   }>;
+  financial_findings?: object;
+  graph_findings?: object;
+  compliance_findings?: object;
+  audio_findings?: object;
+  news_findings?: object;
+  graph_payload?: { nodes: any[]; edges: any[] };
+  audio_timeline?: any[];
+  audio_timeline_total_duration_s?: number;
 }
 
 interface InvestigationPanelProps {
@@ -38,6 +47,8 @@ interface InvestigationPanelProps {
   synthesis: SynthesisResult | null;
   isLoading: boolean;
   investigationId?: string;
+  companyName?: string;
+  onInvestigateEntity?: (entity: string) => void;
 }
 
 const AGENT_META: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
@@ -65,11 +76,15 @@ function getVerdictStyle(verdict: string) {
   }
 }
 
-export function InvestigationPanel({ agentEvents, synthesis, isLoading, investigationId }: InvestigationPanelProps) {
+export function InvestigationPanel({ agentEvents, synthesis, isLoading, investigationId, companyName, onInvestigateEntity }: InvestigationPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
   const [selectedEvidence, setSelectedEvidence] = useState<{ source: string; finding: string } | null>(null);
+  const [brief, setBrief] = useState("");
+  const [generatingBrief, setGeneratingBrief] = useState(false);
+  const [relatedEntities, setRelatedEntities] = useState<string[]>([]);
+  const [extractingEntities, setExtractingEntities] = useState(false);
 
   const toggleAgent = (agent: string) => {
     setExpandedAgents(prev => {
@@ -120,6 +135,50 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
       console.error("Failed to generate PDF", error);
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  useEffect(() => {
+    const run = async () => {
+      if (!synthesis?.evidence?.length || !companyName) return;
+      setExtractingEntities(true);
+      try {
+        const res = await fetch("/api/extract-entities", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ company_name: companyName, evidence: synthesis.evidence }),
+        });
+        const data = await res.json();
+        setRelatedEntities(Array.isArray(data?.entities) ? data.entities : []);
+      } catch {
+        setRelatedEntities([]);
+      } finally {
+        setExtractingEntities(false);
+      }
+    };
+    run();
+  }, [synthesis, companyName]);
+
+  const generateBrief = async () => {
+    if (!synthesis) return;
+    setGeneratingBrief(true);
+    try {
+      const res = await fetch("/api/generate-brief", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          investigation_state: {
+            company_name: companyName,
+            ...synthesis,
+          },
+        }),
+      });
+      const data = await res.json();
+      setBrief(data?.brief || "");
+    } catch {
+      setBrief("Unable to generate FIR summary right now.");
+    } finally {
+      setGeneratingBrief(false);
     }
   };
 
@@ -369,6 +428,70 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
                 );
               })()}
             </div>
+          )}
+
+          {/* Related entities drill-down */}
+          {!!synthesis && (
+            <div className="mt-3 rounded-xl border border-white/[0.08] bg-surface-1 p-3">
+              <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-300 mb-2">
+                <Search size={12} className="text-neon-indigo" />
+                Related Entities for Drill-Down
+              </div>
+              {extractingEntities ? (
+                <div className="text-[11px] text-gray-500 flex items-center gap-2">
+                  <Loader2 size={12} className="animate-spin" />
+                  Extracting entities...
+                </div>
+              ) : relatedEntities.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {relatedEntities.map((entity) => (
+                    <button
+                      key={entity}
+                      onClick={() => onInvestigateEntity?.(entity)}
+                      className="text-[11px] px-2.5 py-1 rounded-full border border-neon-indigo/30 text-neon-indigo hover:bg-neon-indigo/10"
+                    >
+                      🔍 {entity}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-[11px] text-gray-500">No related entities extracted from current evidence.</div>
+              )}
+            </div>
+          )}
+
+          {/* FIR Summary */}
+          {!!synthesis && (
+            <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-[11px] font-semibold text-amber-300">
+                  <Sparkles size={12} />
+                  Generate FIR Summary
+                </div>
+                <button
+                  onClick={generateBrief}
+                  disabled={generatingBrief}
+                  className="px-3 py-1.5 rounded-lg bg-amber-500/80 hover:bg-amber-500 text-white text-[11px] disabled:opacity-50"
+                >
+                  {generatingBrief ? "Generating..." : "Generate"}
+                </button>
+              </div>
+              {!!brief && (
+                <pre className="mt-3 p-3 rounded-lg bg-surface-0 border border-white/[0.08] text-[10px] text-gray-300 whitespace-pre-wrap font-mono max-h-72 overflow-y-auto">
+                  {brief}
+                </pre>
+              )}
+            </div>
+          )}
+
+          {/* Evidence chat */}
+          {!!synthesis && (
+            <EvidenceChat
+              investigationContext={{
+                company_name: companyName,
+                ...synthesis,
+              }}
+            />
           )}
         </div>
       </div>
