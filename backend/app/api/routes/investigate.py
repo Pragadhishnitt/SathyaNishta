@@ -80,12 +80,16 @@ async def start_investigation(req: InvestigationRequest):
     try:
         with Session(engine) as session:
             session.execute(
-                text("INSERT INTO investigations (id, query, status) VALUES (:id, :query, 'running')"),
+                text("""
+                    INSERT INTO investigations (id, query, status, created_at, updated_at)
+                    VALUES (:id, :query, 'running', NOW(), NOW())
+                """),
                 {"id": inv_id, "query": req.query}
             )
             session.commit()
     except Exception as e:
-        _logger.error(f"Failed to create investigation in DB: {e}")
+        _logger.error(f"Failed to create investigation in DB for {inv_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create investigation")
 
     # Start the LangGraph run in background
     asyncio.create_task(_run_investigation(inv_id, company, req.query, req.mode))
@@ -232,6 +236,7 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
                         SET status = 'completed', 
                             fraud_risk_score = :score, 
                             verdict = :verdict, 
+                            updated_at = NOW(),
                             completed_at = NOW() 
                         WHERE id = :id
                     """),
@@ -241,12 +246,13 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
                         "verdict": synthesis_data["verdict"]
                     }
                 )
-                
-                # Insert synthesis audit trail
+                session.commit()
+
+            with Session(engine) as session:
                 session.execute(
                     text("""
-                        INSERT INTO audit_trail (investigation_id, step_type, output_payload)
-                        VALUES (:inv_id, 'synthesis', :output)
+                        INSERT INTO audit_trails (investigation_id, step_type, timestamp, output_payload)
+                        VALUES (:inv_id, 'synthesis', NOW(), :output)
                     """),
                     {
                         "inv_id": inv_id,
@@ -255,7 +261,7 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
                 )
                 session.commit()
         except Exception as e:
-            _logger.error(f"Failed to update investigation in DB: {e}")
+            _logger.error(f"Failed to persist final investigation state for {inv_id}: {e}", exc_info=True)
 
     except Exception as e:
         _logger.error(f"[{inv_id}] Investigation failed: {e}")

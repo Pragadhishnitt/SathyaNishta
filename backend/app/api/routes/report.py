@@ -15,6 +15,45 @@ router = APIRouter()
 _logger = get_logger(__name__)
 engine = create_engine(settings.DATABASE_URL)
 
+
+def _escape_text(value) -> str:
+    text_value = "" if value is None else str(value)
+    return (
+        text_value
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
+def _add_agent_section(elements, styles, header_style, subsection_style, body_style, title: str, findings: dict | None):
+    elements.append(Paragraph(title, header_style))
+
+    if not isinstance(findings, dict) or not findings:
+        elements.append(Paragraph("No agent findings recorded.", body_style))
+        return
+
+    risk_score = findings.get("risk_score")
+    if risk_score is not None:
+        elements.append(Paragraph(f"<b>Risk Score:</b> {_escape_text(risk_score)}/10", body_style))
+
+    summary_items = findings.get("findings") or []
+    if isinstance(summary_items, list) and summary_items:
+        elements.append(Paragraph("Key Findings", subsection_style))
+        for item in summary_items[:8]:
+            elements.append(Paragraph(f"• {_escape_text(item)}", body_style))
+    else:
+        elements.append(Paragraph("No detailed findings recorded.", body_style))
+
+    evidence_map = findings.get("evidence") or {}
+    if isinstance(evidence_map, dict) and evidence_map:
+        elements.append(Paragraph("Supporting Data", subsection_style))
+        for key, value in list(evidence_map.items())[:10]:
+            label = _escape_text(str(key).replace("_", " ").title())
+            elements.append(Paragraph(f"<b>{label}:</b> {_escape_text(value)}", body_style))
+
+    elements.append(Spacer(1, 10))
+
 @router.get("/investigate/{inv_id}/report")
 async def generate_report(inv_id: str):
     """Generate a professional PDF report for a completed investigation."""
@@ -30,24 +69,42 @@ async def generate_report(inv_id: str):
             ).fetchone()
 
             if not inv:
+                _logger.warning(f"Report generation failed: investigation {inv_id} not found")
                 raise HTTPException(status_code=404, detail="Investigation not found")
 
             if inv.status != 'completed':
+                _logger.warning(
+                    f"Report generation blocked: investigation {inv_id} has status={inv.status}"
+                )
                 raise HTTPException(status_code=400, detail="Investigation not yet completed")
 
             # Get synthesis evidence from audit trail
             audit = session.execute(
-                text("SELECT output_payload FROM audit_trail WHERE investigation_id = :id AND step_type = 'synthesis'"),
+                text("SELECT output_payload FROM audit_trails WHERE investigation_id = :id AND step_type = 'synthesis'"),
                 {"id": inv_id}
             ).fetchone()
 
             evidence = []
+            payload = {}
             if audit:
-                payload = json.loads(audit.output_payload)
+                raw_payload = audit.output_payload
+                if isinstance(raw_payload, (str, bytes, bytearray)):
+                    payload = json.loads(raw_payload)
+                elif isinstance(raw_payload, dict):
+                    payload = raw_payload
+                else:
+                    raise TypeError(f"Unsupported audit payload type: {type(raw_payload).__name__}")
                 evidence = payload.get("evidence", [])
+                _logger.info(
+                    f"Loaded synthesis audit for {inv_id}: evidence_count={len(evidence)}"
+                )
+            else:
+                _logger.warning(f"No synthesis audit row found for investigation {inv_id}")
 
+    except HTTPException:
+        raise
     except Exception as e:
-        _logger.error(f"Failed to fetch report data: {e}")
+        _logger.error(f"Failed to fetch report data for {inv_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch report data")
 
     # 2. Extract company name (usually from query or first finding)
@@ -76,11 +133,11 @@ async def generate_report(inv_id: str):
     header_style = ParagraphStyle(
         'HeaderStyle', parent=styles['Heading2'], fontSize=16, spaceBefore=15, spaceAfter=10, textColor=colors.HexColor("#1e293b")
     )
-    risk_style_critical = ParagraphStyle(
-        'RiskCritical', parent=styles['Normal'], fontSize=14, textColor=colors.red, fontWeight='BOLD'
+    subsection_style = ParagraphStyle(
+        'SubsectionStyle', parent=styles['Heading3'], fontSize=12, spaceBefore=8, spaceAfter=4, textColor=colors.HexColor("#334155")
     )
-    risk_style_safe = ParagraphStyle(
-        'RiskSafe', parent=styles['Normal'], fontSize=14, textColor=colors.green, fontWeight='BOLD'
+    body_style = ParagraphStyle(
+        'BodyStyle', parent=styles['Normal'], fontSize=10, leading=13, spaceAfter=4
     )
 
     elements = []
@@ -140,6 +197,16 @@ async def generate_report(inv_id: str):
         elements.append(et)
     else:
         elements.append(Paragraph("No specific evidence findings recorded.", styles['Normal']))
+
+    agent_sections = [
+        ("Financial Agent Output", payload.get("financial_findings")),
+        ("Graph Agent Output", payload.get("graph_findings")),
+        ("Compliance Agent Output", payload.get("compliance_findings")),
+        ("Audio Agent Output", payload.get("audio_findings")),
+        ("News Agent Output", payload.get("news_findings")),
+    ]
+    for section_title, findings in agent_sections:
+        _add_agent_section(elements, styles, header_style, subsection_style, body_style, section_title, findings)
 
     # Footer
     elements.append(Spacer(1, 40))
