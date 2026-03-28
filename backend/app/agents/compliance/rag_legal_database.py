@@ -37,17 +37,15 @@ except ImportError:
     subprocess.run([sys.executable, "-m", "pip", "install", "supabase"], check=True)
     from supabase import create_client, Client
 
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv(repo_root / ".env")
+# Get environment variables (already set by docker-compose or .env in local dev)
+# In Docker, env vars are passed via env_file directive, not loaded from .env file
 
 # Configure Cohere
 COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 if COHERE_API_KEY:
     cohere_client = cohere.Client(COHERE_API_KEY)
 else:
-    print("⚠️  Warning: COHERE_API_KEY not found in .env")
+    print("⚠️  Warning: COHERE_API_KEY not found in environment")
     cohere_client = None
 
 # Initialize Supabase client
@@ -55,8 +53,8 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    print("⚠️  Warning: SUPABASE_URL or SUPABASE_KEY not found in .env")
-    print("Using placeholder values. Update .env with real credentials.")
+    print("⚠️  Warning: SUPABASE_URL or SUPABASE_KEY not found in environment")
+    print("Using placeholder values. Set via docker-compose env_file or environment.")
     SUPABASE_URL = SUPABASE_URL or "https://your-project.supabase.co"
     SUPABASE_KEY = SUPABASE_KEY or "your-supabase-key"
 

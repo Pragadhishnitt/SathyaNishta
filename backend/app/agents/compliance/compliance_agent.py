@@ -40,8 +40,12 @@ class ComplianceAgent(BaseAgent):
         supabase_url = settings.SUPABASE_URL
         supabase_key = settings.SUPABASE_KEY
         if supabase_url and supabase_key:
-            from supabase import create_client, Client
-            self.supabase: Optional[Client] = create_client(supabase_url, supabase_key)
+            try:
+                from supabase import create_client, Client
+                self.supabase: Optional[Client] = create_client(supabase_url, supabase_key)
+            except Exception as e:
+                self.supabase = None
+                self.logger.warning(f"Failed to initialize Supabase client: {e}. RAG queries will be limited")
         else:
             self.supabase = None
             self.logger.warning("Supabase credentials not found, RAG queries will be limited")

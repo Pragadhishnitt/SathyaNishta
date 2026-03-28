@@ -25,6 +25,6 @@ class Settings(BaseSettings):
     PORTKEY_API_KEY: Optional[str] = None
     PORTKEY_CONFIG_ID: Optional[str] = None
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(extra="ignore")
 
 settings = Settings()
