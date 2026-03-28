@@ -63,10 +63,10 @@ export default function Home() {
   const handleSubmit = async (query: string) => {
     const userMsg: Message = { role: "user", content: query };
     const updatedMessages = [...(currentThread.messages || []), userMsg];
-    
+
     // Add message to thread first
     await addMessage(currentThreadId, query, "user");
-    
+
     // Update thread title if needed
     let title = currentThread.title;
     if (!currentThread.messages || currentThread.messages.length === 0) {
@@ -123,7 +123,7 @@ export default function Home() {
 
       es.addEventListener("agent_done", (e) => {
         const d = JSON.parse(e.data);
-        setInvestigationEvents(prev => prev.map(evt => 
+        setInvestigationEvents(prev => prev.map(evt =>
           evt.agent === d.agent ? { ...evt, status: "complete" } : evt
         ));
       });
@@ -154,15 +154,14 @@ export default function Home() {
       setShowLoginModal(true);
       return;
     }
-    
+
     const newMode = mode === "standard" ? "sathyanishta" : "standard";
-    
-    // Check if trying to access premium features
+
     if (newMode === "sathyanishta" && !requirePremium()) {
       setShowLoginModal(true);
       return;
     }
-    
+
     setMode(newMode);
     // Note: Thread mode update would need additional API call
   };

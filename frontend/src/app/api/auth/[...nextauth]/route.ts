@@ -39,6 +39,7 @@ const handler = NextAuth({
               id: data.user.id,
               email: data.user.email,
               name: data.user.name,
+              is_premium: data.user.is_premium ?? false,
               accessToken: data.access_token,
             };
           }
@@ -78,6 +79,7 @@ const handler = NextAuth({
         // Store user info in token for persistence
         token.email = user.email;
         token.name = user.name;
+        token.is_premium = (user as any).is_premium ?? account.provider === "google";
       }
       return token;
     },
@@ -85,6 +87,7 @@ const handler = NextAuth({
       if (session.user) {
         (session.user as any).id = token.id;
         (session.user as any).accessToken = token.accessToken;
+        (session.user as any).is_premium = token.is_premium ?? false;
         // Ensure session has all user data
         session.user.email = token.email;
         session.user.name = token.name;
