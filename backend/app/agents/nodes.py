@@ -130,13 +130,13 @@ def graph_node(state: InvestigationState) -> Dict[str, Any]:
 
         if loop_count > 0:
             for loop in loops[:5]:
-                path_str = " → ".join(loop.get("path", []))
-                flow = loop.get("total_flow", 0)
+                path_str = " → ".join(loop.get("companies", []))
+                flow = loop.get("total_amount", 0)
                 findings.append(
-                    f"Circular loop: {path_str} (₹{flow} Cr; source: Neo4j graph)"
+                    f"Circular loop: {path_str} (₹{flow:,.0f} Cr; source: Neo4j graph)"
                 )
-                if loop.get("suspicious"):
-                    findings.append(f"  ⚠ Suspicious: {loop.get('reason', 'unknown')}")
+                if loop.get("risk_indicator") == "SUSPICIOUS":
+                    findings.append(f"  ⚠ Suspicious: {loop.get('loop_length', 0)} hops")
 
             evidence["cycle_count"] = str(loop_count)
             evidence["total_circular_flow"] = f"₹{total_amount} Cr"

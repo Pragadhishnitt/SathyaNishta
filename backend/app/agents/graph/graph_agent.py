@@ -209,22 +209,23 @@ class GraphAgent(BaseAgent):
         if not entity_name:
             raise ValueError("detect_circular_loops requires 'entity_name' parameter")
 
-        # Generate Cypher query for circular loops
-        cypher_params = {
-            "entity_name": entity_name,
-            "query_type": "circular_loop",
-            "max_hops": max_hops,
-            "min_transaction_amount": min_transaction_amount
-        }
-        cypher_result = self.generate_cypher_query(cypher_params, task)
-        cypher_query = cypher_result.get("cypher_query")
-
-        if not cypher_query:
-            return {
-                "loops_found": [],
-                "total_loop_count": 0,
-                "total_circular_amount": 0
-            }
+        # Use a direct, working Cypher query for circular loops instead of LLM-generated one
+        # This detects circular trading patterns starting with the specified entity (A -> B -> C -> A)
+        # Entity matching is case-insensitive to handle variations
+        cypher_query = f"""
+        MATCH p = (start:Company)-[r1:TRANSACTS_WITH*1..{max_hops}]->(start)
+        WHERE toLower(start.name) CONTAINS toLower($entity_name) OR toLower(start.id) CONTAINS toLower($entity_name)
+        WITH p, start, reduce(total = 0, rel IN relationships(p) | total + coalesce(rel.amount, 0)) as total_amount
+        WHERE total_amount >= $min_amount
+        RETURN
+            [n IN nodes(p) | n.name] as company_path,
+            [n IN nodes(p) | n.id] as company_ids,
+            [rel IN relationships(p) | rel.amount] as amounts,
+            [rel IN relationships(p) | rel.date] as dates,
+            total_amount as total_circular_amount,
+            length(p) as path_length
+        LIMIT 20
+        """
 
         # Run the query
         run_params = {
@@ -242,52 +243,48 @@ class GraphAgent(BaseAgent):
         total_circular_amount = 0
 
         for record in results:
-            # Extract path information from serialized path object
-            path_obj = record.get("path")
-            if path_obj:
-                # Get company names from path nodes
-                nodes = path_obj.get("nodes", [])
-                path = [node.get("properties", {}).get("name", "") for node in nodes]
-                
-                # Get transaction dates and amounts from relationships
-                rels = path_obj.get("relationships", [])
-                transaction_dates = [rel.get("properties", {}).get("date", "") for rel in rels]
-                amounts = [rel.get("properties", {}).get("amount", 0) for rel in rels]
-            else:
-                path = []
-                transaction_dates = []
-                amounts = []
+            company_path = record.get("company_path", [])
+            amounts = record.get("amounts", [])
+            dates = record.get("dates", [])
+            total_amount = record.get("total_circular_amount", 0)
+            path_length = record.get("path_length", 0)
+            
+            if company_path and len(company_path) > 2:
+                loops_found.append({
+                    "companies": company_path,
+                    "transaction_amounts": amounts,
+                    "transaction_dates": dates,
+                    "total_amount": total_amount,
+                    "loop_length": path_length,
+                    "risk_indicator": "SUSPICIOUS" if total_amount > 10_000_000_000 else "NOTABLE"  # ₹10B threshold
+                })
+                total_circular_amount += total_amount
 
-            loop_total = record.get("loop_total", 0)
+        # Calculate risk score based on findings
+        risk_score = 0.0
+        if loops_found:
+            risk_score = min(10.0, 3.0 + len(loops_found) * 1.5)  # Higher score for more loops
+            # Further increase if large amounts involved
+            if total_circular_amount > 50_000_000_000:  # ₹50B+
+                risk_score = min(10.0, risk_score + 3.0)
 
-            # Determine if suspicious (simple heuristic)
-            suspicious = False
-            reason = ""
-            if len(set(transaction_dates)) < len(transaction_dates):  # Duplicate dates
-                suspicious = True
-                reason = "Multiple transactions on same date"
-            elif len(transaction_dates) <= 3 and len(set(transaction_dates)) == len(transaction_dates):
-                # Check if amounts are similar (within 10%)
-                if amounts and len(amounts) > 1:
-                    avg_amount = sum(amounts) / len(amounts)
-                    if all(abs(a - avg_amount) / avg_amount < 0.1 for a in amounts):
-                        suspicious = True
-                        reason = "Similar amounts in short timeframe"
-
-            loops_found.append({
-                "path": path,
-                "path_length": len(path) - 1 if path else 0,  # Number of edges
-                "total_flow": loop_total,
-                "transaction_dates": transaction_dates,
-                "suspicious": suspicious,
-                "reason": reason
-            })
-            total_circular_amount += loop_total
+        findings = []
+        if loops_found:
+            findings.append(f"🚨 Detected {len(loops_found)} circular trading pattern(s)")
+            findings.append(f"Total circular amount: ₹{total_circular_amount:,.0f}")
+            for i, loop in enumerate(loops_found, 1):
+                path_str = " → ".join(loop["companies"] + [loop["companies"][0]])  # Show cycle
+                findings.append(f"Loop {i}: {path_str} (₹{loop['total_amount']:,.0f})")
+        else:
+            findings.append("No circular trading loops detected")
+            risk_score = 1.0
 
         return {
             "loops_found": loops_found,
             "total_loop_count": len(loops_found),
-            "total_circular_amount": total_circular_amount
+            "total_circular_amount": total_circular_amount,
+            "risk_score": risk_score,
+            "findings": findings
         }
 
     def _serialize_node(self, node):
