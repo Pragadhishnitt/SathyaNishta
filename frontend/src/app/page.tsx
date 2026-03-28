@@ -150,7 +150,11 @@ export default function Home() {
   };
 
   const handleModeToggle = () => {
-    if (!requireAuth()) {
+    // Use the local session from useSession() at top of component
+    console.log('[Debug] Session state:', session, 'Session exists:', !!session);
+    
+    if (!session?.user) {
+      console.log('[Debug] No session user, showing login modal');
       setShowLoginModal(true);
       return;
     }
@@ -158,7 +162,9 @@ export default function Home() {
     const newMode = mode === "standard" ? "sathyanishta" : "standard";
     
     // Check if trying to access premium features
-    if (newMode === "sathyanishta" && !requirePremium()) {
+    const isPremium = (session.user as any).is_premium || false;
+    if (newMode === "sathyanishta" && !isPremium) {
+      console.log('[Debug] Premium required but not available');
       setShowLoginModal(true);
       return;
     }

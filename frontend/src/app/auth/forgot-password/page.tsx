@@ -141,7 +141,7 @@ export default function ForgotPasswordPage() {
                 Please check your inbox and follow the instructions.
               </p>
               <div className="space-y-2 text-xs text-gray-500">
-                <p>• The link will expire in 1 hour</p>
+                <p>• The reset link expires after a few hours — check the email for the exact time</p>
                 <p>• Check your spam folder if you don't see it</p>
                 <p>• Make sure to use the same email you registered with</p>
               </div>
