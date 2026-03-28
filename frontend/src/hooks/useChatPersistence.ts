@@ -133,6 +133,11 @@ export function useChatPersistence() {
     }
   }, [session, fetchThread]);
 
+  // Update thread (local state for UI optimism)
+  const updateThread = useCallback((threadId: string, updates: Partial<ChatThread>) => {
+    setThreads(prev => prev.map(t => t.id === threadId ? { ...t, ...updates } : t));
+  }, []);
+
   // Initialize on session change
   useEffect(() => {
     if (session && !isInitialized) {
@@ -151,6 +156,7 @@ export function useChatPersistence() {
     createThread,
     fetchThread,
     addMessage,
+    updateThread,
     isLoading,
     isInitialized,
   };

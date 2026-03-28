@@ -17,12 +17,15 @@ import { useChatPersistence } from "@/hooks/useChatPersistence";
 export default function Home() {
   const router = useRouter();
   const { data: session } = useSession();
-  const { threads, currentThreadId, setCurrentThreadId, createThread, addMessage, isInitialized } = useChatPersistence();
+  const { threads, currentThreadId, setCurrentThreadId, createThread, addMessage, updateThread, isInitialized } = useChatPersistence();
   const { requireAuth, requirePremium, redirectToLogin, redirectToProfile } = usePremiumAuth();
   const [mode, setMode] = useState<Mode>("standard");
   const [isLoading, setIsLoading] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
+  const [investigationEvents, setInvestigationEvents] = useState<AgentEvent[]>([]);
+  const [synthesisResult, setSynthesisResult] = useState<SynthesisResult | null>(null);
+  const [investigationId, setInvestigationId] = useState<string>("");
 
   const loadingMessages = [
     "Thinking...",
@@ -96,6 +99,7 @@ export default function Home() {
     }
 
     // Sathyanishta Mode — SSE stream
+    setIsLoading(true);
     try {
       const res = await fetch("/api/investigate", {
         method: "POST",
@@ -103,46 +107,39 @@ export default function Home() {
         body: JSON.stringify({ query, mode }),
       });
 
-      const { stream_url, investigation_id } = await res.json();
-      if (investigation_id) {
-        // Update thread with investigation ID
-        // This would need additional API call to update the thread
+      if (!res.ok) {
+        throw new Error(`Investigation failed: ${res.statusText}`);
       }
+
+      const { stream_url, investigation_id } = await res.json();
+      setInvestigationId(investigation_id);
+      setInvestigationEvents([]); // Reset events for new investigation
       const es = new EventSource(stream_url);
 
       es.addEventListener("agent_start", (e) => {
         const d = JSON.parse(e.data);
-        updateThread(currentThreadId, (prev: Thread) => ({ 
-          agentEvents: [...(prev.agentEvents || []), { ...d, status: "running" }] 
-        }));
+        setInvestigationEvents(prev => [...prev, { ...d, status: "running" }]);
       });
 
       es.addEventListener("agent_done", (e) => {
         const d = JSON.parse(e.data);
-        updateThread(currentThreadId, (prev: Thread) => ({
-          agentEvents: (prev.agentEvents || []).map(a => 
-            a.agent === d.agent ? { ...a, ...d, status: "complete" } : a
-          )
-        }));
+        setInvestigationEvents(prev => prev.map(evt => 
+          evt.agent === d.agent ? { ...evt, status: "complete" } : evt
+        ));
       });
 
       es.addEventListener("synthesis", (e) => {
         const d = JSON.parse(e.data);
-        updateThread(currentThreadId, { synthesis: d });
+        setSynthesisResult(d);
       });
 
       es.addEventListener("complete", () => {
         setIsLoading(false);
-        updateThread(currentThreadId, (prev: Thread) => ({
-          messages: [...(prev.messages || []), {
-            role: "assistant",
-            content: "Investigation complete. Review the detailed risk scorecard and evidence matrix in the panel above."
-          }]
-        }));
         es.close();
       });
 
       es.onerror = () => {
+        console.error("EventSource error");
         setIsLoading(false);
         es.close();
       };
@@ -196,13 +193,13 @@ export default function Home() {
                 ))}
 
                 {/* Investigation Panel */}
-                {currentThread.mode === "sathyanishta" && (currentThread.agentEvents?.length || currentThread.synthesis) && (
+                {mode === "sathyanishta" && (investigationEvents.length > 0 || synthesisResult) && (
                   <InvestigationPanel
-                    agentEvents={currentThread.agentEvents || []}
-                    synthesis={currentThread.synthesis || null}
+                    agentEvents={investigationEvents}
+                    synthesis={synthesisResult}
                     isLoading={isLoading}
-                    investigationId={currentThread.investigationId}
-                    companyName={(currentThread.synthesis as any)?.company_name || queryFromEvidence(currentThread)}
+                    investigationId={investigationId}
+                    companyName={(synthesisResult as any)?.company_name || ""}
                     onInvestigateEntity={(entity) => handleSubmit(`Investigate ${entity}`)}
                   />
                 )}
