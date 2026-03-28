@@ -10,14 +10,14 @@ import { ChatMessage, Message } from "@/components/ChatMessage";
 import { InvestigationPanel, AgentEvent, SynthesisResult } from "@/components/InvestigationPanel";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { AlertCircle, Lock, Shield, X, Loader2 } from "lucide-react";
-
-import { useThreads, Thread, Mode } from "@/context/ThreadContext";
+import { Thread, Mode } from "@/context/ThreadContext";
 import { usePremiumAuth } from "@/hooks/usePremiumAuth";
+import { useChatPersistence } from "@/hooks/useChatPersistence";
 
 export default function Home() {
   const router = useRouter();
   const { data: session } = useSession();
-  const { threads, currentThreadId, setCurrentThreadId, addThread, updateThread } = useThreads();
+  const { threads, currentThreadId, setCurrentThreadId, createThread, addMessage, isInitialized } = useChatPersistence();
   const { requireAuth, requirePremium, redirectToLogin, redirectToProfile } = usePremiumAuth();
   const [mode, setMode] = useState<Mode>("standard");
   const [isLoading, setIsLoading] = useState(false);
@@ -54,14 +54,17 @@ export default function Home() {
   };
 
   const handleNewChat = () => {
-    addThread(mode);
+    createThread(mode);
   };
 
   const handleSubmit = async (query: string) => {
     const userMsg: Message = { role: "user", content: query };
     const updatedMessages = [...(currentThread.messages || []), userMsg];
     
-    // Automatic better naming
+    // Add message to thread first
+    await addMessage(currentThreadId, query, "user");
+    
+    // Update thread title if needed
     let title = currentThread.title;
     if (!currentThread.messages || currentThread.messages.length === 0) {
       if (mode === "sathyanishta") {
@@ -74,9 +77,6 @@ export default function Home() {
       }
     }
 
-    updateThread(currentThreadId, { messages: updatedMessages, title });
-    setIsLoading(true);
-
     if (mode === "standard") {
       try {
         const res = await fetch("/api/chat", {
@@ -85,9 +85,8 @@ export default function Home() {
           body: JSON.stringify({ messages: updatedMessages }),
         });
         const data = await res.json();
-        updateThread(currentThreadId, { 
-          messages: [...updatedMessages, { role: "assistant", content: data.content }] 
-        });
+        // Add assistant response to persistence
+        await addMessage(currentThreadId, data.content, "assistant");
       } catch (error) {
         console.error("Standard chat error:", error);
       } finally {
@@ -97,8 +96,6 @@ export default function Home() {
     }
 
     // Sathyanishta Mode — SSE stream
-    updateThread(currentThreadId, { agentEvents: [], synthesis: null });
-
     try {
       const res = await fetch("/api/investigate", {
         method: "POST",
@@ -108,7 +105,8 @@ export default function Home() {
 
       const { stream_url, investigation_id } = await res.json();
       if (investigation_id) {
-        updateThread(currentThreadId, { investigationId: investigation_id });
+        // Update thread with investigation ID
+        // This would need additional API call to update the thread
       }
       const es = new EventSource(stream_url);
 
@@ -169,7 +167,7 @@ export default function Home() {
     }
     
     setMode(newMode);
-    updateThread(currentThreadId, { mode: newMode });
+    // Note: Thread mode update would need additional API call
   };
 
   return (

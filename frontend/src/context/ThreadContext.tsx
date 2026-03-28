@@ -35,6 +35,23 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<string>("");
   const [isInitialized, setIsInitialized] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+
+  // Detect user change and clear data
+  useEffect(() => {
+    if (session) {
+      const userId = (session.user as any).id || session.user.email;
+      if (currentUserId && currentUserId !== userId) {
+        // User has changed, clear all data and reset
+        setThreads([]);
+        setCurrentThreadId("");
+        setIsInitialized(false);
+      }
+      setCurrentUserId(userId);
+    } else {
+      setCurrentUserId("");
+    }
+  }, [session, currentUserId]);
 
   // Sync with session
   useEffect(() => {
@@ -46,8 +63,14 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
       setCurrentThreadId("");
       setIsInitialized(true);
     } else if (!isInitialized) {
-      // Load from localStorage if logged in and not yet initialized
-      const saved = localStorage.getItem("market-chat-threads");
+      // Clear any old generic localStorage key to prevent data leakage
+      const oldGenericKey = "market-chat-threads";
+      localStorage.removeItem(oldGenericKey);
+      
+      // Load from localStorage with user-specific key if logged in and not yet initialized
+      const userId = (session.user as any).id || session.user.email;
+      const userSpecificKey = `market-chat-threads-${userId}`;
+      const saved = localStorage.getItem(userSpecificKey);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -74,10 +97,12 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
     }
   }, [session, status, isInitialized]);
 
-  // Save to localStorage on change - ONLY if logged in
+  // Save to localStorage on change - ONLY if logged in with user-specific key
   useEffect(() => {
     if (isInitialized && session && threads.length > 0) {
-      localStorage.setItem("market-chat-threads", JSON.stringify(threads));
+      const userId = (session.user as any).id || session.user.email;
+      const userSpecificKey = `market-chat-threads-${userId}`;
+      localStorage.setItem(userSpecificKey, JSON.stringify(threads));
     }
   }, [threads, isInitialized, session]);
 

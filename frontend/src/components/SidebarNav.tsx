@@ -91,7 +91,6 @@ export function SidebarNav() {
       {/* Footer */}
       <div className="border-t border-white/[0.04] p-3 space-y-0.5">
         <FooterItem icon={<Settings size={14} />} label="Settings" />
-        <FooterItem icon={<User size={14} />} label="Profile" />
       </div>
     </aside>
   );

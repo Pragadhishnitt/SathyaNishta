@@ -3,16 +3,6 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 
-// For demo purposes - in production, store users in a database
-const DEMO_USERS = [
-  {
-    id: "1",
-    email: "demo@example.com",
-    password: bcrypt.hashSync("demo123", 10),
-    name: "Demo User",
-  },
-];
-
 const handler = NextAuth({
   providers: [
     GoogleProvider({
@@ -30,16 +20,30 @@ const handler = NextAuth({
           return null;
         }
 
-        const user = DEMO_USERS.find(
-          (u) => u.email === credentials.email
-        );
+        try {
+          // Call your FastAPI backend for authentication
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: credentials.email,
+              password: credentials.password,
+            }),
+          });
 
-        if (user && bcrypt.compareSync(credentials.password, user.password)) {
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-          };
+          if (response.ok) {
+            const data = await response.json();
+            return {
+              id: data.user.id,
+              email: data.user.email,
+              name: data.user.name,
+              accessToken: data.access_token,
+            };
+          }
+        } catch (error) {
+          console.error('Auth error:', error);
         }
 
         return null;
@@ -50,16 +54,40 @@ const handler = NextAuth({
     signIn: "/auth/login",
     signOut: "/auth/login",
   },
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days for better persistence
+  },
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
+  },
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
+    async jwt({ token, user, account }) {
+      // Initial sign in
+      if (account && user) {
+        token.accessToken = user.accessToken;
         token.id = user.id;
+        // Store user info in token for persistence
+        token.email = user.email;
+        token.name = user.name;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         (session.user as any).id = token.id;
+        (session.user as any).accessToken = token.accessToken;
+        // Ensure session has all user data
+        session.user.email = token.email;
+        session.user.name = token.name;
       }
       return session;
     },

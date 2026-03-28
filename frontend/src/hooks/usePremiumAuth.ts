@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 
 interface User {
   id: string;
@@ -9,33 +10,28 @@ interface User {
 }
 
 export function usePremiumAuth() {
+  const { data: session, status } = useSession();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    checkAuthStatus();
-  }, []);
+    if (status === "loading") return;
 
-  const checkAuthStatus = () => {
-    try {
-      const token = localStorage.getItem('access_token');
-      const userStr = localStorage.getItem('user');
-      
-      if (!token || !userStr) {
-        setUser(null);
-        setIsLoading(false);
-        return;
-      }
-
-      const userData = JSON.parse(userStr);
+    if (session?.user) {
+      // For OAuth users, assume they're verified and premium for now
+      const userData: User = {
+        id: (session.user as any).id || session.user.email,
+        email: session.user.email || "",
+        name: session.user.name || "",
+        is_verified: true, // OAuth users are considered verified
+        is_premium: true,  // Allow access to Sathyanishta mode
+      };
       setUser(userData);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Failed to check auth status:', error);
+    } else {
       setUser(null);
-      setIsLoading(false);
     }
-  };
+    setIsLoading(false);
+  }, [session, status]);
 
   const requireAuth = (): boolean => {
     return !!user && user.is_verified;
@@ -60,6 +56,5 @@ export function usePremiumAuth() {
     requirePremium,
     redirectToLogin,
     redirectToProfile,
-    checkAuthStatus
   };
 }

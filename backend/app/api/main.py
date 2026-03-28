@@ -11,6 +11,7 @@ from app.api.routes.market_data import router as market_data_router
 from app.api.routes.generate_brief import router as generate_brief_router
 from app.api.routes.extract_entities import router as extract_entities_router
 from app.api.routes.compare import router as compare_router
+from app.api.routes.chat_persistence import router as chat_persistence_router
 
 app = FastAPI(
     title="MarketChatGPT API",
@@ -38,6 +39,7 @@ app.include_router(generate_brief_router, prefix="/api")
 app.include_router(extract_entities_router, prefix="/api")
 app.include_router(market_data_router)
 app.include_router(compare_router)
+app.include_router(chat_persistence_router, prefix="/api/persistence", tags=["chat-persistence"])
 
 
 if __name__ == "__main__":
