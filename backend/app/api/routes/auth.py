@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import os
 import secrets
@@ -30,13 +30,39 @@ SMTP_USER = os.getenv("SMTP_USER")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@sathyanishta.com")
 
+# Token lifetimes (hours). Password reset was 1h — too short for many users.
+EMAIL_VERIFICATION_EXPIRE_HOURS = int(os.getenv("EMAIL_VERIFICATION_EXPIRE_HOURS", "72"))
+PASSWORD_RESET_EXPIRE_HOURS = int(os.getenv("PASSWORD_RESET_EXPIRE_HOURS", "24"))
+# Public URL for links in emails (match Traefik / dev port)
+APP_PUBLIC_URL = (
+    os.getenv("NEXT_PUBLIC_APP_URL")
+    or os.getenv("PUBLIC_APP_URL")
+    or "http://127.0.0.1:3000"
+).rstrip("/")
+
+
+def utc_now() -> datetime:
+    """Timezone-aware UTC 'now' (avoids naive/Postgres timestamptz mismatches)."""
+    return datetime.now(timezone.utc)
+
+
+def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
+    """Normalize DB datetimes to aware UTC for comparison."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        # We store/compare in UTC; naive values from DB are treated as UTC.
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 def send_verification_email(email: str, token: str):
     """Send email verification link"""
     if not SMTP_USER or not SMTP_PASSWORD or "your-email" in SMTP_USER:
         print(f"Skipping verification email to {email} - SMTP credentials not configured")
         return
 
-    verification_url = f"http://127.0.0.1:3000/auth/verify?token={token}"
+    verification_url = f"{APP_PUBLIC_URL}/auth/verify?token={token}"
     
     html_content = f"""
     <html>
@@ -48,7 +74,7 @@ def send_verification_email(email: str, token: str):
         </a>
         <p>Or copy and paste this link in your browser:</p>
         <p>{verification_url}</p>
-        <p>This link will expire in 24 hours.</p>
+        <p>This link will expire in {EMAIL_VERIFICATION_EXPIRE_HOURS} hours.</p>
         <p>Best regards,<br>The Sathya Nishta Team</p>
     </body>
     </html>
@@ -77,7 +103,7 @@ def send_password_reset_email(email: str, token: str):
         print(f"Skipping password reset email to {email} - SMTP credentials not configured")
         return
 
-    reset_url = f"http://127.0.0.1:3000/auth/reset-password?token={token}"
+    reset_url = f"{APP_PUBLIC_URL}/auth/reset-password?token={token}"
     
     html_content = f"""
     <html>
@@ -89,7 +115,7 @@ def send_password_reset_email(email: str, token: str):
         </a>
         <p>Or copy and paste this link in your browser:</p>
         <p>{reset_url}</p>
-        <p>This link will expire in 1 hour.</p>
+        <p>This link will expire in {PASSWORD_RESET_EXPIRE_HOURS} hours.</p>
         <p>If you didn't request this password reset, please ignore this email.</p>
         <p>Best regards,<br>The Sathya Nishta Team</p>
     </body>
@@ -137,7 +163,7 @@ async def register(user: UserCreate, db: Session = Depends(get_session), request
         # Create new user
         hashed_password = get_password_hash(user.password)
         verification_token = secrets.token_urlsafe(32)
-        verification_expires = datetime.utcnow() + timedelta(hours=24)
+        verification_expires = utc_now() + timedelta(hours=EMAIL_VERIFICATION_EXPIRE_HOURS)
         
         db_user = User(
             email=user.email,
@@ -178,12 +204,17 @@ async def register(user: UserCreate, db: Session = Depends(get_session), request
 @router.post("/verify-email")
 async def verify_email(verification: EmailVerification, db: Session = Depends(get_session)):
     """Verify email address"""
-    user = db.query(User).filter(
-        User.verification_token == verification.token,
-        User.verification_expires > datetime.utcnow()
-    ).first()
-    
+    raw_token = (verification.token or "").strip()
+    user = db.query(User).filter(User.verification_token == raw_token).first()
+
     if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification token"
+        )
+
+    exp = to_utc_aware(user.verification_expires)
+    if exp is not None and exp <= utc_now():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired verification token"
@@ -250,7 +281,7 @@ async def forgot_password(password_reset: PasswordReset, db: Session = Depends(g
         return {"message": "If the email exists, a password reset link has been sent"}
     
     reset_token = secrets.token_urlsafe(32)
-    reset_expires = datetime.utcnow() + timedelta(hours=1)
+    reset_expires = utc_now() + timedelta(hours=PASSWORD_RESET_EXPIRE_HOURS)
     
     user.reset_token = reset_token
     user.reset_expires = reset_expires
@@ -263,12 +294,17 @@ async def forgot_password(password_reset: PasswordReset, db: Session = Depends(g
 @router.post("/reset-password")
 async def reset_password(reset_data: PasswordResetConfirm, db: Session = Depends(get_session)):
     """Reset password with token"""
-    user = db.query(User).filter(
-        User.reset_token == reset_data.token,
-        User.reset_expires > datetime.utcnow()
-    ).first()
-    
+    raw_token = (reset_data.token or "").strip()
+    user = db.query(User).filter(User.reset_token == raw_token).first()
+
     if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )
+
+    exp = to_utc_aware(user.reset_expires)
+    if exp is not None and exp <= utc_now():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired reset token"

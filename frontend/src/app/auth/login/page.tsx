@@ -155,36 +155,25 @@ export default function LoginPage() {
           });
         }
       } else {
-        // Sign in logic
-        const response = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password
-          })
+        // Sign in logic using NextAuth
+        const result = await signIn('credentials', {
+          email: formData.email,
+          password: formData.password,
+          redirect: false,
+          callbackUrl: '/',
         });
 
-        let data;
-        try {
-          data = await response.json();
-        } catch (e) {
-          data = { detail: 'Server error. Please try again.' };
-        }
-
-        if (!response.ok) {
-          if (response.status === 401) {
+        if (result?.error) {
+          // Handle specific error messages from NextAuth
+          if (result.error === 'CredentialsSignin') {
             setErrors({ general: 'Invalid email or password' });
-          } else if (response.status === 400 && data.detail === 'Please verify your email before logging in') {
-            setErrors({ general: 'Please verify your email before logging in. Check your inbox for the verification link.' });
           } else {
-            setErrors({ general: data.detail || 'Login failed. Please try again.' });
+            setErrors({ general: 'Login failed. Please try again.' });
           }
-        } else {
-          // Store token and user info
-          localStorage.setItem('access_token', data.access_token);
-          localStorage.setItem('user', JSON.stringify(data.user));
+        } else if (result?.ok) {
+          // Successful login - redirect to home
           router.push('/');
+          router.refresh();
         }
       }
     } catch (error) {

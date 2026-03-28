@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, CheckCircle, XCircle, Loader2, ArrowRight } from "lucide-react";
 
@@ -9,15 +9,23 @@ function VerifyEmailPageContent() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');
+  const hasVerified = useRef(false);
 
   useEffect(() => {
-    const token = searchParams.get('token');
-    
+    const raw = searchParams.get('token');
+    const token = raw ? decodeURIComponent(raw.trim()) : null;
+
     if (!token) {
       setStatus('error');
       setMessage('Invalid verification link');
       return;
     }
+
+    // Prevent double verification due to React Strict Mode or re-renders
+    if (hasVerified.current) {
+      return;
+    }
+    hasVerified.current = true;
 
     const verifyEmail = async () => {
       try {
