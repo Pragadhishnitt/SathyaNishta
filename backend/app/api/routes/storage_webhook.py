@@ -14,7 +14,7 @@ from typing import Dict, Any, Optional
 from app.services.document_processor import document_processor
 from app.shared.logger import setup_logger
 
-router = APIRouter(prefix="/api/storage", tags=["storage-webhook"])
+router = APIRouter(tags=["storage-webhook"])
 logger = setup_logger("storage_webhook")
 
 class StorageEvent(BaseModel):
