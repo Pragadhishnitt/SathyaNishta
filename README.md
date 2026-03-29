@@ -37,7 +37,8 @@ For extensive technical documentation, see the [`docs/`](./docs/) folder:
 
 | Document | Description |
 |---|---|
-| [`docs/SathyaNishta.pdf`](./docs/SathyaNishta.pdf) | **Indepth low-level technical design** · system logic · agent specifications |
+| [`docs/SathyaNishta.pdf`](./docs/SathyaNishta.pdf) | **SathyaNishta: Complete Platform Guide** · Core Logic · System Integration · Full investigation walkthrough |
+| [`docs/SathyaNishta_Low_Level.pdf`](./docs/SathyaNishta.pdf) | **Indepth low-level technical design** · system logic · agent specifications |
 | [`docs/Impact_Model.pdf`](./docs/Impact_Model.pdf) | Business case · market opportunity · time saved · revenue model |
 | [`docs/agent_workflows.pdf`](./docs/agent_workflows.pdf) | Detailed walkthrough of agentic graph orchestration and state management |
 | [`docs/High_Level_Architecture.png`](./docs/High_Level_Architecture.png) | Visual overview of the system components and data flow |
