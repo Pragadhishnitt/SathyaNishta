@@ -10,16 +10,17 @@ Uses Cohere embeddings for semantic search and Portkey LLM for analysis.
 
 import json
 import re
-from typing import Any, Dict, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 from sqlalchemy import create_engine, text
 from sqlmodel import Session
-from tenacity import retry, wait_exponential, stop_after_attempt
+from tenacity import retry, stop_after_attempt, wait_exponential
 
-from ..base_agent import BaseAgent
-from ...shared.logger import setup_logger
 from ...core.config import settings
 from ...shared.llm_portkey import get_portkey_client
+from ...shared.logger import setup_logger
+from ..base_agent import BaseAgent
 
 
 class AudioAgent(BaseAgent):
@@ -61,9 +62,7 @@ class AudioAgent(BaseAgent):
         if not isinstance(params, dict):
             raise ValueError("AudioAgent task 'params' must be a dict")
 
-        self.logger.debug(
-            "Running audio tool", extra={"tool": tool_name, "params": params}
-        )
+        self.logger.debug("Running audio tool", extra={"tool": tool_name, "params": params})
         return self.tool_map[tool_name](params)
 
     # =====================================================================
@@ -75,9 +74,7 @@ class AudioAgent(BaseAgent):
         stop=stop_after_attempt(3),
         reraise=True,
     )
-    def _retrieve_audio_documents(
-        self, company: str, query: str, top_k: int = 3
-    ) -> List[Dict]:
+    def _retrieve_audio_documents(self, company: str, query: str, top_k: int = 3) -> List[Dict]:
         """Retrieve most relevant audio transcripts using semantic search"""
         try:
             if not self.engine:
@@ -85,9 +82,10 @@ class AudioAgent(BaseAgent):
                 return []
 
             # Import Cohere for embedding the query
+            import os
+
             import cohere
             from dotenv import load_dotenv
-            import os
 
             load_dotenv()
             cohere_api_key = os.getenv("COHERE_API_KEY")
@@ -98,9 +96,7 @@ class AudioAgent(BaseAgent):
             cohere_client = cohere.Client(cohere_api_key)
 
             # Generate embedding for query
-            response = cohere_client.embed(
-                texts=[query], model="embed-english-v3.0", input_type="search_query"
-            )
+            response = cohere_client.embed(texts=[query], model="embed-english-v3.0", input_type="search_query")
             query_embedding = response.embeddings[0]
             query_embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
 
@@ -121,9 +117,7 @@ class AudioAgent(BaseAgent):
                     {"company_name": f"%{company}%", "top_k": top_k},
                 ).fetchall()
 
-                self.logger.debug(
-                    f"Query returned {len(results) if results else 0} results for {company}"
-                )
+                self.logger.debug(f"Query returned {len(results) if results else 0} results for {company}")
 
                 documents = []
                 for row in results:
@@ -147,9 +141,7 @@ class AudioAgent(BaseAgent):
                         }
                     )
 
-                self.logger.info(
-                    f"Retrieved {len(documents)} audio documents for {company}"
-                )
+                self.logger.info(f"Retrieved {len(documents)} audio documents for {company}")
                 return documents
 
         except Exception as e:
@@ -161,9 +153,7 @@ class AudioAgent(BaseAgent):
         stop=stop_after_attempt(3),
         reraise=True,
     )
-    def _analyze_with_llm(
-        self, transcript_content: str, analysis_type: str
-    ) -> Dict[str, Any]:
+    def _analyze_with_llm(self, transcript_content: str, analysis_type: str) -> Dict[str, Any]:
         """Analyze audio transcript content using Portkey LLM"""
         if not self.llm_client:
             self.logger.error("LLM client not initialized")
@@ -286,9 +276,7 @@ Respond with ONLY valid JSON:
 
         # Extract arrays using improved method
         result["tone_indicators"] = self._extract_array_field(text, "tone_indicators")
-        result["deception_markers"] = self._extract_array_field(
-            text, "deception_markers"
-        )
+        result["deception_markers"] = self._extract_array_field(text, "deception_markers")
         result["key_points"] = self._extract_array_field(text, "key_points")
         result["recommendations"] = self._extract_array_field(text, "recommendations")
 
@@ -305,11 +293,7 @@ Respond with ONLY valid JSON:
         if health_match:
             result["financial_health_assessment"] = health_match.group(1)
 
-        return (
-            result
-            if result
-            else {"summary": "Unable to parse analysis response", "error": True}
-        )
+        return result if result else {"summary": "Unable to parse analysis response", "error": True}
 
     def _extract_array_field(self, text: str, field_name: str) -> List[str]:
         """Extract array values from JSON-like text"""
@@ -344,11 +328,7 @@ Respond with ONLY valid JSON:
         array_str = text[start_idx:end_idx]
         items = re.findall(r'"([^"]*(?:\\.[^"]*)*)"', array_str)
 
-        return [
-            item.replace('\\"', '"').replace("\\n", "\n")
-            for item in items
-            if item.strip()
-        ]
+        return [item.replace('\\"', '"').replace("\\n", "\n") for item in items if item.strip()]
 
     # =====================================================================
     # Audio Tool Implementations
@@ -421,9 +401,7 @@ Respond with ONLY valid JSON:
 
         try:
             # Step 1: Retrieve relevant audio documents
-            documents = self._retrieve_audio_documents(
-                company, f"deception markers {focus}", top_k=3
-            )
+            documents = self._retrieve_audio_documents(company, f"deception markers {focus}", top_k=3)
 
             if not documents:
                 return {
@@ -552,18 +530,9 @@ Respond with ONLY valid JSON:
                     {
                         "chunk_index": int(row[0] or 0),
                         "transcript_text": row[1] or "",
-                        "start_time": float(
-                            metadata.get("start_time", metadata.get("start", 0)) or 0
-                        ),
-                        "end_time": float(
-                            metadata.get("end_time", metadata.get("end", 0)) or 0
-                        ),
-                        "duration_total": float(
-                            metadata.get(
-                                "duration_total", metadata.get("total_duration", 0)
-                            )
-                            or 0
-                        ),
+                        "start_time": float(metadata.get("start_time", metadata.get("start", 0)) or 0),
+                        "end_time": float(metadata.get("end_time", metadata.get("end", 0)) or 0),
+                        "duration_total": float(metadata.get("duration_total", metadata.get("total_duration", 0)) or 0),
                     }
                 )
 
@@ -578,9 +547,7 @@ Respond with ONLY valid JSON:
                     c["end_time"] = float((i + 1) * 120)
                     c["duration_total"] = inferred_total
 
-            total_duration = (
-                chunks[-1].get("duration_total") or chunks[-1].get("end_time") or 1
-            )
+            total_duration = chunks[-1].get("duration_total") or chunks[-1].get("end_time") or 1
             chunk_texts = "\n".join(
                 [
                     f"[CHUNK {c['chunk_index']} | {c['start_time']}s-{c['end_time']}s]: {c['transcript_text'][:300]}"
@@ -629,16 +596,8 @@ Return JSON only:
             for marker in parsed_markers:
                 idx = int(marker.get("chunk_index", chunks[0]["chunk_index"]))
                 chunk = chunk_map.get(idx, chunks[0])
-                start_pct = (
-                    (chunk.get("start_time", 0) / total_duration)
-                    if total_duration
-                    else 0
-                )
-                end_pct = (
-                    (chunk.get("end_time", 0) / total_duration)
-                    if total_duration
-                    else start_pct
-                )
+                start_pct = (chunk.get("start_time", 0) / total_duration) if total_duration else 0
+                end_pct = (chunk.get("end_time", 0) / total_duration) if total_duration else start_pct
                 enriched_markers.append(
                     {
                         "chunk_index": idx,
@@ -655,9 +614,7 @@ Return JSON only:
 
             return {
                 "status": "success",
-                "overall_likelihood": analysis.get(
-                    "overall_likelihood", analysis.get("likelihood", "unknown")
-                ),
+                "overall_likelihood": analysis.get("overall_likelihood", analysis.get("likelihood", "unknown")),
                 "markers": enriched_markers,
                 "total_duration_s": total_duration,
                 "chunk_count": len(chunks),

@@ -7,9 +7,10 @@ Supabase Edge Functions should call this endpoint when
 files are uploaded to storage buckets.
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from typing import Any, Dict, Optional
+
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
-from typing import Dict, Any, Optional
 
 from app.services.document_processor import document_processor
 from app.shared.logger import setup_logger
@@ -27,9 +28,7 @@ class StorageEvent(BaseModel):
 
 
 @router.post("/webhook")
-async def storage_webhook(
-    event: StorageEvent, background_tasks: BackgroundTasks
-) -> Dict[str, Any]:
+async def storage_webhook(event: StorageEvent, background_tasks: BackgroundTasks) -> Dict[str, Any]:
     """Handle storage webhook events from Supabase.
 
     This endpoint is called by Supabase Edge Functions when
@@ -43,9 +42,7 @@ async def storage_webhook(
         Processing status and details
     """
     try:
-        logger.info(
-            f"Received storage webhook: {event.bucket}/{event.record.get('name')}"
-        )
+        logger.info(f"Received storage webhook: {event.bucket}/{event.record.get('name')}")
 
         # Process the document in background
         background_tasks.add_task(process_document_background, event.dict())
@@ -101,9 +98,7 @@ async def get_processing_status() -> Dict[str, Any]:
 
 
 @router.post("/test")
-async def test_processing(
-    bucket: str = "financial_docs", file_name: str = "AAPL/FY2024/Q1/balance_sheet.pdf"
-):
+async def test_processing(bucket: str = "financial_docs", file_name: str = "AAPL/FY2024/Q1/balance_sheet.pdf"):
     """Test the document processing pipeline."""
     try:
         test_event = {

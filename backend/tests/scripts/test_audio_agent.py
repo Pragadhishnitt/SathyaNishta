@@ -8,8 +8,8 @@ Tests the three main audio agent functions:
 3. analyze_transcript_content - General content analysis
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add repo to path

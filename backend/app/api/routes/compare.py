@@ -1,20 +1,16 @@
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 import asyncio
 import json
 import uuid
 from typing import Dict, List, Optional
 
-from app.shared.logger import setup_logger
-from app.api.routes.investigate import (
-    _run_investigation,
-    _extract_company_name,
-    _queues,
-    engine,
-)
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy import text
 from sqlmodel import Session
+
+from app.api.routes.investigate import _extract_company_name, _queues, _run_investigation, engine
+from app.shared.logger import setup_logger
 
 router = APIRouter(prefix="/api/compare", tags=["compare"])
 _logger = setup_logger("compare_route")
@@ -74,23 +70,11 @@ async def start_comparison(req: CompareRequest):
         _logger.error(f"Failed to create comparison DB records: {e}")
 
     # Start both investigations in background
-    asyncio.create_task(
-        _run_investigation(
-            inv_id_a, req.company_a, f"Investigate {req.company_a}", req.mode
-        )
-    )
-    asyncio.create_task(
-        _run_investigation(
-            inv_id_b, req.company_b, f"Investigate {req.company_b}", req.mode
-        )
-    )
+    asyncio.create_task(_run_investigation(inv_id_a, req.company_a, f"Investigate {req.company_a}", req.mode))
+    asyncio.create_task(_run_investigation(inv_id_b, req.company_b, f"Investigate {req.company_b}", req.mode))
 
     # Start comparison monitor
-    asyncio.create_task(
-        _monitor_and_synthesize_comparison(
-            comp_id, inv_id_a, inv_id_b, req.company_a, req.company_b
-        )
-    )
+    asyncio.create_task(_monitor_and_synthesize_comparison(comp_id, inv_id_a, inv_id_b, req.company_a, req.company_b))
 
     return {
         "comparison_id": comp_id,
@@ -100,9 +84,7 @@ async def start_comparison(req: CompareRequest):
     }
 
 
-async def _monitor_and_synthesize_comparison(
-    comp_id: str, id_a: str, id_b: str, name_a: str, name_b: str
-):
+async def _monitor_and_synthesize_comparison(comp_id: str, id_a: str, id_b: str, name_a: str, name_b: str):
     """Monitor two investigations and emit interleaved events + final comparison synthesis."""
     q_comp = _queues[comp_id]
     q_a = _queues[id_a]
@@ -146,9 +128,7 @@ async def _monitor_and_synthesize_comparison(
     await asyncio.gather(forward_events(id_a, q_a, "A"), forward_events(id_b, q_b, "B"))
 
     # Perform Comparison Synthesis
-    _logger.info(
-        f"[{comp_id}] Both investigations complete. Running comparison synthesis."
-    )
+    _logger.info(f"[{comp_id}] Both investigations complete. Running comparison synthesis.")
     try:
         from app.shared.llm_portkey import chat_complete
 

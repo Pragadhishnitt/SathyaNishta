@@ -1,13 +1,15 @@
+import json
+from io import BytesIO
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
-from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from io import BytesIO
-import json
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from sqlalchemy import create_engine, text
 from sqlmodel import Session
+
 from app.core.config import settings
 from app.shared.logger import get_logger
 
@@ -38,9 +40,7 @@ def _add_agent_section(
 
     risk_score = findings.get("risk_score")
     if risk_score is not None:
-        elements.append(
-            Paragraph(f"<b>Risk Score:</b> {_escape_text(risk_score)}/10", body_style)
-        )
+        elements.append(Paragraph(f"<b>Risk Score:</b> {_escape_text(risk_score)}/10", body_style))
 
     summary_items = findings.get("findings") or []
     if isinstance(summary_items, list) and summary_items:
@@ -55,9 +55,7 @@ def _add_agent_section(
         elements.append(Paragraph("Supporting Data", subsection_style))
         for key, value in list(evidence_map.items())[:10]:
             label = _escape_text(str(key).replace("_", " ").title())
-            elements.append(
-                Paragraph(f"<b>{label}:</b> {_escape_text(value)}", body_style)
-            )
+            elements.append(Paragraph(f"<b>{label}:</b> {_escape_text(value)}", body_style))
 
     elements.append(Spacer(1, 10))
 
@@ -71,29 +69,19 @@ async def generate_report(inv_id: str):
     try:
         with Session(engine) as session:
             # Get main investigation data
-            inv = session.execute(
-                text("SELECT * FROM investigations WHERE id = :id"), {"id": inv_id}
-            ).fetchone()
+            inv = session.execute(text("SELECT * FROM investigations WHERE id = :id"), {"id": inv_id}).fetchone()
 
             if not inv:
-                _logger.warning(
-                    f"Report generation failed: investigation {inv_id} not found"
-                )
+                _logger.warning(f"Report generation failed: investigation {inv_id} not found")
                 raise HTTPException(status_code=404, detail="Investigation not found")
 
             if inv.status != "completed":
-                _logger.warning(
-                    f"Report generation blocked: investigation {inv_id} has status={inv.status}"
-                )
-                raise HTTPException(
-                    status_code=400, detail="Investigation not yet completed"
-                )
+                _logger.warning(f"Report generation blocked: investigation {inv_id} has status={inv.status}")
+                raise HTTPException(status_code=400, detail="Investigation not yet completed")
 
             # Get synthesis evidence from audit trail
             audit = session.execute(
-                text(
-                    "SELECT output_payload FROM audit_trails WHERE investigation_id = :id AND step_type = 'synthesis'"
-                ),
+                text("SELECT output_payload FROM audit_trails WHERE investigation_id = :id AND step_type = 'synthesis'"),
                 {"id": inv_id},
             ).fetchone()
 
@@ -106,17 +94,11 @@ async def generate_report(inv_id: str):
                 elif isinstance(raw_payload, dict):
                     payload = raw_payload
                 else:
-                    raise TypeError(
-                        f"Unsupported audit payload type: {type(raw_payload).__name__}"
-                    )
+                    raise TypeError(f"Unsupported audit payload type: {type(raw_payload).__name__}")
                 evidence = payload.get("evidence", [])
-                _logger.info(
-                    f"Loaded synthesis audit for {inv_id}: evidence_count={len(evidence)}"
-                )
+                _logger.info(f"Loaded synthesis audit for {inv_id}: evidence_count={len(evidence)}")
             else:
-                _logger.warning(
-                    f"No synthesis audit row found for investigation {inv_id}"
-                )
+                _logger.warning(f"No synthesis audit row found for investigation {inv_id}")
 
     except HTTPException:
         raise
@@ -175,9 +157,7 @@ async def generate_report(inv_id: str):
         spaceAfter=4,
         textColor=colors.HexColor("#334155"),
     )
-    body_style = ParagraphStyle(
-        "BodyStyle", parent=styles["Normal"], fontSize=10, leading=13, spaceAfter=4
-    )
+    body_style = ParagraphStyle("BodyStyle", parent=styles["Normal"], fontSize=10, leading=13, spaceAfter=4)
 
     elements = []
 
@@ -197,9 +177,7 @@ async def generate_report(inv_id: str):
     verdict = inv.verdict or "UNKNOWN"
     score = inv.fraud_risk_score or 0.0
 
-    verdict_color = (
-        colors.red if score >= 8 else colors.orange if score >= 4 else colors.green
-    )
+    verdict_color = colors.red if score >= 8 else colors.orange if score >= 4 else colors.green
 
     data = [
         [
@@ -254,9 +232,7 @@ async def generate_report(inv_id: str):
         )
         elements.append(et)
     else:
-        elements.append(
-            Paragraph("No specific evidence findings recorded.", styles["Normal"])
-        )
+        elements.append(Paragraph("No specific evidence findings recorded.", styles["Normal"]))
 
     agent_sections = [
         ("Financial Agent Output", payload.get("financial_findings")),

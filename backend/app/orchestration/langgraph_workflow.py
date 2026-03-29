@@ -19,6 +19,7 @@ if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
 from contracts.state import InvestigationState
+
 from app.agents.nodes import (
     audio_node,
     compliance_node,
@@ -28,7 +29,6 @@ from app.agents.nodes import (
     reflection_node,
     synthesis_node,
 )
-
 
 # Agent execution order per mode
 STANDARD_SEQUENCE = ["financial", "graph", "compliance"]

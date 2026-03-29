@@ -16,20 +16,17 @@ It routes to the corresponding handler and returns the tool's output dict.
 import json
 import os
 from typing import Any, Callable, Dict, List, Optional
-from tenacity import retry, wait_exponential, stop_after_attempt
 
 # Load .env if present (for local dev)
 from dotenv import load_dotenv
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 load_dotenv()
 
 from ...core.config import settings
-
-
-from ..base_agent import BaseAgent
-from ...shared.logger import setup_logger
 from ...shared.llm_portkey import chat_complete
-from ...core.config import settings
+from ...shared.logger import setup_logger
+from ..base_agent import BaseAgent
 
 
 class ComplianceAgent(BaseAgent):
@@ -41,21 +38,15 @@ class ComplianceAgent(BaseAgent):
         supabase_key = settings.SUPABASE_KEY
         if supabase_url and supabase_key:
             try:
-                from supabase import create_client, Client
+                from supabase import Client, create_client
 
-                self.supabase: Optional[Client] = create_client(
-                    supabase_url, supabase_key
-                )
+                self.supabase: Optional[Client] = create_client(supabase_url, supabase_key)
             except Exception as e:
                 self.supabase = None
-                self.logger.warning(
-                    f"Failed to initialize Supabase client: {e}. RAG queries will be limited"
-                )
+                self.logger.warning(f"Failed to initialize Supabase client: {e}. RAG queries will be limited")
         else:
             self.supabase = None
-            self.logger.warning(
-                "Supabase credentials not found, RAG queries will be limited"
-            )
+            self.logger.warning("Supabase credentials not found, RAG queries will be limited")
 
         self.tool_map: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
             "check_sebi_regulations": self.check_sebi_regulations,
@@ -72,14 +63,10 @@ class ComplianceAgent(BaseAgent):
                 self.cohere_client = cohere.Client(cohere_api_key)
             else:
                 self.cohere_client = None
-                self.logger.warning(
-                    "Cohere API key not found in settings, RAG queries will be limited"
-                )
+                self.logger.warning("Cohere API key not found in settings, RAG queries will be limited")
         except ImportError:
             self.cohere_client = None
-            self.logger.warning(
-                "cohere package not installed. Install with: pip install cohere"
-            )
+            self.logger.warning("cohere package not installed. Install with: pip install cohere")
 
     def process(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """Route the incoming task to the correct compliance tool.
@@ -98,23 +85,17 @@ class ComplianceAgent(BaseAgent):
         if not isinstance(params, dict):
             raise ValueError("ComplianceAgent task 'params' must be a dict")
 
-        self.logger.debug(
-            "Running compliance tool", extra={"tool": tool_name, "params": params}
-        )
+        self.logger.debug("Running compliance tool", extra={"tool": tool_name, "params": params})
         return self.tool_map[tool_name](params, task)
 
     # ---------------------------------------------------------------------
     # Tool implementations (contract-compliant shapes)
     # ---------------------------------------------------------------------
-    def check_sebi_regulations(
-        self, params: Dict[str, Any], task: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def check_sebi_regulations(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
         """Validate a finding against SEBI LODR, Companies Act, and other Indian regulations."""
         return self._call_llm("check_sebi_regulations", params, task)
 
-    def verify_indas_compliance(
-        self, params: Dict[str, Any], task: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def verify_indas_compliance(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
         """Cross-reference financial findings against IndAS accounting standards."""
         return self._call_llm("verify_indas_compliance", params, task)
 
@@ -123,9 +104,7 @@ class ComplianceAgent(BaseAgent):
         stop=stop_after_attempt(3),
         reraise=True,
     )
-    def rag_legal_query(
-        self, params: Dict[str, Any], task: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def rag_legal_query(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
         """Perform semantic search on regulatory documents using Supabase pgvector."""
         query = params.get("query")
         source_filter = params.get("source_filter")
@@ -144,9 +123,7 @@ class ComplianceAgent(BaseAgent):
                 raise RuntimeError(
                     "Cohere client not initialized. Ensure 'cohere' is installed and COHERE_API_KEY is set in settings."
                 )
-            response = self.cohere_client.embed(
-                texts=[query], model="embed-english-v3.0", input_type="search_query"
-            )
+            response = self.cohere_client.embed(texts=[query], model="embed-english-v3.0", input_type="search_query")
             query_embedding = response.embeddings[0]  # 1024 dimensions
 
             # Prepare source filter - map to schema format
@@ -167,9 +144,7 @@ class ComplianceAgent(BaseAgent):
                 "category_filter": category_filter,
             }
 
-            response = self.supabase.rpc(
-                "search_regulatory_documents", rpc_params
-            ).execute()
+            response = self.supabase.rpc("search_regulatory_documents", rpc_params).execute()
 
             if not response.data:
                 return {"results": []}
@@ -185,9 +160,7 @@ class ComplianceAgent(BaseAgent):
                         "category": row.get("category"),
                         "doc_type": row.get("doc_type"),
                         "relevance_score": float(row.get("similarity", 0.0)),
-                        "excerpt": row.get("content_chunk", "")[
-                            :200
-                        ],  # First 200 chars
+                        "excerpt": row.get("content_chunk", "")[:200],  # First 200 chars
                         "effective_date": row.get("effective_date"),
                         "url": row.get("url"),
                         "metadata": row.get("metadata", {}),
@@ -269,7 +242,4 @@ class ComplianceAgent(BaseAgent):
             "All dates must be ISO 8601 if present.",
         ]
 
-        return "\n".join(
-            base_rules
-            + [contract_notes.get(tool_name, "Follow the contract schema strictly.")]
-        )
+        return "\n".join(base_rules + [contract_notes.get(tool_name, "Follow the contract schema strictly.")])

@@ -2,21 +2,21 @@ import os
 import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
 # Add the project root to sys.path so we can import app
 sys.path.insert(0, "/app")
 
-from alembic import context
 from sqlmodel import SQLModel
+
+from alembic import context
+from app.core import db
 
 # Load custom config first
 from app.core.config import settings
-from app.core import db
 
 # Import models for autogeneration
-from app.schemas.investigation import Investigation, AuditLog
+from app.schemas.investigation import AuditLog, Investigation
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

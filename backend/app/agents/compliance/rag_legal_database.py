@@ -3,11 +3,11 @@ RAG Legal Database - Store legal document embeddings in Supabase pgvector
 Extracts text from PDFs, chunks them, generates embeddings, and stores in Supabase
 """
 
-import sys
-import os
 import json
+import os
+import sys
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 # Add repo to path
 repo_root = Path(__file__).resolve().parent.parent.parent.parent.parent
@@ -32,13 +32,13 @@ except ImportError:
     import cohere
 
 try:
-    from supabase import create_client, Client
+    from supabase import Client, create_client
 except ImportError:
     print("Installing supabase...")
     import subprocess
 
     subprocess.run([sys.executable, "-m", "pip", "install", "supabase"], check=True)
-    from supabase import create_client, Client
+    from supabase import Client, create_client
 
 # Get environment variables (already set by docker-compose or .env in local dev)
 # In Docker, env vars are passed via env_file directive, not loaded from .env file
@@ -73,9 +73,7 @@ def extract_text_from_pdf(pdf_path: str, max_pages: int = None) -> str:
     text = ""
 
     with pdfplumber.open(pdf_path) as pdf:
-        total_pages = (
-            len(pdf.pages) if max_pages is None else min(len(pdf.pages), max_pages)
-        )
+        total_pages = len(pdf.pages) if max_pages is None else min(len(pdf.pages), max_pages)
 
         for page_num in range(total_pages):
             page = pdf.pages[page_num]
@@ -86,10 +84,7 @@ def extract_text_from_pdf(pdf_path: str, max_pages: int = None) -> str:
                 for table in tables:
                     # Convert table to readable text format
                     for row in table:
-                        text += (
-                            " | ".join([str(cell) if cell else "" for cell in row])
-                            + "\n"
-                        )
+                        text += " | ".join([str(cell) if cell else "" for cell in row]) + "\n"
                     text += "\n"
 
             # Extract regular text

@@ -1,13 +1,14 @@
 from datetime import datetime, timedelta
 from typing import Optional
-from jose import JWTError, jwt
-from passlib.context import CryptContext
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
-from .db import get_session
 from ..models.user import User
+from .db import get_session
 
 # Configuration
 SECRET_KEY = "your-secret-key-change-in-production"  # Move to environment
@@ -41,9 +42,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
-async def get_current_user(
-    token: str = Depends(oauth2_scheme), db: Session = Depends(get_session)
-) -> User:
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_session)) -> User:
     """Get current authenticated user"""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -71,9 +70,7 @@ async def get_current_active_user(
 ) -> User:
     """Get current active user"""
     if not current_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
     return current_user
 
 
@@ -82,9 +79,7 @@ async def get_current_verified_user(
 ) -> User:
     """Get current verified user"""
     if not current_user.is_verified:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Email not verified"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email not verified")
     return current_user
 
 

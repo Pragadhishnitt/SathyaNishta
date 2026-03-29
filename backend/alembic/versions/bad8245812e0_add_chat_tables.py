@@ -8,10 +8,11 @@ Create Date: 2026-03-28 06:58:03.044596
 
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 import sqlmodel
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "bad8245812e0"
@@ -67,7 +68,5 @@ def downgrade() -> None:
         ["expires_at"],
         unique=False,
     )
-    op.create_index(
-        "idx_password_resets_email", "password_resets", ["email"], unique=False
-    )
+    op.create_index("idx_password_resets_email", "password_resets", ["email"], unique=False)
     # ### end Alembic commands ###

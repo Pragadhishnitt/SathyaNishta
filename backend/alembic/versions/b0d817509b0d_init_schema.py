@@ -8,10 +8,10 @@ Create Date: 2026-02-11 10:15:18.882097
 
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 import sqlmodel
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "b0d817509b0d"
@@ -37,12 +37,8 @@ def upgrade() -> None:
         sa.Column("evidence_chain", sa.JSON(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        op.f("ix_investigations_query"), "investigations", ["query"], unique=False
-    )
-    op.create_index(
-        op.f("ix_investigations_status"), "investigations", ["status"], unique=False
-    )
+    op.create_index(op.f("ix_investigations_query"), "investigations", ["query"], unique=False)
+    op.create_index(op.f("ix_investigations_status"), "investigations", ["status"], unique=False)
     op.create_table(
         "audit_trails",
         sa.Column("id", sa.Integer(), nullable=False),

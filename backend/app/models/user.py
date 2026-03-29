@@ -1,7 +1,8 @@
-from sqlmodel import Column, Integer, String, Boolean, DateTime, Text, Field, SQLModel
-from sqlalchemy.sql import func
 from datetime import datetime
 from typing import Optional
+
+from sqlalchemy.sql import func
+from sqlmodel import Boolean, Column, DateTime, Field, Integer, SQLModel, String, Text
 
 
 class UserBase(SQLModel):
@@ -35,9 +36,7 @@ class User(UserBase, table=True):
 
     # Timestamps
     created_at: datetime = Field(default_factory=func.now)
-    updated_at: datetime = Field(
-        default_factory=func.now, sa_column_kwargs={"onupdate": func.now()}
-    )
+    updated_at: datetime = Field(default_factory=func.now, sa_column_kwargs={"onupdate": func.now()})
     last_login: Optional[datetime] = None
 
 

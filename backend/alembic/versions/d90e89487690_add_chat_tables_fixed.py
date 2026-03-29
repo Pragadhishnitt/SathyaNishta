@@ -8,10 +8,10 @@ Create Date: 2026-03-28 07:18:53.567430
 
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 import sqlmodel
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "d90e89487690"
@@ -26,9 +26,7 @@ def upgrade() -> None:
         "chat_threads",
         sa.Column("title", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("mode", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.Column(
-            "investigation_id", sqlmodel.sql.sqltypes.AutoString(), nullable=True
-        ),
+        sa.Column("investigation_id", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
         sa.Column("id", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),

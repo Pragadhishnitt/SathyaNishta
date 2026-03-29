@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
-from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, JSON
+
+from sqlalchemy import JSON, Column
+from sqlmodel import Field, Relationship, SQLModel
 
 # Import Enums from contracts (we assume we can import from there, or redefine)
 # Ideally, we should move the contracts enums to a shared place, but for now
@@ -19,9 +20,7 @@ class Investigation(SQLModel, table=True):
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     query: str = Field(index=True)
-    status: str = Field(
-        default="queued", index=True
-    )  # Queued, Running, Completed, Failed
+    status: str = Field(default="queued", index=True)  # Queued, Running, Completed, Failed
     fraud_risk_score: Optional[float] = Field(default=None)
     verdict: Optional[str] = Field(default=None)  # Critical, High, Medium, Low, Safe
     summary: Optional[str] = Field(default=None)
@@ -33,9 +32,7 @@ class Investigation(SQLModel, table=True):
 
     # Store complex objects as JSON
     domains: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
-    cross_domain_insights: List[str] = Field(
-        default_factory=list, sa_column=Column(JSON)
-    )
+    cross_domain_insights: List[str] = Field(default_factory=list, sa_column=Column(JSON))
     evidence_chain: List[str] = Field(default_factory=list, sa_column=Column(JSON))
 
 

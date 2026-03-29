@@ -16,10 +16,12 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-from contracts.state import AgentFinding, InvestigationState
-from app.shared.logger import setup_logger
-from app.shared.llm_portkey import chat_complete
 import random
+
+from contracts.state import AgentFinding, InvestigationState
+
+from app.shared.llm_portkey import chat_complete
+from app.shared.logger import setup_logger
 
 _logger = setup_logger("agent_nodes")
 
@@ -254,9 +256,7 @@ def _get_compliance_fallback(company: str) -> AgentFinding:
 # ── Helper: safe AgentFinding builder ───────────────────────────
 
 
-def _build_finding(
-    risk_score: float, findings: List[str], evidence: Dict[str, str]
-) -> AgentFinding:
+def _build_finding(risk_score: float, findings: List[str], evidence: Dict[str, str]) -> AgentFinding:
     """Clamp risk_score to [0, 10] and return a valid AgentFinding."""
     return AgentFinding(
         risk_score=max(0.0, min(10.0, round(risk_score, 1))),
@@ -320,9 +320,7 @@ def financial_node(state: InvestigationState) -> Dict[str, Any]:
         if not all_findings and not all_anomalies:
             finding = _get_financial_fallback(company)
         else:
-            risk_score = (
-                sum(health_scores) / len(health_scores) if health_scores else 5.0
-            )
+            risk_score = sum(health_scores) / len(health_scores) if health_scores else 5.0
             combined_findings = all_findings + all_anomalies
             finding = _build_finding(risk_score, combined_findings[:10], evidence)
 
@@ -332,9 +330,7 @@ def financial_node(state: InvestigationState) -> Dict[str, Any]:
 
     return {
         "financial_findings": finding,
-        "messages": [
-            f"Financial Agent: {len(finding['findings'])} findings — score {finding['risk_score']}/10"
-        ],
+        "messages": [f"Financial Agent: {len(finding['findings'])} findings — score {finding['risk_score']}/10"],
     }
 
 
@@ -382,24 +378,16 @@ def graph_node(state: InvestigationState) -> Dict[str, Any]:
             for loop in loops[:5]:
                 path_str = " → ".join(loop.get("companies", []))
                 flow = loop.get("total_amount", 0)
-                findings.append(
-                    f"Circular loop: {path_str} (₹{flow:,.0f} Cr; source: Neo4j graph)"
-                )
+                findings.append(f"Circular loop: {path_str} (₹{flow:,.0f} Cr; source: Neo4j graph)")
                 if loop.get("risk_indicator") == "SUSPICIOUS":
-                    findings.append(
-                        f"  ⚠ Suspicious: {loop.get('loop_length', 0)} hops"
-                    )
+                    findings.append(f"  ⚠ Suspicious: {loop.get('loop_length', 0)} hops")
 
             evidence["cycle_count"] = str(loop_count)
             evidence["total_circular_flow"] = f"₹{total_amount} Cr"
 
             # Score based on loops found
             risk_score = min(10.0, 3.0 + loop_count * 2.0)
-            fraud_likelihood = (
-                "CRITICAL"
-                if risk_score >= 8
-                else "HIGH" if risk_score >= 6 else "MEDIUM"
-            )
+            fraud_likelihood = "CRITICAL" if risk_score >= 8 else "HIGH" if risk_score >= 6 else "MEDIUM"
         else:
             findings.append("No circular trading loops detected (source: Neo4j graph)")
             evidence["cycle_count"] = "0"
@@ -414,18 +402,13 @@ def graph_node(state: InvestigationState) -> Dict[str, Any]:
         finding, graph_payload = _get_graph_fallback(company)
 
     # If graph query succeeded but returned nothing useful, use fallback
-    if finding and (
-        finding.get("evidence", {}).get("cycle_count") == "0"
-        and graph_payload.get("node_count", 0) == 0
-    ):
+    if finding and (finding.get("evidence", {}).get("cycle_count") == "0" and graph_payload.get("node_count", 0) == 0):
         finding, graph_payload = _get_graph_fallback(company)
 
     return {
         "graph_findings": finding,
         "graph_payload": graph_payload,
-        "messages": [
-            f"Graph Agent: {finding['evidence'].get('cycle_count', '?')} cycles — score {finding['risk_score']}/10"
-        ],
+        "messages": [f"Graph Agent: {finding['evidence'].get('cycle_count', '?')} cycles — score {finding['risk_score']}/10"],
     }
 
 
@@ -445,9 +428,7 @@ def compliance_node(state: InvestigationState) -> Dict[str, Any]:
         # Build a comprehensive query from prior findings
         financial = state.get("financial_findings", {})
         graph = state.get("graph_findings", {})
-        prior_findings = (
-            financial.get("findings", [])[:3] + graph.get("findings", [])[:3]
-        )
+        prior_findings = financial.get("findings", [])[:3] + graph.get("findings", [])[:3]
         context = f"Company: {company}. Prior findings: {'; '.join(prior_findings)}"
 
         findings: List[str] = []
@@ -502,9 +483,7 @@ def compliance_node(state: InvestigationState) -> Dict[str, Any]:
             risk_score = min(10.0, 2.0 + violation_count * 3.0)
 
         evidence["violation_count"] = str(violation_count)
-        evidence["highest_severity"] = (
-            "CRITICAL" if risk_score >= 7 else "HIGH" if risk_score >= 4 else "LOW"
-        )
+        evidence["highest_severity"] = "CRITICAL" if risk_score >= 7 else "HIGH" if risk_score >= 4 else "LOW"
 
         finding = _build_finding(risk_score, findings, evidence)
 
@@ -555,9 +534,7 @@ def audio_node(state: InvestigationState) -> Dict[str, Any]:
                 sentiment = analysis.get("sentiment", "unknown")
                 summary = analysis.get("summary", "")
                 if summary:
-                    findings.append(
-                        f"Tone analysis: {summary[:150]} (source: earnings call transcript)"
-                    )
+                    findings.append(f"Tone analysis: {summary[:150]} (source: earnings call transcript)")
                 evidence["sentiment"] = sentiment
                 sentiment_score = {
                     "positive": 2.0,
@@ -584,26 +561,18 @@ def audio_node(state: InvestigationState) -> Dict[str, Any]:
                     )
                 evidence["deception_likelihood"] = likelihood
                 evidence["marker_count"] = str(len(markers))
-                evidence["total_duration_s"] = str(
-                    deception_result.get("total_duration_s", 0)
-                )
-                deception_score = {"low": 2.0, "medium": 5.0, "high": 8.0}.get(
-                    likelihood, 4.0
-                )
+                evidence["total_duration_s"] = str(deception_result.get("total_duration_s", 0))
+                deception_score = {"low": 2.0, "medium": 5.0, "high": 8.0}.get(likelihood, 4.0)
                 scores.append(deception_score)
                 timeline_data = markers
-                timeline_total_duration = float(
-                    deception_result.get("total_duration_s", 0) or 0
-                )
+                timeline_total_duration = float(deception_result.get("total_duration_s", 0) or 0)
         except Exception as e:
             _logger.warning(f"Deception detection failed: {e}")
 
         risk_score = sum(scores) / len(scores) if scores else 4.0
         if not findings:
             # Use fallback if no transcript data was found
-            finding, timeline_data, timeline_total_duration = _get_audio_fallback(
-                company
-            )
+            finding, timeline_data, timeline_total_duration = _get_audio_fallback(company)
         else:
             finding = _build_finding(risk_score, findings, evidence)
 
@@ -615,9 +584,7 @@ def audio_node(state: InvestigationState) -> Dict[str, Any]:
         "audio_findings": finding,
         "audio_timeline": timeline_data,
         "audio_timeline_total_duration_s": timeline_total_duration,
-        "messages": [
-            f"Audio Agent: {finding['evidence'].get('sentiment', 'N/A')} — score {finding['risk_score']}/10"
-        ],
+        "messages": [f"Audio Agent: {finding['evidence'].get('sentiment', 'N/A')} — score {finding['risk_score']}/10"],
     }
 
 
@@ -669,9 +636,7 @@ def news_node(state: InvestigationState) -> Dict[str, Any]:
 
     return {
         "news_findings": finding,
-        "messages": [
-            f"News Agent: {finding['evidence'].get('sentiment', 'N/A')} — score {finding['risk_score']}/10"
-        ],
+        "messages": [f"News Agent: {finding['evidence'].get('sentiment', 'N/A')} — score {finding['risk_score']}/10"],
     }
 
 
@@ -721,17 +686,13 @@ Return ONLY JSON (no markdown):
 
         parsed = json.loads(content)
         delta = float(parsed.get("adjusted_score_delta", 0.0))
-        reflection_findings = parsed.get(
-            "critical_findings", [parsed.get("reflection_notes", "Findings reviewed")]
-        )
+        reflection_findings = parsed.get("critical_findings", [parsed.get("reflection_notes", "Findings reviewed")])
 
         return {
             "reflection_passed": parsed.get("passed", True),
             "reflection_notes": parsed.get("reflection_notes", "Findings reviewed"),
             "reflection_findings": {
-                "risk_score": round(
-                    delta, 1
-                ),  # Use the delta as the score for this specific node
+                "risk_score": round(delta, 1),  # Use the delta as the score for this specific node
                 "findings": reflection_findings,
                 "evidence": {"score_adjustment": str(delta)},
             },
@@ -798,13 +759,7 @@ def synthesis_node(state: InvestigationState) -> Dict[str, Any]:
                         "source": agent_key.title(),
                         "finding": f,
                         "severity": (
-                            "CRITICAL"
-                            if score >= 8.5
-                            else (
-                                "HIGH"
-                                if score >= 7.0
-                                else "MEDIUM" if score >= 4.0 else "LOW"
-                            )
+                            "CRITICAL" if score >= 8.5 else ("HIGH" if score >= 7.0 else "MEDIUM" if score >= 4.0 else "LOW")
                         ),
                     }
                 )
@@ -856,12 +811,11 @@ def synthesis_node(state: InvestigationState) -> Dict[str, Any]:
     if verdict in ("CRITICAL", "HIGH_RISK"):
         try:
             import asyncio
+
             from app.shared.alert_dispatcher import dispatch_risk_alert
 
             top_findings = [e["finding"] for e in all_evidence[:3]]
-            asyncio.create_task(
-                dispatch_risk_alert(company, fraud_risk_score, verdict, top_findings)
-            )
+            asyncio.create_task(dispatch_risk_alert(company, fraud_risk_score, verdict, top_findings))
         except Exception as e:
             _logger.warning(f"Alert dispatch failed: {e}")
 
@@ -870,7 +824,5 @@ def synthesis_node(state: InvestigationState) -> Dict[str, Any]:
         "verdict": verdict,
         "evidence": all_evidence,
         "investigation_complete": True,
-        "messages": [
-            f"Synthesis: score={fraud_risk_score}, verdict={verdict} (High-Signal Detected: {high_risk_count})"
-        ],
+        "messages": [f"Synthesis: score={fraud_risk_score}, verdict={verdict} (High-Signal Detected: {high_risk_count})"],
     }

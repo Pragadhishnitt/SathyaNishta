@@ -1,9 +1,11 @@
+from typing import Any, Dict, List
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from app.shared.llm_portkey import get_portkey_client
 from app.shared.logger import get_logger
-from tenacity import retry, wait_exponential, stop_after_attempt
 
 router = APIRouter()
 _logger = get_logger(__name__)
@@ -31,19 +33,14 @@ async def chat_standard(request: ChatRequest):
         client = get_portkey_client()
 
         # Format messages for Portkey
-        formatted_messages = [
-            {"role": m.role, "content": m.content} for m in request.messages
-        ]
+        formatted_messages = [{"role": m.role, "content": m.content} for m in request.messages]
         _logger.debug(f"Formatted {len(formatted_messages)} messages for Portkey")
 
         if request.investigation_context:
             ctx = request.investigation_context
             evidence = ctx.get("evidence", [])
             evidence_lines = "\n".join(
-                [
-                    f"[{e.get('severity', 'N/A')}] {e.get('source', 'Unknown')}: {e.get('finding', '')}"
-                    for e in evidence
-                ]
+                [f"[{e.get('severity', 'N/A')}] {e.get('source', 'Unknown')}: {e.get('finding', '')}" for e in evidence]
             )
             system_content = (
                 "You are SathyaNishta's forensic investigation assistant.\n"
@@ -80,9 +77,7 @@ async def chat_standard(request: ChatRequest):
         )
         def call_portkey():
             _logger.info("Calling Portkey chat.completions.create (with retries)...")
-            return client.chat.completions.create(
-                messages=[system_msg] + formatted_messages, stream=False
-            )
+            return client.chat.completions.create(messages=[system_msg] + formatted_messages, stream=False)
 
         response = call_portkey()
         _logger.info("Portkey response received")
@@ -93,9 +88,7 @@ async def chat_standard(request: ChatRequest):
             if hasattr(response, "choices"):
                 content = response.choices[0].message.content
             else:
-                content = (
-                    response.get("choices", [{}])[0].get("message", {}).get("content")
-                )
+                content = response.get("choices", [{}])[0].get("message", {}).get("content")
         except Exception as exc:
             _logger.error(f"Failed to extract content from Portkey response: {exc}")
             content = str(response)

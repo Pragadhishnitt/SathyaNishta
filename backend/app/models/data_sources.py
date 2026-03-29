@@ -1,7 +1,8 @@
-from sqlmodel import Column, Integer, String, DateTime, Text, Field, SQLModel, Float
-from sqlalchemy.sql import func
 from datetime import datetime
 from typing import Optional
+
+from sqlalchemy.sql import func
+from sqlmodel import Column, DateTime, Field, Float, Integer, SQLModel, String, Text
 
 
 class FinancialFilingBase(SQLModel):

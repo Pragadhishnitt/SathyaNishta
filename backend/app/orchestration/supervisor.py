@@ -4,11 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from app.orchestration.langgraph_workflow import (
-    InvestigationState,
-    build_investigation_graph,
-)
-
+from app.orchestration.langgraph_workflow import InvestigationState, build_investigation_graph
 
 _graph = None
 

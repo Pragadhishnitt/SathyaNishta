@@ -9,16 +9,17 @@ It also prints Neo4j cypher queries to create a circular trading loop.
 """
 
 import json
-import uuid
 import sys
-from pathlib import Path
+import uuid
 from datetime import datetime
+from pathlib import Path
 
 # Ensure we can import app modules
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from sqlalchemy import create_engine, text
 from sqlmodel import Session
+
 from app.core.config import settings
 
 
@@ -42,9 +43,7 @@ def insert_fraud_data():
     """
 
     finance_metadata = json.dumps({"is_synthetic": True, "notes": "fake fraud data"})
-    audio_trans_metadata = json.dumps(
-        {"is_synthetic": True, "notes": "fake fraud data"}
-    )
+    audio_trans_metadata = json.dumps({"is_synthetic": True, "notes": "fake fraud data"})
 
     # Detailed metadata for AudioAgent to detect markers and tone
     audio_file_metadata = {
@@ -164,9 +163,7 @@ def insert_fraud_data():
 
         session.commit()
 
-    print(
-        f"✅ Fraud data for {company} inserted into Supabase (Financial + Audio + Tables)."
-    )
+    print(f"✅ Fraud data for {company} inserted into Supabase (Financial + Audio + Tables).")
     print("\n" + "=" * 50)
     print("NEO4J CIRCULAR TRADING SETUP")
     print("=" * 50)

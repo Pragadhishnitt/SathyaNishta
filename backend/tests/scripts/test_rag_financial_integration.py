@@ -4,19 +4,20 @@ Financial RAG Integration Test
 Demonstrates semantic search of embedded financial documents
 """
 
-import sys
-import os
-from pathlib import Path
 import json
+import os
+import sys
+from pathlib import Path
 
 # Add repo to path
 repo_root = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(repo_root))
 
 import cohere
-from sqlalchemy import create_engine, text
-from app.core.config import settings
 from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
+
+from app.core.config import settings
 
 load_dotenv()
 
@@ -74,11 +75,7 @@ def test_rag_financial_queries():
             for i, row in enumerate(result, 1):
                 company, doc_type, content, distance, metadata = row
                 metadata_obj = (
-                    metadata
-                    if isinstance(metadata, dict)
-                    else json.loads(metadata)
-                    if isinstance(metadata, str)
-                    else {}
+                    metadata if isinstance(metadata, dict) else json.loads(metadata) if isinstance(metadata, str) else {}
                 )
 
                 print(f"  [{i}] {company} - {doc_type} (relevance: {1/(1+distance):.1%})")

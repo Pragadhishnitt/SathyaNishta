@@ -4,8 +4,8 @@ Test Financial Embeddings - Verify semantic search works with stored embeddings
 Tests that embeddings are properly stored and retrievable
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add repo to path
@@ -13,9 +13,10 @@ repo_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(repo_root))
 
 import cohere
-from sqlalchemy import create_engine, text
-from app.core.config import settings
 from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
+
+from app.core.config import settings
 
 load_dotenv()
 

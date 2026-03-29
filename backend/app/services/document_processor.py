@@ -11,12 +11,12 @@ Features:
 - Compliance record analysis
 """
 
-import os
-import json
 import asyncio
-from typing import Dict, Any, Optional
+import json
+import os
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 import aiohttp
 import PyPDF2
@@ -61,9 +61,7 @@ class DocumentProcessor:
             logger.error(f"Error processing storage event: {e}")
             return {"status": "error", "error": str(e)}
 
-    async def process_financial_document(
-        self, record: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def process_financial_document(self, record: Dict[str, Any]) -> Dict[str, Any]:
         """Process a financial document from storage."""
         file_name = record.get("name", "")
         file_id = record.get("id")
@@ -87,9 +85,7 @@ class DocumentProcessor:
         text_content = self.extract_pdf_text(file_content)
 
         # Parse financial data
-        financial_data = self.parse_financial_data(
-            text_content, ticker, fiscal_year, period, doc_type
-        )
+        financial_data = self.parse_financial_data(text_content, ticker, fiscal_year, period, doc_type)
 
         # Store in database
         with Session(self.engine) as session:
@@ -146,9 +142,7 @@ class DocumentProcessor:
 
         ticker, fiscal_year, period, call_info = path_parts
         call_type, date = call_info.split("_")
-        call_type = (
-            call_type.replace(".mp3", "").replace(".wav", "").replace(".m4a", "")
-        )
+        call_type = call_type.replace(".mp3", "").replace(".wav", "").replace(".m4a", "")
 
         logger.info(f"Processing audio: {ticker} {call_type} {date}")
 
@@ -214,9 +208,7 @@ class DocumentProcessor:
             }
 
         # Move file to target bucket
-        success = await self.move_file(
-            "temp_uploads", target_bucket, file_name, file_name
-        )
+        success = await self.move_file("temp_uploads", target_bucket, file_name, file_name)
 
         if success:
             logger.info(f"✅ Temp file moved to {target_bucket}: {file_name}")
@@ -234,11 +226,7 @@ class DocumentProcessor:
             return {"status": "error", "error": "Failed to download file"}
 
         # Extract text and metadata
-        text_content = (
-            file_content.decode("utf-8")
-            if isinstance(file_content, bytes)
-            else str(file_content)
-        )
+        text_content = file_content.decode("utf-8") if isinstance(file_content, bytes) else str(file_content)
 
         # Store in database
         with Session(self.engine) as session:
@@ -296,9 +284,7 @@ class DocumentProcessor:
             logger.error(f"Download error: {e}")
             return None
 
-    async def move_file(
-        self, from_bucket: str, to_bucket: str, from_path: str, to_path: str
-    ) -> bool:
+    async def move_file(self, from_bucket: str, to_bucket: str, from_path: str, to_path: str) -> bool:
         """Move a file between Supabase buckets."""
         try:
             # Download from source
@@ -315,9 +301,7 @@ class DocumentProcessor:
             }
 
             async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    url, headers=headers, data=file_content
-                ) as response:
+                async with session.post(url, headers=headers, data=file_content) as response:
                     if response.status == 200:
                         # Delete from source
                         await self.delete_file(from_bucket, from_path)
@@ -365,9 +349,7 @@ class DocumentProcessor:
             logger.error(f"PDF extraction error: {e}")
             return "PDF extraction failed"
 
-    def parse_financial_data(
-        self, text: str, ticker: str, fiscal_year: str, period: str, doc_type: str
-    ) -> Dict[str, Any]:
+    def parse_financial_data(self, text: str, ticker: str, fiscal_year: str, period: str, doc_type: str) -> Dict[str, Any]:
         """Parse financial data from extracted text."""
         # In production, use sophisticated financial parsing
         # For now, return mock data

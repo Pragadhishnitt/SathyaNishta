@@ -10,9 +10,10 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List, Optional
 
-from app.shared.logger import setup_logger
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from app.shared.llm_portkey import chat_complete
-from tenacity import retry, wait_exponential, stop_after_attempt
+from app.shared.logger import setup_logger
 
 _logger = setup_logger("news_agent")
 
@@ -36,22 +37,16 @@ class NewsAgent:
                 self._tavily_client = TavilyClient(api_key=api_key)
                 _logger.info("NewsAgent: Tavily client initialized")
             else:
-                _logger.warning(
-                    "NewsAgent: No TAVILY_API_KEY — will use DuckDuckGo fallback"
-                )
+                _logger.warning("NewsAgent: No TAVILY_API_KEY — will use DuckDuckGo fallback")
         except ImportError:
-            _logger.warning(
-                "NewsAgent: tavily package not installed — will use DuckDuckGo fallback"
-            )
+            _logger.warning("NewsAgent: tavily package not installed — will use DuckDuckGo fallback")
 
     @retry(
         wait=wait_exponential(multiplier=1, min=2, max=10),
         stop=stop_after_attempt(3),
         reraise=True,
     )
-    def _search_tavily(
-        self, company: str, max_results: int = 5
-    ) -> List[Dict[str, str]]:
+    def _search_tavily(self, company: str, max_results: int = 5) -> List[Dict[str, str]]:
         """Search via Tavily API (returns clean, RAG-optimized content)."""
         if not self._tavily_client:
             return []
@@ -82,9 +77,7 @@ class NewsAgent:
         stop=stop_after_attempt(3),
         reraise=True,
     )
-    def _search_duckduckgo(
-        self, company: str, max_results: int = 5
-    ) -> List[Dict[str, str]]:
+    def _search_duckduckgo(self, company: str, max_results: int = 5) -> List[Dict[str, str]]:
         """Fallback: search via DuckDuckGo (free, no API key)."""
         try:
             from duckduckgo_search import DDGS
@@ -128,9 +121,7 @@ class NewsAgent:
                 "crisis_detected": False,
             }
 
-        articles_text = "\n\n".join(
-            f"**{a['title']}** ({a['source']})\n{a['content']}" for a in articles[:5]
-        )
+        articles_text = "\n\n".join(f"**{a['title']}** ({a['source']})\n{a['content']}" for a in articles[:5])
 
         prompt = f"""You are a financial news risk analyst for the Sathya Nishta fraud investigation system.
 

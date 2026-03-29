@@ -1,7 +1,4 @@
-from app.orchestration.langgraph_workflow import (
-    InvestigationState,
-    build_investigation_graph,
-)
+from app.orchestration.langgraph_workflow import InvestigationState, build_investigation_graph
 from app.orchestration.supervisor import ainvoke, invoke
 
 __all__ = [

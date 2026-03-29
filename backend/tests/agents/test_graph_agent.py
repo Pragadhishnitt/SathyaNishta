@@ -3,10 +3,10 @@
 Test script for Graph Agent
 """
 
-import sys
-import os
-from pathlib import Path
 import json
+import os
+import sys
+from pathlib import Path
 
 # Add backend to path
 repo_root = Path(__file__).resolve().parent.parent.parent.parent.parent
@@ -99,9 +99,7 @@ def test_graph_agent():
     print("run_cypher_query...................................", "✓ PASSED" if "result2" in locals() else "✗ FAILED")
     print("detect_circular_loops.............................", "✓ PASSED" if "result3" in locals() else "✗ FAILED")
     print(
-        "\nTotal: 3/3 tests passed"
-        if all(x in locals() for x in ["result1", "result2", "result3"])
-        else "\nSome tests failed"
+        "\nTotal: 3/3 tests passed" if all(x in locals() for x in ["result1", "result2", "result3"]) else "\nSome tests failed"
     )
     print("=" * 80)
 

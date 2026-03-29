@@ -75,6 +75,4 @@ async def get_market_indices():
         raise HTTPException(status_code=504, detail="Market data fetch timeout")
     except Exception as e:
         print(f"Error fetching market data: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Error fetching market data: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error fetching market data: {str(e)}")

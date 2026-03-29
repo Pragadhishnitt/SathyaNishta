@@ -7,9 +7,11 @@ from pathlib import Path
 repo_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(repo_root))
 
-from sqlalchemy import create_engine, text
-from app.core.config import settings
 import json
+
+from sqlalchemy import create_engine, text
+
+from app.core.config import settings
 
 engine = create_engine(settings.DATABASE_URL)
 
@@ -84,17 +86,16 @@ try:
         # Check 5: Try Cohere embedding
         print("\n5. Testing Cohere embedding generation:")
         try:
-            import cohere
             import os
+
+            import cohere
             from dotenv import load_dotenv
 
             load_dotenv()
             api_key = os.getenv("COHERE_API_KEY")
             if api_key:
                 client = cohere.Client(api_key)
-                resp = client.embed(
-                    texts=["financial performance"], model="embed-english-v3.0", input_type="search_query"
-                )
+                resp = client.embed(texts=["financial performance"], model="embed-english-v3.0", input_type="search_query")
                 print(f"   ✓ Cohere embedding generated ({len(resp.embeddings[0])} dimensions)")
             else:
                 print(f"   ✗ COHERE_API_KEY not found")

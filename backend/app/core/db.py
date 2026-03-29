@@ -1,13 +1,9 @@
-from sqlmodel import create_engine, Session, SQLModel
+from sqlmodel import Session, SQLModel, create_engine
+
 from app.core.config import settings
+from app.models.chat import ChatMessage, ChatThread
+from app.models.data_sources import AudioTranscript, ComplianceRecord, FinancialFiling, NewsArticle
 from app.models.user import User
-from app.models.chat import ChatThread, ChatMessage
-from app.models.data_sources import (
-    FinancialFiling,
-    NewsArticle,
-    ComplianceRecord,
-    AudioTranscript,
-)
 
 # For Alembic, we might need direct connection
 engine = create_engine(settings.DATABASE_URL, echo=True)

@@ -4,7 +4,6 @@ from typing import List
 
 import httpx
 
-
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
 
 VERDICT_EMOJI = {
@@ -15,9 +14,7 @@ VERDICT_EMOJI = {
 }
 
 
-async def dispatch_risk_alert(
-    company: str, score: float, verdict: str, top_findings: List[str]
-) -> None:
+async def dispatch_risk_alert(company: str, score: float, verdict: str, top_findings: List[str]) -> None:
     """Send Slack alert for severe verdicts. Failures are non-fatal."""
     if not SLACK_WEBHOOK_URL or verdict not in ("CRITICAL", "HIGH_RISK"):
         return

@@ -21,12 +21,12 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 import requests
-from sqlalchemy import text, create_engine
+from sqlalchemy import create_engine, text
 from sqlmodel import Session
 
-from ..base_agent import BaseAgent
-from ...shared.logger import setup_logger
 from ...core.config import settings
+from ...shared.logger import setup_logger
+from ..base_agent import BaseAgent
 
 
 class AudioAgent(BaseAgent):
@@ -65,17 +65,13 @@ class AudioAgent(BaseAgent):
         if not isinstance(params, dict):
             raise ValueError("AudioAgent task 'params' must be a dict")
 
-        self.logger.debug(
-            "Running audio tool", extra={"tool": tool_name, "params": params}
-        )
+        self.logger.debug("Running audio tool", extra={"tool": tool_name, "params": params})
         return self.tool_map[tool_name](params, task)
 
     # ---------------------------------------------------------------------
     # Tool implementations (contract-compliant shapes)
     # ---------------------------------------------------------------------
-    def load_audio_file(
-        self, params: Dict[str, Any], task: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def load_audio_file(self, params: Dict[str, Any], task: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Fetch audio from Supabase Storage or local path and return base64 payload."""
 
         file_key = params.get("file_key")
@@ -111,9 +107,7 @@ class AudioAgent(BaseAgent):
 
         return result
 
-    def analyze_audio_tone(
-        self, params: Dict[str, Any], task: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def analyze_audio_tone(self, params: Dict[str, Any], task: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Query audio_files metadata and extract tone analysis from database."""
         file_key = params.get("file_key")
         company_name = params.get("company_name")
@@ -144,17 +138,13 @@ class AudioAgent(BaseAgent):
         except Exception as exc:
             raise RuntimeError(f"Audio tone analysis failed: {exc}") from exc
 
-    def detect_deception_markers(
-        self, params: Dict[str, Any], task: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def detect_deception_markers(self, params: Dict[str, Any], task: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Query audio_files metadata and extract deception markers from database."""
         file_key = params.get("file_key")
         company_name = params.get("company_name")
 
         if not (file_key or company_name):
-            raise ValueError(
-                "detect_deception_markers requires 'file_key' or 'company_name'"
-            )
+            raise ValueError("detect_deception_markers requires 'file_key' or 'company_name'")
 
         try:
             audio_records = self._query_audio_files(file_key, company_name)
@@ -177,9 +167,7 @@ class AudioAgent(BaseAgent):
                 "deception_markers": deception_analysis.get("markers", []),
                 "hedging_word_count": deception_analysis.get("hedging_count", 0),
                 "topic_avoidance_count": deception_analysis.get("avoidance_count", 0),
-                "overall_deception_likelihood": deception_analysis.get(
-                    "likelihood", 0.0
-                ),
+                "overall_deception_likelihood": deception_analysis.get("likelihood", 0.0),
                 "explanation": deception_analysis.get("explanation", ""),
             }
         except Exception as exc:
@@ -188,9 +176,7 @@ class AudioAgent(BaseAgent):
     # ---------------------------------------------------------------
     # Internal helper: query audio_files table
     # ---------------------------------------------------------------
-    def _query_audio_files(
-        self, file_key: Optional[str] = None, company_name: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    def _query_audio_files(self, file_key: Optional[str] = None, company_name: Optional[str] = None) -> List[Dict[str, Any]]:
         """Query audio_files table for company audio data."""
         if not self.engine:
             raise RuntimeError("PostgreSQL not initialized")
@@ -244,9 +230,7 @@ class AudioAgent(BaseAgent):
         supabase_url = settings.SUPABASE_URL
         supabase_key = settings.SUPABASE_KEY
         if not supabase_url or not supabase_key:
-            raise RuntimeError(
-                "SUPABASE_URL and SUPABASE_KEY are required to fetch audio"
-            )
+            raise RuntimeError("SUPABASE_URL and SUPABASE_KEY are required to fetch audio")
 
         if file_key.startswith("http://") or file_key.startswith("https://"):
             url = file_key
@@ -260,9 +244,7 @@ class AudioAgent(BaseAgent):
 
         response = requests.get(url, headers=headers, timeout=60)
         if not response.ok:
-            raise RuntimeError(
-                f"Failed to fetch audio: {response.status_code} {response.text}"
-            )
+            raise RuntimeError(f"Failed to fetch audio: {response.status_code} {response.text}")
         return response.content
 
     def _estimate_duration_sec(self, audio_bytes: bytes, fmt: str) -> int:
@@ -277,9 +259,7 @@ class AudioAgent(BaseAgent):
         except Exception:
             return 0
 
-    def _generate_silent_wav_bytes(
-        self, duration_sec: int = 2, sample_rate: int = 16000
-    ) -> bytes:
+    def _generate_silent_wav_bytes(self, duration_sec: int = 2, sample_rate: int = 16000) -> bytes:
         """Generate a short silent WAV for local testing."""
 
         num_channels = 1

@@ -103,7 +103,7 @@ services:
     volumes:
       - ./backend:/code
     working_dir: /code
-    command: sh -c "pip install black==24.3.0 isort==5.13.2 -q && black . && isort --profile=black ."
+    command: sh -c "pip install black==24.3.0 isort==5.13.2 -q && black . && isort ."
     profiles: [tools]
 
   lint-check:
@@ -111,5 +111,5 @@ services:
     volumes:
       - ./backend:/code
     working_dir: /code
-    command: sh -c "pip install black==24.3.0 isort==5.13.2 -q && black --check --diff . && isort --check-only --profile=black ."
+    command: sh -c "pip install black==24.3.0 isort==5.13.2 -q && black --check --diff . && isort --check-only ."
     profiles: [tools]

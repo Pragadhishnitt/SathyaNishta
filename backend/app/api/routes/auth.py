@@ -1,40 +1,30 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+# Add this for debugging
+import logging
 import os
 import secrets
 import smtplib
-from email.mime.text import MIMEText
+from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
 
 from ...core.db import get_session
+from ...core.rate_limit import check_rate_limit, login_limiter, password_reset_limiter, register_limiter
+from ...core.security import create_access_token, get_current_user, get_password_hash, verify_password
 from ...models.user import User
 from ...schemas.user import (
+    EmailVerification,
+    PasswordReset,
+    PasswordResetConfirm,
     UserCreate,
     UserLogin,
     UserResponse,
     UserUpdate,
-    PasswordReset,
-    PasswordResetConfirm,
-    EmailVerification,
 )
-from ...core.security import (
-    get_password_hash,
-    verify_password,
-    create_access_token,
-    get_current_user,
-)
-from ...core.rate_limit import (
-    check_rate_limit,
-    login_limiter,
-    register_limiter,
-    password_reset_limiter,
-)
-
-# Add this for debugging
-import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -50,16 +40,10 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@sathyanishta.com")
 
 # Token lifetimes (hours). Password reset was 1h — too short for many users.
-EMAIL_VERIFICATION_EXPIRE_HOURS = int(
-    os.getenv("EMAIL_VERIFICATION_EXPIRE_HOURS", "72")
-)
+EMAIL_VERIFICATION_EXPIRE_HOURS = int(os.getenv("EMAIL_VERIFICATION_EXPIRE_HOURS", "72"))
 PASSWORD_RESET_EXPIRE_HOURS = int(os.getenv("PASSWORD_RESET_EXPIRE_HOURS", "24"))
 # Public URL for links in emails (match Traefik / dev port)
-APP_PUBLIC_URL = (
-    os.getenv("NEXT_PUBLIC_APP_URL")
-    or os.getenv("PUBLIC_APP_URL")
-    or "http://127.0.0.1:3000"
-).rstrip("/")
+APP_PUBLIC_URL = (os.getenv("NEXT_PUBLIC_APP_URL") or os.getenv("PUBLIC_APP_URL") or "http://127.0.0.1:3000").rstrip("/")
 
 
 def utc_now() -> datetime:
@@ -80,9 +64,7 @@ def to_utc_aware(dt: Optional[datetime]) -> Optional[datetime]:
 def send_verification_email(email: str, token: str):
     """Send email verification link"""
     if not SMTP_USER or not SMTP_PASSWORD or "your-email" in SMTP_USER:
-        print(
-            f"Skipping verification email to {email} - SMTP credentials not configured"
-        )
+        print(f"Skipping verification email to {email} - SMTP credentials not configured")
         return
 
     verification_url = f"{APP_PUBLIC_URL}/auth/verify?token={token}"
@@ -124,9 +106,7 @@ def send_verification_email(email: str, token: str):
 def send_password_reset_email(email: str, token: str):
     """Send password reset link"""
     if not SMTP_USER or not SMTP_PASSWORD or "your-email" in SMTP_USER:
-        print(
-            f"Skipping password reset email to {email} - SMTP credentials not configured"
-        )
+        print(f"Skipping password reset email to {email} - SMTP credentials not configured")
         return
 
     reset_url = f"{APP_PUBLIC_URL}/auth/reset-password?token={token}"
@@ -167,9 +147,7 @@ def send_password_reset_email(email: str, token: str):
 
 
 @router.post("/register", response_model=UserResponse)
-async def register(
-    user: UserCreate, db: Session = Depends(get_session), request: Request = None
-):
+async def register(user: UserCreate, db: Session = Depends(get_session), request: Request = None):
     """Register a new user"""
     try:
         # Debug logging
@@ -196,9 +174,7 @@ async def register(
         # Create new user
         hashed_password = get_password_hash(user.password)
         verification_token = secrets.token_urlsafe(32)
-        verification_expires = utc_now() + timedelta(
-            hours=EMAIL_VERIFICATION_EXPIRE_HOURS
-        )
+        verification_expires = utc_now() + timedelta(hours=EMAIL_VERIFICATION_EXPIRE_HOURS)
 
         db_user = User(
             email=user.email,
@@ -235,9 +211,7 @@ async def register(
 
 
 @router.post("/verify-email")
-async def verify_email(
-    verification: EmailVerification, db: Session = Depends(get_session)
-):
+async def verify_email(verification: EmailVerification, db: Session = Depends(get_session)):
     """Verify email address"""
     raw_token = (verification.token or "").strip()
     user = db.query(User).filter(User.verification_token == raw_token).first()
@@ -272,16 +246,12 @@ async def login(
     """Login user and return access token"""
     # Apply rate limiting
     client_ip = request.client.host if request else "unknown"
-    check_rate_limit(
-        login_limiter, client_ip, "Too many login attempts. Please try again later."
-    )
+    check_rate_limit(login_limiter, client_ip, "Too many login attempts. Please try again later.")
 
     user = db.query(User).filter(User.email == user_credentials.email).first()
 
     if not user or not verify_password(user_credentials.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
     if not user.is_verified:
         raise HTTPException(
@@ -290,9 +260,7 @@ async def login(
         )
 
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Account is deactivated"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account is deactivated")
 
     # Update last login
     user.last_login = datetime.utcnow()
@@ -342,9 +310,7 @@ async def forgot_password(
 
 
 @router.post("/reset-password")
-async def reset_password(
-    reset_data: PasswordResetConfirm, db: Session = Depends(get_session)
-):
+async def reset_password(reset_data: PasswordResetConfirm, db: Session = Depends(get_session)):
     """Reset password with token"""
     raw_token = (reset_data.token or "").strip()
     user = db.query(User).filter(User.reset_token == raw_token).first()

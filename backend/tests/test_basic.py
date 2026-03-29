@@ -1,15 +1,17 @@
 """Basic tests for backend functionality"""
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add backend to path for imports
 repo_root = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(repo_root / "backend"))
 
-from app.api.main import app
 from fastapi.testclient import TestClient
+
+from app.api.main import app
 
 client = TestClient(app)
 

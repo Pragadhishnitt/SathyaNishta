@@ -7,16 +7,18 @@ Usage: docker compose exec backend python scripts/seed.py
 This script populates the database with initial data for development/testing.
 It is idempotent where possible, or clears data before inserting.
 """
-import sys
 import os
+import sys
 
 # Add project root to path
 sys.path.insert(0, "/app")
 
-from uuid import uuid4
 from datetime import datetime, timezone
-from sqlmodel import Session, text, create_engine
+from uuid import uuid4
+
 from neo4j import GraphDatabase
+from sqlmodel import Session, create_engine, text
+
 from app.core.config import settings
 
 
@@ -45,13 +47,9 @@ def main():
         print(f"✅ Created investigation: {inv_id}")
 
     # 2. Connect to Neo4j
-    driver = GraphDatabase.driver(
-        settings.NEO4J_URI, auth=(settings.NEO4J_USERNAME, settings.NEO4J_PASSWORD)
-    )
+    driver = GraphDatabase.driver(settings.NEO4J_URI, auth=(settings.NEO4J_USERNAME, settings.NEO4J_PASSWORD))
     with driver.session() as session:
-        session.run(
-            "MERGE (c:Company {name: 'SeedCorp'}) SET c.created_at = datetime()"
-        )
+        session.run("MERGE (c:Company {name: 'SeedCorp'}) SET c.created_at = datetime()")
         print("✅ Created/Merged 'SeedCorp' node in Neo4j")
     driver.close()
 

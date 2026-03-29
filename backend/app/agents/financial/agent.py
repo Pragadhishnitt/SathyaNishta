@@ -1,8 +1,9 @@
 import asyncio
 from typing import Any, Dict
 
-from ..base_agent import BaseAgent
 from app.shared.llm_portkey import chat_complete
+
+from ..base_agent import BaseAgent
 
 
 class FinancialAgent(BaseAgent):

@@ -2,14 +2,16 @@ import asyncio
 import os
 import sys
 from pathlib import Path
+
 from sqlalchemy import create_engine, text
 from sqlmodel import Session
 
 # Ensure the app context is loaded
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from sqlmodel import Session, SQLModel, create_engine
+
 from app.core.config import settings
 from app.models.data_sources import AudioTranscript
-from sqlmodel import Session, SQLModel, create_engine
 
 engine = create_engine(settings.DATABASE_URL)
 

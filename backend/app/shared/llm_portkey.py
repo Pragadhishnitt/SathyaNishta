@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 from typing import Any, Dict, List, Optional
-from tenacity import retry, wait_exponential, stop_after_attempt
+
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.core.config import settings
 
@@ -36,13 +37,9 @@ def get_portkey_client():
     """
 
     if not settings.PORTKEY_API_KEY:
-        raise PortkeyLLMError(
-            "Missing PORTKEY_API_KEY. Set it in your environment (.env / docker-compose)."
-        )
+        raise PortkeyLLMError("Missing PORTKEY_API_KEY. Set it in your environment (.env / docker-compose).")
 
-    from portkey_ai import (
-        Portkey,
-    )  # local import to keep startup resilient if deps change
+    from portkey_ai import Portkey  # local import to keep startup resilient if deps change
 
     kwargs: Dict[str, Any] = {
         "api_key": settings.PORTKEY_API_KEY,

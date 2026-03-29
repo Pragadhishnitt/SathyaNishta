@@ -1,18 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import List, Optional
-import smtplib
 import os
 import re
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import smtplib
 from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from ...core.db import get_session
+from ...core.rate_limit import check_rate_limit, email_limiter
 from ...core.security import get_current_user
 from ...models.user import User
-from ...core.rate_limit import check_rate_limit, email_limiter
 
 router = APIRouter()
 
@@ -95,14 +96,8 @@ def generate_investigation_html(data: dict, custom_message: str) -> str:
     risk_score = synthesis.get("risk_score", 0)
     company_name = synthesis.get("company_name", "Unknown Company")
 
-    risk_color = (
-        "#ef4444" if risk_score >= 70 else "#f59e0b" if risk_score >= 40 else "#10b981"
-    )
-    risk_level = (
-        "High Risk"
-        if risk_score >= 70
-        else "Medium Risk" if risk_score >= 40 else "Low Risk"
-    )
+    risk_color = "#ef4444" if risk_score >= 70 else "#f59e0b" if risk_score >= 40 else "#10b981"
+    risk_level = "High Risk" if risk_score >= 70 else "Medium Risk" if risk_score >= 40 else "Low Risk"
 
     evidence_html = ""
     for item in evidence[:5]:  # Show top 5 evidence items
@@ -311,12 +306,8 @@ def generate_default_html(data: dict, custom_message: str) -> str:
 async def send_report_email(request: EmailReportRequest, http_request: Request = None):
     """Send investigation report via email"""
     # Rate limit by client IP instead of user email (auth removed for demo)
-    client_ip = (
-        http_request.client.host if http_request and http_request.client else "unknown"
-    )
-    check_rate_limit(
-        email_limiter, client_ip, "Too many email requests. Please try again later."
-    )
+    client_ip = http_request.client.host if http_request and http_request.client else "unknown"
+    check_rate_limit(email_limiter, client_ip, "Too many email requests. Please try again later.")
 
     if not request.recipients:
         raise HTTPException(
