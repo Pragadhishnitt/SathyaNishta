@@ -15,9 +15,9 @@ export function EvidenceViewer({ source, finding, onClose }: EvidenceViewerProps
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Panel (slide from right) */}
-      <div className="absolute right-0 top-0 bottom-0 w-full max-w-lg glass-card border-l border-neon-indigo/20 shadow-glass animate-slide-right overflow-y-auto">
+      <div className="absolute right-0 top-0 bottom-0 w-full max-w-lg glass-card border-l border-neon-indigo/20 shadow-glass animate-slide-right flex flex-col">
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b border-white/[0.06] bg-surface-2/90 backdrop-blur-xl">
+        <div className="flex-shrink-0 sticky top-0 z-10 flex items-center justify-between p-4 border-b border-white/[0.06] bg-surface-2/90 backdrop-blur-xl">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-neon-indigo/10 flex items-center justify-center">
               <FileText size={15} className="text-neon-indigo" />
@@ -36,7 +36,7 @@ export function EvidenceViewer({ source, finding, onClose }: EvidenceViewerProps
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4 pb-12">
           {/* Finding */}
           <div>
             <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Finding Detail</div>

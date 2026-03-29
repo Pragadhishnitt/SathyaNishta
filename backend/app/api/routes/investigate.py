@@ -53,7 +53,7 @@ def _extract_company_name(query: str) -> str:
             name = re.sub(r"\s+(circular|fraud|trading|financial|irregularities|violations|compliance).*$", "", name, flags=re.IGNORECASE)
             if name and len(name) > 1:
                 return name
-
+    
     # Fallback: look for capitalized words that look like company names
     words = query.split()
     capitalized = [w for w in words if w[0].isupper() and w.lower() not in {
@@ -62,7 +62,22 @@ def _extract_company_name(query: str) -> str:
     }]
     if capitalized:
         return " ".join(capitalized)
-
+    
+    # Additional fallback: common company names and variations
+    common_companies = [
+        "Apple", "Apple Inc", "AAPL", "Apple Inc.",
+        "Reliance", "Reliance Industries", "RELIAN",
+        "SBI", "State Bank of India", 
+        "Wipro", "WIPRO",
+        "Infosys", "INFOSY",
+        "Hindustan Unilever", "HUL", "HindustanUnilever"
+    ]
+    
+    # Check if any common company name is in the query
+    for company in common_companies:
+        if company.lower() in query.lower():
+            return company
+    
     return "Unknown Company"
 
 
@@ -151,6 +166,7 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
                     "agent": node_name,
                     "risk_score": findings.get("risk_score", 0),
                     "findings": findings.get("findings", [])[:5],  # limit to 5 for SSE
+                    "evidence_map": findings.get("evidence", {}),
                 }
 
                 if node_name == "graph":
@@ -183,8 +199,9 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
                     "event": "agent_done",
                     "data": {
                         "agent": "reflection",
-                        "risk_score": 0,
+                        "risk_score": None,  # Don't show delta as absolute score
                         "findings": [node_data.get("reflection_notes", "")],
+                        "evidence_map": {"passed": "Yes" if node_data.get("reflection_passed") else "No"},
                     },
                 })
 
@@ -325,4 +342,32 @@ async def get_investigation(inv_id: str):
     """Get the final result of a completed investigation."""
     if inv_id in _results:
         return _results[inv_id]
+        
+    try:
+        with Session(engine) as session:
+            inv = session.execute(
+                text("SELECT id, query, status FROM investigations WHERE id = :id"),
+                {"id": inv_id}
+            ).fetchone()
+            
+            if not inv:
+                raise HTTPException(status_code=404, detail="Investigation not found")
+                
+            if inv.status == "completed":
+                audit = session.execute(
+                    text("SELECT output_payload FROM audit_trails WHERE investigation_id = :id AND step_type = 'synthesis' ORDER BY timestamp DESC LIMIT 1"),
+                    {"id": inv_id}
+                ).fetchone()
+                
+                if audit and audit.output_payload:
+                    payload = json.loads(audit.output_payload) if isinstance(audit.output_payload, str) else audit.output_payload
+                    payload["investigation_id"] = inv_id
+                    _results[inv_id] = payload
+                    return payload
+                    
+    except HTTPException:
+        raise
+    except Exception as e:
+        _logger.error(f"Failed to fetch investigation {inv_id} from DB: {e}")
+        
     raise HTTPException(status_code=404, detail="Investigation not found or still running")

@@ -10,14 +10,13 @@ import { ChatMessage, Message } from "@/components/ChatMessage";
 import { InvestigationPanel, AgentEvent, SynthesisResult } from "@/components/InvestigationPanel";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { AlertCircle, Lock, Shield, X, Loader2 } from "lucide-react";
-import { Thread, Mode } from "@/context/ThreadContext";
+import { useThreads, Thread, Mode } from "@/context/ThreadContext";
 import { usePremiumAuth } from "@/hooks/usePremiumAuth";
-import { useChatPersistence } from "@/hooks/useChatPersistence";
 
 export default function Home() {
   const router = useRouter();
   const { data: session } = useSession();
-  const { threads, currentThreadId, setCurrentThreadId, createThread, addMessage, updateThread, isInitialized } = useChatPersistence();
+  const { threads, currentThreadId, setCurrentThreadId, addThread, addMessage, updateThread, isInitialized } = useThreads();
   const { requireAuth, requirePremium, redirectToLogin, redirectToProfile } = usePremiumAuth();
   const [mode, setMode] = useState<Mode>("standard");
   const [isLoading, setIsLoading] = useState(false);
@@ -48,6 +47,66 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [isLoading]);
 
+  // Restore investigation payload when changing threads
+  useEffect(() => {
+    const thread = threads.find(t => t.id === currentThreadId);
+    if (!thread) return;
+
+    if (thread.mode === "sathyanishta" && thread.investigationId && thread.investigationId !== "auto-generated") {
+      setInvestigationId(thread.investigationId);
+      setIsLoading(true);
+      
+      fetch(`/api/investigate/${thread.investigationId}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data) {
+            setSynthesisResult(data);
+            
+            const events: AgentEvent[] = [];
+            const syn = data;
+            
+            const parseMarkers = (timeline: any[]) => {
+              if (!timeline || !Array.isArray(timeline)) return undefined;
+              return timeline.map((m: any) => ({
+                start: Math.round(parseFloat(m.start_pct || 0) * 100),
+                end: Math.round(parseFloat(m.end_pct || 0) * 100),
+                label: m.explanation || m.marker_type || "Marker",
+                severity: m.severity || "medium",
+                quote: m.quote || "",
+              }));
+            };
+
+            if (syn.financial_findings && Object.keys(syn.financial_findings).length) {
+              events.push({ agent: "financial", status: "complete", findings: syn.financial_findings.findings?.slice(0,5), risk_score: syn.financial_findings.risk_score, evidence_map: syn.financial_findings.evidence });
+            }
+            if (syn.graph_findings && Object.keys(syn.graph_findings).length) {
+              events.push({ agent: "graph", status: "complete", findings: syn.graph_findings.findings?.slice(0,5), risk_score: syn.graph_findings.risk_score, evidence_map: syn.graph_findings.evidence, graph_data: syn.graph_payload });
+            }
+            if (syn.compliance_findings && Object.keys(syn.compliance_findings).length) {
+              events.push({ agent: "compliance", status: "complete", findings: syn.compliance_findings.findings?.slice(0,5), risk_score: syn.compliance_findings.risk_score, evidence_map: syn.compliance_findings.evidence });
+            }
+            if (syn.audio_findings && Object.keys(syn.audio_findings).length) {
+              events.push({ agent: "audio", status: "complete", findings: syn.audio_findings.findings?.slice(0,5), risk_score: syn.audio_findings.risk_score, evidence_map: syn.audio_findings.evidence, deception_markers: parseMarkers(syn.audio_timeline) });
+            }
+            if (syn.news_findings && Object.keys(syn.news_findings).length) {
+              events.push({ agent: "news", status: "complete", findings: syn.news_findings.findings?.slice(0,5), risk_score: syn.news_findings.risk_score, evidence_map: syn.news_findings.evidence });
+            }
+            
+            setInvestigationEvents(events);
+          } else {
+             setInvestigationEvents([]);
+             setSynthesisResult(null);
+          }
+        })
+        .catch(err => console.error("Failed to restore investigation", err))
+        .finally(() => setIsLoading(false));
+    } else {
+      setInvestigationEvents([]);
+      setSynthesisResult(null);
+      setInvestigationId("");
+    }
+  }, [currentThreadId, threads]);
+
   // Get current thread from context
   const currentThread = threads.find(t => t.id === currentThreadId) || threads[0] || {
     id: "default",
@@ -57,7 +116,7 @@ export default function Home() {
   };
 
   const handleNewChat = () => {
-    createThread(mode);
+    addThread(mode);
   };
 
   const handleSubmit = async (query: string) => {
@@ -82,6 +141,9 @@ export default function Home() {
 
     if (mode === "standard") {
       try {
+        if (title !== currentThread.title) {
+          updateThread(currentThreadId, { title });
+        }
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -113,6 +175,10 @@ export default function Home() {
 
       const { stream_url, investigation_id } = await res.json();
       setInvestigationId(investigation_id);
+      
+      // Persist the real ID to the database so it survives page reloads
+      updateThread(currentThreadId, { title, investigationId: investigation_id });
+      
       setInvestigationEvents([]); // Reset events for new investigation
       const es = new EventSource(stream_url);
 
@@ -124,7 +190,7 @@ export default function Home() {
       es.addEventListener("agent_done", (e) => {
         const d = JSON.parse(e.data);
         setInvestigationEvents(prev => prev.map(evt =>
-          evt.agent === d.agent ? { ...evt, status: "complete" } : evt
+          evt.agent === d.agent ? { ...evt, ...d, status: "complete" } : evt
         ));
       });
 

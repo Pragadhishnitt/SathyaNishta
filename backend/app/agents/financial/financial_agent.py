@@ -649,16 +649,33 @@ Use this exact format:
         if not self.engine:
             raise RuntimeError("PostgreSQL not initialized")
         
+        # Company name mapping to handle common variations
+        company_mapping = {
+            "Apple": "Apple Inc.",
+            "Apple Inc": "Apple Inc.",
+            "AAPL": "Apple Inc.",
+            "Reliance": "Reliance Industries", 
+            "RELIAN": "Reliance Industries",
+            "SBI": "State Bank of India",
+            "Wipro": "Wipro",
+            "WIPRO": "Wipro",
+            "Infosys": "Infosys",
+            "INFOSY": "Infosys"
+        }
+        
+        # Use mapped name or fallback to original
+        search_company = company_mapping.get(company_name, company_name)
+        
         try:
             with Session(self.engine) as session:
                 query = """
                     SELECT id, company_name, company_ticker, period, doc_type, 
                            content_chunk, metadata, filing_date
                     FROM financial_filings
-                    WHERE LOWER(company_name) = LOWER(:company) 
+                    WHERE LOWER(company_name) ILIKE LOWER(:company) 
                     AND LOWER(doc_type) = LOWER(:doc_type)
                 """
-                params = {"company": company_name, "doc_type": doc_type}
+                params = {"company": search_company, "doc_type": doc_type}
                 
                 if period:
                     query += " AND period = :period"
