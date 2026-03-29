@@ -6,18 +6,18 @@ FROM python:3.11-slim as builder
 WORKDIR /build
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    libpq-dev \
+RUN apt-get update && apt-get install --no-install-recommends -y \
+    gcc=12.2 \
+    g++=12.2 \
+    libpq-dev=14 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy only dependency file first
 COPY requirements.txt ./
 
 # Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip==24.0 && \
+    pip install --no-cache-dir --requirement requirements.txt
 
 # ═══════════════════════════════════════════════════════════════
 # STAGE 2: Runtime — Minimal image
@@ -27,9 +27,9 @@ FROM python:3.11-slim as production
 WORKDIR /app
 
 # Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    libpq5 \
-    curl \
+RUN apt-get update && apt-get install --no-install-recommends -y \
+    libpq5=15 \
+    curl=8.5.0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed packages from builder
