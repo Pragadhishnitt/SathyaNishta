@@ -37,16 +37,12 @@ For extensive technical documentation, see the [`docs/`](./docs/) folder:
 
 | Document | Description |
 |---|---|
-| [`docs/impact_model.pdf`](./docs/impact_model.pdf) | Business case · market opportunity · time saved · revenue model |
-| [`docs/architecture.pdf`](./docs/architecture.pdf) | System architecture · agent roles · error handling · data layer |
-| [`docs/system_walkthrough.pdf`](./docs/system_walkthrough.pdf) | End-to-end walkthrough · full DB schema · agent code · pipeline |
-| [`docs/diagrams/system_architecture.md`](./docs/diagrams/system_architecture.md) | Mermaid: full stack diagram |
-| [`docs/diagrams/agent_network.md`](./docs/diagrams/agent_network.md) | Mermaid: 5-agent network with Reflection + Synthesis |
-| [`docs/diagrams/investigation_sequence.md`](./docs/diagrams/investigation_sequence.md) | Mermaid: sequence diagram for investigation flow |
-| [`docs/diagrams/document_pipeline.md`](./docs/diagrams/document_pipeline.md) | Mermaid: document processing pipeline |
-| [`docs/diagrams/database_erd.md`](./docs/diagrams/database_erd.md) | Mermaid: entity-relationship diagram |
-
-> All Mermaid diagrams render natively on GitHub. You can also paste them at [mermaid.live](https://mermaid.live) for interactive editing.
+| [`docs/SathyaNishta.pdf`](./docs/SathyaNishta.pdf) | **Indepth low-level technical design** · system logic · agent specifications |
+| [`docs/Impact_Model.pdf`](./docs/Impact_Model.pdf) | Business case · market opportunity · time saved · revenue model |
+| [`docs/agent_workflows.pdf`](./docs/agent_workflows.pdf) | Detailed walkthrough of agentic graph orchestration and state management |
+| [`docs/High_Level_Architecture.png`](./docs/High_Level_Architecture.png) | Visual overview of the system components and data flow |
+| [`docs/Agent_Workflow.png`](./docs/Agent_Workflow.png) | Diagram of the 7-node LangGraph agentic pipeline |
+| [`docs/Sequence_Diagram.png`](./docs/Sequence_Diagram.png) | Interaction sequence for a full investigation cycle |
 
 ---
 

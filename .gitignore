@@ -74,6 +74,5 @@ test.
 # Ignore our internal brain records
 brain/
 # Ignore large binary files
-*.pdf
 implement.md
 backend/test-env/
