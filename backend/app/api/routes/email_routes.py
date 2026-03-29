@@ -47,8 +47,10 @@ def send_investigation_report_email(
 ):
     """Send investigation report email"""
     if not SMTP_USER or not SMTP_PASSWORD or "your-email" in SMTP_USER:
-        print(f"Skipping investigation report email to {recipients} - SMTP credentials not configured")
-        return
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Email service not configured. Please set SMTP_USER and SMTP_PASSWORD environment variables."
+        )
     
     # Generate HTML content based on report type
     if report_type == "investigation":
@@ -295,13 +297,12 @@ def generate_default_html(data: dict, custom_message: str) -> str:
 @router.post("/send-report")
 async def send_report_email(
     request: EmailReportRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session),
     http_request: Request = None
 ):
     """Send investigation report via email"""
-    # Apply rate limiting per user
-    check_rate_limit(email_limiter, current_user.email, "Too many email requests. Please try again later.")
+    # Rate limit by client IP instead of user email (auth removed for demo)
+    client_ip = http_request.client.host if http_request and http_request.client else "unknown"
+    check_rate_limit(email_limiter, client_ip, "Too many email requests. Please try again later.")
     
     if not request.recipients:
         raise HTTPException(

@@ -4,3 +4,6 @@ TXN002        , SHELL_A_001    , SHELL_B_001  , 50000000000000, 2024-08-20      
 TXN003        , SHELL_B_001    , ADANI_001    , 50000000000000, 2024-09-10      , Investment Return , Wire Transfer
 TXN004        , RELIANCE_001   , KOTAK_001    , 30000000000000, 2024-06-01      , Loan Repayment    , Bank Transfer
 TXN005        , KOTAK_001      , BIRLA_001    , 25000000000000, 2024-07-05      , Advisory Fees     , NEFT
+TXN006        , BIRLA_001      , RELIANCE_001 , 28000000000000, 2024-08-12      , Capital Return    , Wire Transfer
+TXN007        , TATA_001       , SHELL_A_001  , 18000000000000, 2024-05-20      , IT Outsourcing    , Wire Transfer
+TXN008        , SHELL_B_001    , TATA_001     , 16000000000000, 2024-10-01      , Tech License Fee  , NEFT

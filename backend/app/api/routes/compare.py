@@ -7,7 +7,9 @@ import uuid
 from typing import Dict, List, Optional
 
 from app.shared.logger import setup_logger
-from app.api.routes.investigate import _run_investigation, _extract_company_name, _queues
+from app.api.routes.investigate import _run_investigation, _extract_company_name, _queues, engine
+from sqlalchemy import text
+from sqlmodel import Session
 
 router = APIRouter(prefix="/api/compare", tags=["compare"])
 _logger = setup_logger("compare_route")
@@ -32,6 +34,27 @@ async def start_comparison(req: CompareRequest):
     # Create a unified comparison queue
     compare_queue = asyncio.Queue()
     _queues[comp_id] = compare_queue
+    
+    # Initial DB inserts for both investigations
+    try:
+        with Session(engine) as session:
+            session.execute(
+                text("""
+                    INSERT INTO investigations (id, query, status, created_at, updated_at)
+                    VALUES (:id, :query, 'running', NOW(), NOW())
+                """),
+                {"id": inv_id_a, "query": f"Compare {req.company_a} vs {req.company_b}"}
+            )
+            session.execute(
+                text("""
+                    INSERT INTO investigations (id, query, status, created_at, updated_at)
+                    VALUES (:id, :query, 'running', NOW(), NOW())
+                """),
+                {"id": inv_id_b, "query": f"Compare {req.company_b} vs {req.company_a}"}
+            )
+            session.commit()
+    except Exception as e:
+        _logger.error(f"Failed to create comparison DB records: {e}")
     
     # Start both investigations in background
     asyncio.create_task(_run_investigation(inv_id_a, req.company_a, f"Investigate {req.company_a}", req.mode))
@@ -110,7 +133,12 @@ async def _monitor_and_synthesize_comparison(comp_id: str, id_a: str, id_b: str,
         Output JSON only: {{"comparison_summary": "...", "winner_on_reliability": "...", "key_risks_compared": "..."}}
         """
         
-        res = chat_complete(user_prompt=comparison_prompt, system_prompt="Compare financial fraud profiles. JSON only.")
+        # Run chat_complete in a separate thread so it doesn't block the async event loop
+        res = await asyncio.to_thread(
+            chat_complete,
+            user_prompt=comparison_prompt,
+            system_prompt="Compare financial fraud profiles. JSON only."
+        )
         content = res.get("content", "{}")
         if "```json" in content: content = content.split("```json")[-1].split("```")[0].strip()
         elif "```" in content: content = content.split("```")[1].split("```")[0].strip()

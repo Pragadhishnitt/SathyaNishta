@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Mail, X, Plus, Trash2, Send, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { createPortal } from "react-dom";
 
 interface EmailReportModalProps {
   isOpen: boolean;
@@ -24,6 +26,7 @@ export function EmailReportModal({
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState("");
+  const { data: session } = useSession();
 
   // Auto-generate subject based on report type
   useEffect(() => {
@@ -84,7 +87,7 @@ export function EmailReportModal({
     setError("");
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = (session?.user as any)?.accessToken || '';
       const validRecipients = getValidRecipients();
 
       const response = await fetch('/api/email/send-report', {
@@ -138,11 +141,11 @@ export function EmailReportModal({
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] animate-fade-in">
-      <div className="glass-card neon-border-indigo p-6 max-w-lg w-full mx-4 animate-slide-up max-h-[90vh] overflow-y-auto">
+      <div className="glass-card neon-border-indigo p-6 max-w-lg w-full mx-4 animate-slide-up max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-neon-indigo/10 flex items-center justify-center">
               <Mail size={20} className="text-neon-indigo" />
@@ -157,59 +160,57 @@ export function EmailReportModal({
           </div>
           <button
             onClick={handleClose}
-            disabled={isLoading}
-            className="absolute top-4 right-4 text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-50"
+            className="p-2 text-gray-500 hover:text-white transition-colors rounded-lg bg-white/[0.03] hover:bg-white/[0.08]"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
         {!isSuccess ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Recipients */}
-            <div>
+          <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
+            <div className="overflow-y-auto custom-scrollbar pr-2 space-y-4 mb-4">
+              {/* Recipients */}
+              <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Recipients <span className="text-neon-red">*</span>
               </label>
-              {recipients.map((recipient, index) => (
-                <div key={index} className="flex gap-2 mb-2">
-                  <input
-                    type="email"
-                    value={recipient}
-                    onChange={(e) => updateRecipient(index, e.target.value)}
-                    placeholder="Enter email address"
-                    className={`flex-1 px-3 py-2 bg-white/[0.03] border rounded-lg text-white text-sm placeholder-gray-600 focus:outline-none focus:bg-white/[0.05] transition-all ${
-                      recipient && !validateEmail(recipient.trim())
-                        ? 'border-neon-red/40 focus:border-neon-red/60'
-                        : 'border-white/[0.06] focus:border-neon-indigo/40'
-                    }`}
-                  />
-                  {recipients.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeRecipient(index)}
-                      className="p-2 text-neon-red hover:text-neon-red/80 transition-colors"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-              ))}
-              
-              {recipients.length < 10 && (
+              <div className="space-y-2">
+                {recipients.map((email, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => updateRecipient(idx, e.target.value)}
+                      placeholder="Enter email address"
+                      className="flex-1 px-3 py-2 bg-white/[0.03] border border-white/[0.06] rounded-lg text-white text-sm placeholder-gray-600 focus:outline-none focus:border-neon-indigo/40 focus:bg-white/[0.05] transition-all"
+                      required
+                    />
+                    {recipients.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeRecipient(idx)}
+                        className="p-2 text-gray-500 hover:text-neon-red transition-colors bg-white/[0.03] hover:bg-neon-red/10 rounded-lg"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between mt-2">
                 <button
                   type="button"
                   onClick={addRecipient}
-                  className="flex items-center gap-2 text-neon-indigo hover:text-neon-indigo/80 text-sm transition-colors"
+                  disabled={recipients.length >= 10}
+                  className="text-xs flex items-center gap-1 text-neon-indigo hover:text-neon-indigo/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Plus size={16} />
+                  <Plus size={14} />
                   Add Recipient
                 </button>
-              )}
-              
-              <p className="text-xs text-gray-500 mt-1">
-                {getValidRecipients().length} valid recipient(s) • Maximum 10
-              </p>
+                <span className="text-[10px] text-gray-500">
+                  {getValidRecipients().length} valid recipient(s) • Maximum 10
+                </span>
+              </div>
             </div>
 
             {/* Subject */}
@@ -221,7 +222,6 @@ export function EmailReportModal({
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                placeholder="Email subject"
                 className="w-full px-3 py-2 bg-white/[0.03] border border-white/[0.06] rounded-lg text-white text-sm placeholder-gray-600 focus:outline-none focus:border-neon-indigo/40 focus:bg-white/[0.05] transition-all"
               />
             </div>
@@ -248,8 +248,10 @@ export function EmailReportModal({
               </div>
             )}
 
+            </div>
+
             {/* Actions */}
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-3 pt-4 border-t border-white/[0.04] mt-auto flex-shrink-0">
               <button
                 type="button"
                 onClick={handleClose}
@@ -292,4 +294,7 @@ export function EmailReportModal({
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(modalContent, document.body);
 }

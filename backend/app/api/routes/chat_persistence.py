@@ -8,7 +8,7 @@ from typing import List, Optional
 from datetime import datetime
 import json
 
-router = APIRouter(prefix="/api/chat", tags=["chat-persistence"])
+router = APIRouter(prefix="/chat", tags=["chat-persistence"])
 
 class ChatThreadCreate(BaseModel):
     title: str

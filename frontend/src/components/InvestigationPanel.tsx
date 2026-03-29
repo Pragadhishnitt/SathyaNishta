@@ -20,6 +20,7 @@ export interface AgentEvent {
   timestamp?: string;
   risk_score?: number;
   findings?: string[];
+  evidence_map?: Record<string, any>;
   passed?: boolean;
   graph_data?: { nodes: any[]; edges: any[] };
   deception_markers?: { start: number; end: number; label: string }[];
@@ -292,14 +293,14 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
                   </div>
 
                   {/* Risk score badge */}
-                  {e.status === "complete" && e.risk_score !== undefined && (
+                  {e.status === "complete" && typeof e.risk_score === "number" && (
                     <div className={`text-sm font-bold font-mono text-${riskColor} bg-${riskColor}/10 px-2.5 py-1 rounded-lg border border-${riskColor}/20`}>
                       {e.risk_score.toFixed(1)}
                     </div>
                   )}
 
                   {/* Expand toggle */}
-                  {!isRunning && e.findings && (
+                  {!isRunning && ((e.findings && e.findings.length > 0) || (e.evidence_map && Object.keys(e.evidence_map).length > 0) || e.graph_data || e.deception_markers) && (
                     <div className="text-gray-500">
                       {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </div>
@@ -309,8 +310,8 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
                 {/* Expanded findings */}
                 {isExpanded && e.status === "complete" && (
                   <div className="border-t border-white/[0.04] p-3.5 pt-3 animate-fade-in">
-                    {e.findings && (
-                      <ul className="space-y-1.5">
+                    {e.findings && e.findings.length > 0 && (
+                      <ul className="space-y-1.5 mb-2">
                         {e.findings.map((f, i) => (
                           <li key={i} className="flex items-start gap-2 text-xs text-gray-400 leading-relaxed">
                             <span className="text-gray-600 mt-0.5">•</span>
@@ -318,6 +319,19 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
                           </li>
                         ))}
                       </ul>
+                    )}
+                    
+                    {e.evidence_map && Object.keys(e.evidence_map).length > 0 && (
+                      <div className="space-y-2 mt-2">
+                        {Object.entries(e.evidence_map).slice(0, 5).map(([k, v], i) => (
+                          <div key={i} className="text-xs flex flex-col gap-1">
+                            <span className="font-semibold text-gray-400 capitalize">{k.replace(/_/g, " ")}:</span>
+                            <span className="text-gray-300 font-mono bg-white/[0.02] p-2 rounded max-h-32 overflow-y-auto custom-scrollbar break-words whitespace-pre-wrap">
+                              {typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     )}
 
                     {/* Graph Visualization for graph agent */}
