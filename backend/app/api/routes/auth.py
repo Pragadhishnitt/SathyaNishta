@@ -44,6 +44,8 @@ EMAIL_VERIFICATION_EXPIRE_HOURS = int(os.getenv("EMAIL_VERIFICATION_EXPIRE_HOURS
 PASSWORD_RESET_EXPIRE_HOURS = int(os.getenv("PASSWORD_RESET_EXPIRE_HOURS", "24"))
 # Public URL for links in emails (match Traefik / dev port)
 APP_PUBLIC_URL = (os.getenv("NEXT_PUBLIC_APP_URL") or os.getenv("PUBLIC_APP_URL") or "http://127.0.0.1:3000").rstrip("/")
+# Set to "true" to enforce email verification before login (default: off for hackathon)
+REQUIRE_EMAIL_VERIFICATION = os.getenv("REQUIRE_EMAIL_VERIFICATION", "false").lower() == "true"
 
 
 def utc_now() -> datetime:
@@ -253,7 +255,7 @@ async def login(
     if not user or not verify_password(user_credentials.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
-    if not user.is_verified:
+    if REQUIRE_EMAIL_VERIFICATION and not user.is_verified:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Please verify your email before logging in",

@@ -68,9 +68,9 @@ export default function LoginPage() {
 
     if (!formData.password) {
       newErrors.password = "Password is required";
-    } else if (formData.password.length < 8) {
+    } else if (isSignUp && formData.password.length < 8) {
       newErrors.password = "Password must be at least 8 characters long";
-    } else if (passwordStrength < 3) {
+    } else if (isSignUp && passwordStrength < 3) {
       newErrors.password = "Password is too weak. Include uppercase, lowercase, numbers, and special characters.";
     }
 
