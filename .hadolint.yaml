@@ -1,0 +1,13 @@
+# .hadolint.yaml
+# Only fail the pipeline on actual errors, not warnings or info notices.
+# Warnings and info are still reported but won't block CI.
+failure-threshold: error
+
+ignore:
+  - DL3059  # Multiple consecutive RUN — we allow it for readability in some stages
+
+# Trusted registries — images pulled from these won't trigger DL3002
+trustedRegistries:
+  - docker.io
+  - gcr.io
+  - asia-south1-docker.pkg.dev

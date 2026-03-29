@@ -74,7 +74,7 @@ const handler = NextAuth({
     async jwt({ token, user, account }) {
       // Initial sign in
       if (account && user) {
-        token.accessToken = user.accessToken;
+        token.accessToken = (user as any).accessToken;
         token.id = user.id;
         // Store user info in token for persistence
         token.email = user.email;
@@ -89,8 +89,8 @@ const handler = NextAuth({
         (session.user as any).accessToken = token.accessToken;
         (session.user as any).is_premium = token.is_premium ?? false;
         // Ensure session has all user data
-        session.user.email = token.email;
-        session.user.name = token.name;
+        session.user.email = (token.email ?? undefined) as any;
+        session.user.name = (token.name ?? undefined) as any;
       }
       return session;
     },
