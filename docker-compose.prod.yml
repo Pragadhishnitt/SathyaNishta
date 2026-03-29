@@ -39,14 +39,16 @@ services:
       - .env
     labels:
       - "traefik.enable=true"
-      # API routes (/api/investigate, /api/chat, /api/report)
-      - "traefik.http.routers.backend-api.rule=PathPrefix(`/api`) && !PathPrefix(`/api/auth`)"
+      # Explicit backend API prefixes — avoids ambiguity with Next.js /api/auth routes
+      - "traefik.http.routers.backend-api.rule=PathPrefix(`/api/market`) || PathPrefix(`/api/investigate`) || PathPrefix(`/api/chat`) || PathPrefix(`/api/persistence`) || PathPrefix(`/api/email`) || PathPrefix(`/api/report`) || PathPrefix(`/api/compare`) || PathPrefix(`/api/generate-brief`) || PathPrefix(`/api/extract-entities`) || PathPrefix(`/api/storage-webhook`)"
       - "traefik.http.routers.backend-api.entrypoints=web"
+      - "traefik.http.routers.backend-api.priority=10"
       - "traefik.http.services.backend-api.loadbalancer.server.port=8000"
       # Health route
       - "traefik.http.routers.backend-health.rule=Path(`/health`)"
       - "traefik.http.routers.backend-health.entrypoints=web"
       - "traefik.http.routers.backend-health.service=backend-api"
+      - "traefik.http.routers.backend-health.priority=10"
       # Rate limiting
       - "traefik.http.routers.backend-api.middlewares=rate-limit-api@file"
     networks:
