@@ -14,6 +14,18 @@ jobs:
   backend-tests:
     name: Backend Tests
     runs-on: ubuntu-latest
+    # FIX: Pydantic Settings validates required fields at import time (not just runtime).
+    # Every env var that has no default in Settings must be present or pytest crashes
+    # during collection — before any test even runs. These are safe dummy values;
+    # no real DB connections are made because unit tests should mock service calls.
+    env:
+      DATABASE_URL: "postgresql://test:test@localhost:5432/testdb"
+      SUPABASE_URL: "https://placeholder.supabase.co"
+      SUPABASE_KEY: "placeholder-supabase-key"
+      NEO4J_URI: "bolt://localhost:7687"
+      NEO4J_USERNAME: "neo4j"
+      NEO4J_PASSWORD: "placeholder-password"
+      SECRET_KEY: "ci-test-secret-key-32-chars-minimum"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -38,10 +50,6 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov flake8 black isort
 
-      # FIX: Auto-format files instead of failing the build.
-      # Black check was failing because 23 files were not formatted.
-      # We now run black to fix them in-place, then let git diff show what changed.
-      # On PRs this is informational; on main the formatted code is already committed.
       - name: Code formatting (Black)
         run: |
           cd backend
@@ -89,8 +97,8 @@ jobs:
           cd frontend
           npm ci
           # FIX: critters is a peer dependency required by Next.js optimizeCss feature.
-          # It's not auto-installed by npm ci because it's optional in package.json.
-          # Installing it explicitly here prevents the prerender crash on /404 and /500.
+          # Remove this line once critters is committed to package.json via:
+          # npm install critters --save-dev && git add package.json package-lock.json
           npm install critters --save-dev
 
       - name: Run ESLint
@@ -104,9 +112,6 @@ jobs:
           npx tsc --noEmit
 
       - name: Build application
-        # FIX: increased timeout to 10 minutes — Next.js cold builds with no cache
-        # can take 60–90s+; default GitHub step timeout is fine but npm has no timeout.
-        # NODE_OPTIONS limits memory to prevent OOM kills on ubuntu-latest (7GB RAM).
         timeout-minutes: 10
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
@@ -117,9 +122,6 @@ jobs:
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
-    # FIX: Added required permissions for CodeQL SARIF upload.
-    # Without security-events: write the upload step fails with
-    # "Resource not accessible by integration".
     permissions:
       security-events: write
       actions: read
@@ -137,7 +139,7 @@ jobs:
           output: 'trivy-results.sarif'
 
       - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v3   # FIX: downgraded from v4 → v3 (v4 has stricter permission requirements)
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
@@ -155,10 +157,8 @@ jobs:
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: ./backend/Dockerfile
-          # .hadolint.yaml at repo root is picked up automatically
 
       - name: Lint Frontend Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: ./frontend/Dockerfile
-          # .hadolint.yaml at repo root is picked up automatically
