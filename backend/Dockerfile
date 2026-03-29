@@ -7,9 +7,9 @@ WORKDIR /build
 
 # Install system dependencies
 RUN apt-get update && apt-get install --no-install-recommends -y \
-    gcc=12.2 \
-    g++=12.2 \
-    libpq-dev=14 \
+    gcc \
+    g++ \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy only dependency file first
@@ -28,8 +28,8 @@ WORKDIR /app
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install --no-install-recommends -y \
-    libpq5=15 \
-    curl=8.5.0 \
+    libpq5 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed packages from builder
