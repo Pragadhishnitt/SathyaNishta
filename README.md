@@ -10,6 +10,13 @@
 > Built by **Team Pink Gambit** · Powered by **Economic Times**
 
 ---
+### 🌟 Live Deployment
+**The application is currently live and accessible at:**
+👉 **[http://34.100.219.13/](http://34.100.219.13/)**
+
+*(Fully deployed via automated CI/CD pipeline on Google Cloud Platform using Docker)*
+
+---
 
 ## 📋 Table of Contents
 
@@ -299,6 +306,17 @@ VM_NAME, STATIC_IP
 GITGUARDIAN_API_KEY
 PORTKEY_API_KEY, PORTKEY_CONFIG_ID
 ```
+
+---
+
+## 🌐 Live Deployment
+
+The application is hosted on a Google Cloud Platform Compute Engine instance (`sathyanishta-1`). It is continuously deployed via GitHub Actions using the `docker-compose.prod.yml` orchestration, routed through Traefik.
+
+- **Main Web Application:** [http://34.100.219.13/](http://34.100.219.13/)
+- **FastAPI Backend (via Traefik):** `http://34.100.219.13/api/...`
+
+*Note: Infrastructure modifications and port assignments automatically sync to this instance upon successful merges to the `main` branch.*
 
 ---
 
