@@ -71,12 +71,12 @@ jobs:
           sudo gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet || true
 
           echo "==> Pulling new images (tag: \${SHORT_TAG})..."
-          docker pull "\${BACKEND_IMAGE}:\${IMAGE_TAG}"
-          docker pull "\${FRONTEND_IMAGE}:\${IMAGE_TAG}"
+          docker pull "\${BACKEND_IMAGE}:\${SHORT_TAG}"
+          docker pull "\${FRONTEND_IMAGE}:\${SHORT_TAG}"
 
           # Promote to :latest so docker-compose picks them up
-          docker tag "\${BACKEND_IMAGE}:\${IMAGE_TAG}"  "\${BACKEND_IMAGE}:latest"
-          docker tag "\${FRONTEND_IMAGE}:\${IMAGE_TAG}" "\${FRONTEND_IMAGE}:latest"
+          docker tag "\${BACKEND_IMAGE}:\${SHORT_TAG}"  "\${BACKEND_IMAGE}:latest"
+          docker tag "\${FRONTEND_IMAGE}:\${SHORT_TAG}" "\${FRONTEND_IMAGE}:latest"
 
           # ── Restart services ──────────────────────────────────────────────
           echo "==> Restarting services..."
