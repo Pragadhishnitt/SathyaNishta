@@ -108,11 +108,12 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
            loaded = await fetchBackendThreads(userId, token);
         }
         
-        if (!loaded) {
-          // Create initial thread if none loaded
-          const id = Math.random().toString(36).substring(7);
-          setThreads([{ id, title: "New Market Chat", messages: [], mode: "standard", createdAt: Date.now() }]);
-          setCurrentThreadId(id);
+        if (!loaded && threads.length === 0) {
+          // If no threads loaded from backend, create a local one which will be synced
+          addThread("standard");
+        } else if (loaded && !currentThreadId && threads.length > 0) {
+          // Ensure we have a current thread if we loaded some
+          setCurrentThreadId(threads[0].id);
         }
       }
       setIsInitialized(true);
@@ -229,9 +230,11 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
     }));
 
     if (session && session.user) {
-       const userId = (session.user as any).id || session.user.email;
+       const userId = (session.user as any).id || (session.user as any).userId || session.user.email;
        const token = (session.user as any).accessToken;
-       if (token) {
+       
+       // CRITICAL: Prevent hitting /threads/1//messages (405 error)
+       if (token && userId && threadId && threadId !== "" && threadId !== "default") {
          try {
            await fetch(`/api/persistence/chat/threads/${userId}/${threadId}/messages`, {
              method: 'POST',
