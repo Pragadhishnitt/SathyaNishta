@@ -77,6 +77,18 @@ function getVerdictStyle(verdict: string) {
   }
 }
 
+// Safe renderer for any value that might be a string or object
+function safeRender(value: any): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (value === null || value === undefined) return '';
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 export function InvestigationPanel({ agentEvents, synthesis, isLoading, investigationId, companyName, onInvestigateEntity }: InvestigationPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -302,7 +314,7 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
                         {e.findings.map((f, i) => (
                           <li key={i} className="flex items-start gap-2 text-xs text-gray-400 leading-relaxed">
                             <span className="text-gray-600 mt-0.5">•</span>
-                            <span>{f}</span>
+                            <span>{safeRender(f)}</span>
                           </li>
                         ))}
                       </ul>
@@ -407,12 +419,12 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
                             <div
                               key={idx}
                               className="flex items-start gap-2.5 glass-card p-3 rounded-lg cursor-pointer hover:bg-white/[0.03] transition-all group"
-                              onClick={() => setSelectedEvidence({ source: ev.source, finding: ev.finding })}
+                              onClick={() => setSelectedEvidence({ source: safeRender(ev.source), finding: safeRender(ev.finding) })}
                             >
                               <FileText size={12} className="mt-0.5 text-gray-500 flex-shrink-0" />
                               <div className="flex-1 min-w-0 text-xs">
-                                <span className={`font-semibold text-neon-indigo mr-1.5`}>[{ev.source}]</span>
-                                <span className="text-gray-300">{ev.finding}</span>
+                                <span className={`font-semibold text-neon-indigo mr-1.5`}>[{safeRender(ev.source)}]</span>
+                                <span className="text-gray-300">{safeRender(ev.finding)}</span>
                               </div>
                               <span className={`text-[9px] font-bold text-${sevColor}-400 bg-${sevColor}-500/10 px-1.5 py-0.5 rounded border border-${sevColor}-500/20 flex-shrink-0`}>
                                 {ev.severity}

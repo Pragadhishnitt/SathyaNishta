@@ -64,7 +64,15 @@ async def _monitor_and_synthesize_comparison(comp_id: str, id_a: str, id_b: str,
         nonlocal done_a, done_b, result_a, result_b
         while True:
             item = await source_queue.get()
-            # Wrap event for comparison stream
+            
+            # DON'T forward "complete" events from individual investigations
+            # Only forward the final "complete" after both are done and comparison is ready
+            if item["event"] == "complete":
+                if prefix == "A": done_a = True
+                else: done_b = True
+                break
+            
+            # Wrap and forward all other events for comparison stream
             wrapped = {
                 "event": item["event"],
                 "data": {**item["data"], "company_slot": prefix}
@@ -74,11 +82,6 @@ async def _monitor_and_synthesize_comparison(comp_id: str, id_a: str, id_b: str,
             if item["event"] == "synthesis":
                 if prefix == "A": result_a = item["data"]
                 else: result_b = item["data"]
-                
-            if item["event"] == "complete":
-                if prefix == "A": done_a = True
-                else: done_b = True
-                break
                 
     # Run forwarders
     await asyncio.gather(

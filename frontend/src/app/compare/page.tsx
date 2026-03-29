@@ -208,11 +208,15 @@ export default function ComparePage() {
                           </span>
                         </div>
                         <p className="text-xs text-indigo-100/70 leading-relaxed mb-3">
-                          {comparisonSummary.comparison_summary}
+                          {typeof comparisonSummary.comparison_summary === 'string' 
+                            ? comparisonSummary.comparison_summary 
+                            : JSON.stringify(comparisonSummary.comparison_summary)}
                         </p>
                         <div className="flex items-center gap-2 text-[10px] text-gray-500 font-mono">
                           <AlertTriangle size={12} className="text-amber-400" />
-                          KEY RISKS: {comparisonSummary.key_risks_compared}
+                          KEY RISKS: {typeof comparisonSummary.key_risks_compared === 'string' 
+                            ? comparisonSummary.key_risks_compared 
+                            : JSON.stringify(comparisonSummary.key_risks_compared)}
                         </div>
                       </div>
                     </div>
