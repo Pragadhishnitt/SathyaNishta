@@ -80,9 +80,9 @@ jobs:
 
           # ── Restart services ──────────────────────────────────────────────
           echo "==> Restarting services..."
-          docker-compose down --remove-orphans || true
+          docker-compose -f docker-compose.prod.yml down --remove-orphans || true
           cp config/.env.prod .env
-          docker-compose up -d
+          BACKEND_IMAGE="\$BACKEND_IMAGE:\$SHORT_TAG" FRONTEND_IMAGE="\$FRONTEND_IMAGE:\$SHORT_TAG" docker-compose -f docker-compose.prod.yml up -d
 
           # ── Health checks (retry loop) ────────────────────────────────────
           echo "==> Waiting for services to become healthy..."
@@ -103,10 +103,10 @@ jobs:
             done
 
             echo "  ✗ \${name} health check failed — rolling back"
-            docker-compose down || true
+            docker-compose -f docker-compose.prod.yml down || true
             docker tag "\${BACKEND_IMAGE}:\${BACKUP_TAG}"  "\${BACKEND_IMAGE}:latest"  || true
             docker tag "\${FRONTEND_IMAGE}:\${BACKUP_TAG}" "\${FRONTEND_IMAGE}:latest" || true
-            docker-compose up -d || true
+            BACKEND_IMAGE="\$BACKEND_IMAGE:latest" FRONTEND_IMAGE="\$FRONTEND_IMAGE:latest" docker-compose -f docker-compose.prod.yml up -d || true
             exit 1
           }
 
@@ -118,14 +118,14 @@ jobs:
           docker image prune -f
 
           echo "==> Deployment of \${SHORT_TAG} complete"
-          docker-compose ps
+          docker-compose -f docker-compose.prod.yml ps
           EOF
 
           chmod +x deploy.sh
 
       - name: Copy deployment files to VM
         run: |
-          tar -czf deploy.tar.gz deploy.sh docker-compose.yml infra/
+          tar -czf deploy.tar.gz deploy.sh docker-compose.prod.yml infra/
           gcloud compute scp deploy.tar.gz ${{ env.VM_NAME }}:/tmp/deploy.tar.gz \
             --zone=${{ env.GCP_ZONE }}
 
@@ -133,7 +133,7 @@ jobs:
         run: |
           gcloud compute ssh ${{ env.VM_NAME }} \
             --zone=${{ env.GCP_ZONE }} \
-            --command="tar -xzf /tmp/deploy.tar.gz -C /tmp/ && sudo cp -r /tmp/docker-compose.yml /tmp/infra /opt/sathyanishta/ && sudo bash /tmp/deploy.sh"
+            --command="tar -xzf /tmp/deploy.tar.gz -C /tmp/ && sudo cp -r /tmp/docker-compose.prod.yml /tmp/infra /opt/sathyanishta/ && sudo bash /tmp/deploy.sh"
 
       # ── External smoke tests (run from the runner, not the VM) ────────────
       - name: Smoke tests

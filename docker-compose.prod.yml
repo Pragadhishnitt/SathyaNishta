@@ -1,0 +1,84 @@
+version: "3.8"
+
+networks:
+  sathya-network:
+    driver: bridge
+
+services:
+  # ═══════════════════════════════════════════════════════════════
+  # TRAEFIK (Reverse Proxy & Edge Layer)
+  # ═══════════════════════════════════════════════════════════════
+  traefik:
+    image: traefik:v2.11
+    container_name: traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - DOCKER_API_VERSION=1.41
+    ports:
+      - "8090:80"      # API Gateway
+      - "8080:8080"    # Dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./infra/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    networks:
+      - sathya-network
+
+  # ═══════════════════════════════════════════════════════════════
+  # BACKEND (FastAPI - Python)
+  # ═══════════════════════════════════════════════════════════════
+  backend:
+    image: ${BACKEND_IMAGE}
+    container_name: sathya-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    labels:
+      - "traefik.enable=true"
+      # API routes (/api/investigate, /api/chat, /api/report)
+      - "traefik.http.routers.backend-api.rule=PathPrefix(`/api`) && !PathPrefix(`/api/auth`)"
+      - "traefik.http.routers.backend-api.entrypoints=web"
+      - "traefik.http.services.backend-api.loadbalancer.server.port=8000"
+      # Health route
+      - "traefik.http.routers.backend-health.rule=Path(`/health`)"
+      - "traefik.http.routers.backend-health.entrypoints=web"
+      - "traefik.http.routers.backend-health.service=backend-api"
+      # Rate limiting
+      - "traefik.http.routers.backend-api.middlewares=rate-limit-api@file"
+    networks:
+      - sathya-network
+    depends_on:
+      - traefik
+
+  # ═══════════════════════════════════════════════════════════════
+  # FRONTEND (NextJS/Vite UI)
+  # ═══════════════════════════════════════════════════════════════
+  frontend:
+    image: ${FRONTEND_IMAGE}
+    container_name: sathya-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NEXT_TELEMETRY_DISABLED=1
+      - NODE_ENV=production
+      - NEXTAUTH_URL=http://34.100.219.13:8090
+      - NEXTAUTH_SECRET=hackathon-market-chat-secret-2026
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NEXT_PUBLIC_APP_URL=http://34.100.219.13:8090
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+    networks:
+      - sathya-network
+    depends_on:
+      - traefik
