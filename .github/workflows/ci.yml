@@ -2,99 +2,98 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [ '**' ]  # All branches
+    branches: ["**"]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 env:
-  PYTHON_VERSION: '3.11'
-  NODE_VERSION: '18'
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "18"
 
 jobs:
   backend-tests:
     name: Backend Tests
     runs-on: ubuntu-latest
-    # FIX: All required env vars for Pydantic Settings + third-party clients
-    # that are instantiated at module level (Cohere, Supabase, Neo4j, etc.).
-    # These are dummy values — no real connections are made in unit tests.
+
+    # Dummy values so Pydantic Settings and third-party clients
+    # (Cohere, Supabase, Neo4j, etc.) can be imported without crashing.
+    # No real connections are made during unit tests.
     env:
       DATABASE_URL: "postgresql://test:test@localhost:5432/testdb"
       SUPABASE_URL: "https://placeholder.supabase.co"
-      SUPABASE_KEY: "placeholder-supabase-key"
+      SUPABASE_KEY: "placeholder"
       NEO4J_URI: "bolt://localhost:7687"
       NEO4J_USERNAME: "neo4j"
-      NEO4J_PASSWORD: "placeholder-password"
-      SECRET_KEY: "ci-test-secret-key-32-chars-minimum"
-      CO_API_KEY: "placeholder-cohere-key"        # FIX: Cohere client crashes at import if missing
-      COHERE_API_KEY: "placeholder-cohere-key"    # FIX: used directly in test scripts
-      PORTKEY_API_KEY: "placeholder-portkey-key"
-      GOOGLE_API_KEY: "placeholder-google-key"
-      TAVILY_API_KEY: "placeholder-tavily-key"
+      NEO4J_PASSWORD: "placeholder"
+      SECRET_KEY: "ci-test-secret-key-32-chars-xxxxxx"
+      CO_API_KEY: "placeholder"
+      COHERE_API_KEY: "placeholder"
+      PORTKEY_API_KEY: "placeholder"
+      GOOGLE_API_KEY: "placeholder"
+      TAVILY_API_KEY: "placeholder"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Using setup-python's built-in cache is simpler and more reliable
+      # than managing actions/cache manually for pip.
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
 
       - name: Install dependencies
         run: |
           cd backend
-          python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest pytest-cov flake8 black isort
 
-      - name: Code formatting (Black)
+      - name: Check formatting (Black)
         run: |
           cd backend
-          black --line-length 120 .
+          black --check --diff .
 
-      - name: Import sorting (isort)
+      - name: Check import order (isort)
         run: |
           cd backend
-          isort .
+          isort --check-only --diff .
 
-      - name: Lint with flake8
+      - name: Lint (flake8)
         run: |
           cd backend
-          # Only fail on fatal errors (syntax errors, undefined names)
+          # Hard-fail only on syntax errors and undefined names
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # Style issues reported but never fail the build
+          # Style warnings reported but never block the build
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-      - name: Run tests with pytest
+      - name: Run unit tests
         run: |
           cd backend
-          # FIX: Exclude tests/scripts — these are integration tests that require
-          # real API keys (Cohere, Google, etc.) and real service connections.
-          # They crash at collection time in CI even with dummy env vars because
-          # the Cohere client validates the key format on instantiation at module level.
-          # Run only proper unit tests in tests/agents/ and tests/test_basic.py
+          # tests/scripts and tests/debug are integration tests that require
+          # real API keys — excluded here, run separately in a staging environment.
           pytest tests/ \
             --ignore=tests/scripts \
             --ignore=tests/debug \
-            -v --cov=app --cov-report=xml --cov-report=html
+            -v \
+            --cov=app \
+            --cov-report=xml \
+            --cov-report=term-missing
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
-          file: backend/coverage.xml
+          files: backend/coverage.xml
           flags: backend
           name: backend-coverage
+          fail_ci_if_error: false
 
   frontend-tests:
     name: Frontend Tests
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -103,18 +102,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: |
           cd frontend
           npm ci
-          # Remove this line once critters is committed to package.json:
-          # npm install critters --save-dev && git add package.json package-lock.json
-          npm install critters --save-dev
 
-      - name: Run ESLint
+      - name: Lint (ESLint)
         run: |
           cd frontend
           npm run lint
@@ -124,7 +120,7 @@ jobs:
           cd frontend
           npx tsc --noEmit
 
-      - name: Build application
+      - name: Build
         timeout-minutes: 10
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
@@ -132,46 +128,54 @@ jobs:
           cd frontend
           npm run build
 
+      # Uncomment once jest/vitest is configured:
+      # - name: Run tests
+      #   run: |
+      #     cd frontend
+      #     npm test -- --passWithNoTests
+
   security-scan:
-    name: Security Scan
+    name: Security Scan (filesystem)
     runs-on: ubuntu-latest
+    # Only needs read on contents; write on security-events to upload SARIF
     permissions:
-      security-events: write
-      actions: read
       contents: read
+      security-events: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run Trivy vulnerability scanner
+      - name: Run Trivy filesystem scan
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
 
-      - name: Upload Trivy scan results
+      # Uploads results to GitHub Security tab (visible in repo → Security → Code scanning)
+      - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: 'trivy-results.sarif'
-
-      # GitGuardian scan disabled — add GITGUARDIAN_API_KEY secret to re-enable
+          sarif_file: trivy-results.sarif
 
   dockerfile-lint:
     name: Dockerfile Lint
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Lint Backend Dockerfile
+      - name: Lint backend Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: ./backend/Dockerfile
 
-      - name: Lint Frontend Dockerfile
+      - name: Lint frontend Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: ./frontend/Dockerfile
