@@ -37,13 +37,18 @@ class ChatMessageCreate(BaseModel):
 async def get_user_threads(user_id: int, session: Session = Depends(get_session)):
     """Get all chat threads for a specific user"""
     threads = (
-        session.query(ChatThread).filter(ChatThread.user_id == user_id).order_by(ChatThread.updated_at.desc()).all()
+        session.query(ChatThread)
+        .filter(ChatThread.user_id == user_id)
+        .order_by(ChatThread.updated_at.desc())
+        .all()
     )
     return threads
 
 
 @router.post("/threads/{user_id}")
-async def create_thread(user_id: int, thread_data: ChatThreadCreate, session: Session = Depends(get_session)):
+async def create_thread(
+    user_id: int, thread_data: ChatThreadCreate, session: Session = Depends(get_session)
+):
     """Create a new chat thread for a user"""
     # Verify user exists
     user = session.query(User).filter(User.id == user_id).first()
@@ -51,7 +56,10 @@ async def create_thread(user_id: int, thread_data: ChatThreadCreate, session: Se
         raise HTTPException(status_code=404, detail="User not found")
 
     thread = ChatThread(
-        title=thread_data.title, mode=thread_data.mode, investigation_id=thread_data.investigation_id, user_id=user_id
+        title=thread_data.title,
+        mode=thread_data.mode,
+        investigation_id=thread_data.investigation_id,
+        user_id=user_id,
     )
     session.add(thread)
     session.commit()
@@ -60,9 +68,15 @@ async def create_thread(user_id: int, thread_data: ChatThreadCreate, session: Se
 
 
 @router.get("/threads/{user_id}/{thread_id}")
-async def get_thread_with_messages(user_id: int, thread_id: str, session: Session = Depends(get_session)):
+async def get_thread_with_messages(
+    user_id: int, thread_id: str, session: Session = Depends(get_session)
+):
     """Get a specific thread with all its messages"""
-    thread = session.query(ChatThread).filter(ChatThread.user_id == user_id, ChatThread.id == thread_id).first()
+    thread = (
+        session.query(ChatThread)
+        .filter(ChatThread.user_id == user_id, ChatThread.id == thread_id)
+        .first()
+    )
 
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found")
@@ -88,11 +102,18 @@ async def get_thread_with_messages(user_id: int, thread_id: str, session: Sessio
 
 @router.post("/threads/{user_id}/{thread_id}/messages")
 async def add_message_to_thread(
-    user_id: int, thread_id: str, message_data: ChatMessageCreate, session: Session = Depends(get_session)
+    user_id: int,
+    thread_id: str,
+    message_data: ChatMessageCreate,
+    session: Session = Depends(get_session),
 ):
     """Add a new message to a thread"""
     # Verify thread exists and belongs to user
-    thread = session.query(ChatThread).filter(ChatThread.user_id == user_id, ChatThread.id == thread_id).first()
+    thread = (
+        session.query(ChatThread)
+        .filter(ChatThread.user_id == user_id, ChatThread.id == thread_id)
+        .first()
+    )
 
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found")
@@ -115,10 +136,17 @@ async def add_message_to_thread(
 
 @router.put("/threads/{user_id}/{thread_id}")
 async def update_thread(
-    user_id: int, thread_id: str, thread_data: ChatThreadCreate, session: Session = Depends(get_session)
+    user_id: int,
+    thread_id: str,
+    thread_data: ChatThreadCreate,
+    session: Session = Depends(get_session),
 ):
     """Update a thread's title or other properties"""
-    thread = session.query(ChatThread).filter(ChatThread.user_id == user_id, ChatThread.id == thread_id).first()
+    thread = (
+        session.query(ChatThread)
+        .filter(ChatThread.user_id == user_id, ChatThread.id == thread_id)
+        .first()
+    )
 
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found")
@@ -137,9 +165,15 @@ async def update_thread(
 
 
 @router.delete("/threads/{user_id}/{thread_id}")
-async def delete_thread(user_id: int, thread_id: str, session: Session = Depends(get_session)):
+async def delete_thread(
+    user_id: int, thread_id: str, session: Session = Depends(get_session)
+):
     """Delete a thread and all its messages"""
-    thread = session.query(ChatThread).filter(ChatThread.user_id == user_id, ChatThread.id == thread_id).first()
+    thread = (
+        session.query(ChatThread)
+        .filter(ChatThread.user_id == user_id, ChatThread.id == thread_id)
+        .first()
+    )
 
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found")

@@ -1,4 +1,13 @@
-from sqlmodel import Column, Integer, String, DateTime, Text, Field, SQLModel, ForeignKey
+from sqlmodel import (
+    Column,
+    Integer,
+    String,
+    DateTime,
+    Text,
+    Field,
+    SQLModel,
+    ForeignKey,
+)
 from sqlalchemy.sql import func
 from datetime import datetime
 from typing import Optional
@@ -14,10 +23,14 @@ class ChatThreadBase(SQLModel):
 class ChatThread(ChatThreadBase, table=True):
     __tablename__ = "chat_threads"
 
-    id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    id: Optional[str] = Field(
+        default_factory=lambda: str(uuid.uuid4()), primary_key=True
+    )
     user_id: int = Field(foreign_key="users.id")
     created_at: datetime = Field(default_factory=func.now)
-    updated_at: datetime = Field(default_factory=func.now, sa_column_kwargs={"onupdate": func.now()})
+    updated_at: datetime = Field(
+        default_factory=func.now, sa_column_kwargs={"onupdate": func.now()}
+    )
 
 
 class ChatMessageBase(SQLModel):

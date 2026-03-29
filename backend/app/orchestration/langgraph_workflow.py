@@ -32,7 +32,14 @@ from app.agents.nodes import (
 
 # Agent execution order per mode
 STANDARD_SEQUENCE = ["financial", "graph", "compliance"]
-SATHYANISHTA_SEQUENCE = ["financial", "graph", "compliance", "audio", "news", "reflection"]
+SATHYANISHTA_SEQUENCE = [
+    "financial",
+    "graph",
+    "compliance",
+    "audio",
+    "news",
+    "reflection",
+]
 
 
 def _supervisor_node(state: InvestigationState) -> Dict[str, Any]:

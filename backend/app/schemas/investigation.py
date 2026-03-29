@@ -19,7 +19,9 @@ class Investigation(SQLModel, table=True):
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     query: str = Field(index=True)
-    status: str = Field(default="queued", index=True)  # Queued, Running, Completed, Failed
+    status: str = Field(
+        default="queued", index=True
+    )  # Queued, Running, Completed, Failed
     fraud_risk_score: Optional[float] = Field(default=None)
     verdict: Optional[str] = Field(default=None)  # Critical, High, Medium, Low, Safe
     summary: Optional[str] = Field(default=None)
@@ -31,7 +33,9 @@ class Investigation(SQLModel, table=True):
 
     # Store complex objects as JSON
     domains: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
-    cross_domain_insights: List[str] = Field(default_factory=list, sa_column=Column(JSON))
+    cross_domain_insights: List[str] = Field(
+        default_factory=list, sa_column=Column(JSON)
+    )
     evidence_chain: List[str] = Field(default_factory=list, sa_column=Column(JSON))
 
 

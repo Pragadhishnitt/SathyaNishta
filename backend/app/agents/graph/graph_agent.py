@@ -34,18 +34,28 @@ class GraphAgent(BaseAgent):
         neo4j_username = settings.NEO4J_USERNAME
         neo4j_password = settings.NEO4J_PASSWORD
         if neo4j_uri and neo4j_username and neo4j_password:
-            self.neo4j_driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_username, neo4j_password))
+            self.neo4j_driver = GraphDatabase.driver(
+                neo4j_uri, auth=(neo4j_username, neo4j_password)
+            )
         else:
             self.neo4j_driver = None
-            self.logger.warning("Neo4j credentials not found, graph queries will be limited")
+            self.logger.warning(
+                "Neo4j credentials not found, graph queries will be limited"
+            )
 
-        self.tool_map: Dict[str, Callable[[Dict[str, Any], Dict[str, Any]], Dict[str, Any]]] = {
+        self.tool_map: Dict[
+            str, Callable[[Dict[str, Any], Dict[str, Any]], Dict[str, Any]]
+        ] = {
             "generate_cypher_query": self.generate_cypher_query,
             "run_cypher_query": self.run_cypher_query,
             "detect_circular_loops": self.detect_circular_loops,
         }
 
-    @retry(wait=wait_exponential(multiplier=1, min=1, max=5), stop=stop_after_attempt(3), reraise=True)
+    @retry(
+        wait=wait_exponential(multiplier=1, min=1, max=5),
+        stop=stop_after_attempt(3),
+        reraise=True,
+    )
     def get_graph_payload(self, entity_name: str, max_hops: int = 5) -> Dict[str, Any]:
         """Return Neo4j subgraph as serializable node/edge objects for UI rendering."""
         if not self.neo4j_driver:
@@ -90,7 +100,11 @@ class GraphAgent(BaseAgent):
                             "to": edge.get("target"),
                             "amount": edge.get("amount", 0),
                             "suspicious": bool(edge.get("suspicious", False)),
-                            "label": f"₹{edge.get('amount', 0)} Cr" if edge.get("amount") else "",
+                            "label": (
+                                f"₹{edge.get('amount', 0)} Cr"
+                                if edge.get("amount")
+                                else ""
+                            ),
                         }
                     )
 
@@ -118,13 +132,17 @@ class GraphAgent(BaseAgent):
         if not isinstance(params, dict):
             raise ValueError("GraphAgent task 'params' must be a dict")
 
-        self.logger.debug("Running graph tool", extra={"tool": tool_name, "params": params})
+        self.logger.debug(
+            "Running graph tool", extra={"tool": tool_name, "params": params}
+        )
         return self.tool_map[tool_name](params, task)
 
     # ---------------------------------------------------------------------
     # Tool implementations (contract-compliant shapes)
     # ---------------------------------------------------------------------
-    def generate_cypher_query(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_cypher_query(
+        self, params: Dict[str, Any], task: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Converts a natural language investigation goal into a Cypher query."""
         entity_name = params.get("entity_name")
         query_type = params.get("query_type")
@@ -139,8 +157,14 @@ class GraphAgent(BaseAgent):
         # Use LLM to generate the Cypher query
         return self._call_llm("generate_cypher_query", params, task)
 
-    @retry(wait=wait_exponential(multiplier=1, min=1, max=5), stop=stop_after_attempt(3), reraise=True)
-    def run_cypher_query(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
+    @retry(
+        wait=wait_exponential(multiplier=1, min=1, max=5),
+        stop=stop_after_attempt(3),
+        reraise=True,
+    )
+    def run_cypher_query(
+        self, params: Dict[str, Any], task: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Executes a Cypher query against Neo4j and returns structured results."""
         query = params.get("query")
         query_params = params.get("params", {})
@@ -162,13 +186,18 @@ class GraphAgent(BaseAgent):
                         if hasattr(value, "nodes") and hasattr(value, "relationships"):
                             # This is a Path object - extract nodes and relationships
                             path_data = {
-                                "nodes": [self._serialize_node(node) for node in value.nodes],
+                                "nodes": [
+                                    self._serialize_node(node) for node in value.nodes
+                                ],
                                 "relationships": [
                                     {
                                         "type": rel.type,
                                         "start_node_id": rel.start_node.id,
                                         "end_node_id": rel.end_node.id,
-                                        "properties": {k: self._serialize_value(v) for k, v in dict(rel).items()},
+                                        "properties": {
+                                            k: self._serialize_value(v)
+                                            for k, v in dict(rel).items()
+                                        },
                                     }
                                     for rel in value.relationships
                                 ],
@@ -186,7 +215,9 @@ class GraphAgent(BaseAgent):
             self.logger.error(f"Cypher query failed: {e}")
             return {"results": [], "result_count": 0, "error": str(e)}
 
-    def detect_circular_loops(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
+    def detect_circular_loops(
+        self, params: Dict[str, Any], task: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """High-level tool that combines Cypher generation, execution, and validation."""
         entity_name = params.get("entity_name")
         max_hops = params.get("max_hops", 5)
@@ -216,7 +247,10 @@ class GraphAgent(BaseAgent):
         # Run the query
         run_params = {
             "query": cypher_query,
-            "params": {"entity_name": entity_name, "min_amount": min_transaction_amount},
+            "params": {
+                "entity_name": entity_name,
+                "min_amount": min_transaction_amount,
+            },
         }
         run_result = self.run_cypher_query(run_params, task)
         results = run_result.get("results", [])
@@ -240,9 +274,9 @@ class GraphAgent(BaseAgent):
                         "transaction_dates": dates,
                         "total_amount": total_amount,
                         "loop_length": path_length,
-                        "risk_indicator": "SUSPICIOUS"
-                        if total_amount > 10_000_000_000
-                        else "NOTABLE",  # ₹10B threshold
+                        "risk_indicator": (
+                            "SUSPICIOUS" if total_amount > 10_000_000_000 else "NOTABLE"
+                        ),  # ₹10B threshold
                     }
                 )
                 total_circular_amount += total_amount
@@ -250,17 +284,23 @@ class GraphAgent(BaseAgent):
         # Calculate risk score based on findings
         risk_score = 0.0
         if loops_found:
-            risk_score = min(10.0, 3.0 + len(loops_found) * 1.5)  # Higher score for more loops
+            risk_score = min(
+                10.0, 3.0 + len(loops_found) * 1.5
+            )  # Higher score for more loops
             # Further increase if large amounts involved
             if total_circular_amount > 50_000_000_000:  # ₹50B+
                 risk_score = min(10.0, risk_score + 3.0)
 
         findings = []
         if loops_found:
-            findings.append(f"🚨 Detected {len(loops_found)} circular trading pattern(s)")
+            findings.append(
+                f"🚨 Detected {len(loops_found)} circular trading pattern(s)"
+            )
             findings.append(f"Total circular amount: ₹{total_circular_amount:,.0f}")
             for i, loop in enumerate(loops_found, 1):
-                path_str = " → ".join(loop["companies"] + [loop["companies"][0]])  # Show cycle
+                path_str = " → ".join(
+                    loop["companies"] + [loop["companies"][0]]
+                )  # Show cycle
                 findings.append(f"Loop {i}: {path_str} (₹{loop['total_amount']:,.0f})")
         else:
             findings.append("No circular trading loops detected")
@@ -329,7 +369,9 @@ class GraphAgent(BaseAgent):
             },
         }
 
-        self.logger.debug("Calling LLM for graph tool", extra={"tool": tool_name, "params": params})
+        self.logger.debug(
+            "Calling LLM for graph tool", extra={"tool": tool_name, "params": params}
+        )
 
         try:
             result = chat_complete(
@@ -381,4 +423,7 @@ For transaction_path: Find direct/indirect transaction connections.""",
             "Entity names should be matched case-insensitively where possible.",
         ]
 
-        return "\n".join(base_rules + [contract_notes.get(tool_name, "Follow the contract schema strictly.")])
+        return "\n".join(
+            base_rules
+            + [contract_notes.get(tool_name, "Follow the contract schema strictly.")]
+        )

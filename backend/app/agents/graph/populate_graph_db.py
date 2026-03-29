@@ -32,7 +32,11 @@ NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password")
 class GraphDatabasePopulator:
     def __init__(self):
         # For Neo4j Aura, use neo4j+ssc:// to skip certificate verification in development
-        uri = NEO4J_URI.replace("neo4j+s://", "neo4j+ssc://") if NEO4J_URI.startswith("neo4j+s://") else NEO4J_URI
+        uri = (
+            NEO4J_URI.replace("neo4j+s://", "neo4j+ssc://")
+            if NEO4J_URI.startswith("neo4j+s://")
+            else NEO4J_URI
+        )
 
         self.driver = GraphDatabase.driver(uri, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
         self.legal_docs_path = Path(__file__).parent / "legal_docs"
@@ -47,7 +51,9 @@ class GraphDatabasePopulator:
                 return True
         except ServiceUnavailable as e:
             print(f"Failed to connect to Neo4j: {e}")
-            print("Please check your NEO4J_URI, NEO4J_USERNAME, and NEO4J_PASSWORD in .env")
+            print(
+                "Please check your NEO4J_URI, NEO4J_USERNAME, and NEO4J_PASSWORD in .env"
+            )
             return False
         except Exception as e:
             print(f"Unexpected error connecting to Neo4j: {e}")
@@ -90,18 +96,30 @@ class GraphDatabasePopulator:
                 pass
 
             # Company constraints and indexes
-            session.run("CREATE CONSTRAINT IF NOT EXISTS FOR (c:Company) REQUIRE c.id IS UNIQUE")
-            session.run("CREATE CONSTRAINT IF NOT EXISTS FOR (c:Company) REQUIRE c.name IS UNIQUE")
+            session.run(
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (c:Company) REQUIRE c.id IS UNIQUE"
+            )
+            session.run(
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (c:Company) REQUIRE c.name IS UNIQUE"
+            )
 
             # Person constraints and indexes (din = Director Identification Number)
-            session.run("CREATE CONSTRAINT IF NOT EXISTS FOR (p:Person) REQUIRE p.din IS UNIQUE")
-            session.run("CREATE CONSTRAINT IF NOT EXISTS FOR (p:Person) REQUIRE p.id IS UNIQUE")
+            session.run(
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (p:Person) REQUIRE p.din IS UNIQUE"
+            )
+            session.run(
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (p:Person) REQUIRE p.id IS UNIQUE"
+            )
 
             # ShellEntity constraints and indexes
-            session.run("CREATE CONSTRAINT IF NOT EXISTS FOR (s:ShellEntity) REQUIRE s.id IS UNIQUE")
+            session.run(
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (s:ShellEntity) REQUIRE s.id IS UNIQUE"
+            )
 
             # BankAccount constraints
-            session.run("CREATE CONSTRAINT IF NOT EXISTS FOR (b:BankAccount) REQUIRE b.account_number IS UNIQUE")
+            session.run(
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (b:BankAccount) REQUIRE b.account_number IS UNIQUE"
+            )
 
             # Create performance indexes
             session.run("CREATE INDEX IF NOT EXISTS FOR (c:Company) ON (c.name)")
@@ -163,7 +181,9 @@ class GraphDatabasePopulator:
                     director,
                 )
 
-            print(f"Created {len(directors_data)} Person nodes and DIRECTOR_OF relationships")
+            print(
+                f"Created {len(directors_data)} Person nodes and DIRECTOR_OF relationships"
+            )
 
     def create_trusts_and_entities(self, trusts_data: List[Dict[str, Any]]):
         """Create ShellEntity nodes for offshore and shell entities."""
@@ -206,7 +226,11 @@ class GraphDatabasePopulator:
                     from_type = "Company"
                 elif shareholder_type.lower() == "individual":
                     from_type = "Person"
-                elif shareholder_type.lower() in ["shell", "offshore", "offshore company"]:
+                elif shareholder_type.lower() in [
+                    "shell",
+                    "offshore",
+                    "offshore company",
+                ]:
                     from_type = "ShellEntity"
                 else:
                     from_type = "Company"
@@ -231,7 +255,9 @@ class GraphDatabasePopulator:
         with self.driver.session() as session:
             for rel in relationships_data:
                 # Convert relationship type to valid Cypher identifier
-                rel_type = rel.get("relationship_type", "SUBSIDIARY").upper().replace(" ", "_")
+                rel_type = (
+                    rel.get("relationship_type", "SUBSIDIARY").upper().replace(" ", "_")
+                )
 
                 session.run(
                     f"""

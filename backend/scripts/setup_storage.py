@@ -20,7 +20,12 @@ sys.path.insert(0, "/app")
 from app.core.config import settings
 
 
-def create_bucket(name: str, public: bool = False, file_size_limit: int = None, allowed_mime_types: list = None):
+def create_bucket(
+    name: str,
+    public: bool = False,
+    file_size_limit: int = None,
+    allowed_mime_types: list = None,
+):
     url = f"{settings.SUPABASE_URL}/storage/v1/bucket"
     headers = {
         "Authorization": f"Bearer {settings.SUPABASE_SERVICE_KEY}",
@@ -52,7 +57,9 @@ def create_bucket(name: str, public: bool = False, file_size_limit: int = None, 
         elif response.status_code == 400 and "already exists" in response.text:
             print(f"✅ Bucket '{name}' already exists (400 check).")
         else:
-            print(f"❌ Failed to create bucket '{name}': {response.status_code} - {response.text}")
+            print(
+                f"❌ Failed to create bucket '{name}': {response.status_code} - {response.text}"
+            )
     except Exception as e:
         print(f"❌ Error creating bucket {name}: {e}")
 
@@ -62,7 +69,10 @@ def main():
 
     # 1. financial_docs
     create_bucket(
-        "financial_docs", public=False, file_size_limit=52428800, allowed_mime_types=["application/pdf"]  # 50MB
+        "financial_docs",
+        public=False,
+        file_size_limit=52428800,
+        allowed_mime_types=["application/pdf"],  # 50MB
     )
 
     # 2. audio_recordings (reduced to 50MB for free tier compatibility)
@@ -74,7 +84,9 @@ def main():
     )
 
     # 3. temp_uploads
-    create_bucket("temp_uploads", public=False, file_size_limit=52428800, allowed_mime_types=None)  # 50MB  # Any
+    create_bucket(
+        "temp_uploads", public=False, file_size_limit=52428800, allowed_mime_types=None
+    )  # 50MB  # Any
 
     print("✨ Storage setup complete!")
 

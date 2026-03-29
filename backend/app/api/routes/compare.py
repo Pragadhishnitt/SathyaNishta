@@ -7,7 +7,12 @@ import uuid
 from typing import Dict, List, Optional
 
 from app.shared.logger import setup_logger
-from app.api.routes.investigate import _run_investigation, _extract_company_name, _queues, engine
+from app.api.routes.investigate import (
+    _run_investigation,
+    _extract_company_name,
+    _queues,
+    engine,
+)
 from sqlalchemy import text
 from sqlmodel import Session
 
@@ -47,7 +52,10 @@ async def start_comparison(req: CompareRequest):
                     VALUES (:id, :query, 'running', NOW(), NOW())
                 """
                 ),
-                {"id": inv_id_a, "query": f"Compare {req.company_a} vs {req.company_b}"},
+                {
+                    "id": inv_id_a,
+                    "query": f"Compare {req.company_a} vs {req.company_b}",
+                },
             )
             session.execute(
                 text(
@@ -56,18 +64,33 @@ async def start_comparison(req: CompareRequest):
                     VALUES (:id, :query, 'running', NOW(), NOW())
                 """
                 ),
-                {"id": inv_id_b, "query": f"Compare {req.company_b} vs {req.company_a}"},
+                {
+                    "id": inv_id_b,
+                    "query": f"Compare {req.company_b} vs {req.company_a}",
+                },
             )
             session.commit()
     except Exception as e:
         _logger.error(f"Failed to create comparison DB records: {e}")
 
     # Start both investigations in background
-    asyncio.create_task(_run_investigation(inv_id_a, req.company_a, f"Investigate {req.company_a}", req.mode))
-    asyncio.create_task(_run_investigation(inv_id_b, req.company_b, f"Investigate {req.company_b}", req.mode))
+    asyncio.create_task(
+        _run_investigation(
+            inv_id_a, req.company_a, f"Investigate {req.company_a}", req.mode
+        )
+    )
+    asyncio.create_task(
+        _run_investigation(
+            inv_id_b, req.company_b, f"Investigate {req.company_b}", req.mode
+        )
+    )
 
     # Start comparison monitor
-    asyncio.create_task(_monitor_and_synthesize_comparison(comp_id, inv_id_a, inv_id_b, req.company_a, req.company_b))
+    asyncio.create_task(
+        _monitor_and_synthesize_comparison(
+            comp_id, inv_id_a, inv_id_b, req.company_a, req.company_b
+        )
+    )
 
     return {
         "comparison_id": comp_id,
@@ -77,7 +100,9 @@ async def start_comparison(req: CompareRequest):
     }
 
 
-async def _monitor_and_synthesize_comparison(comp_id: str, id_a: str, id_b: str, name_a: str, name_b: str):
+async def _monitor_and_synthesize_comparison(
+    comp_id: str, id_a: str, id_b: str, name_a: str, name_b: str
+):
     """Monitor two investigations and emit interleaved events + final comparison synthesis."""
     q_comp = _queues[comp_id]
     q_a = _queues[id_a]
@@ -105,7 +130,10 @@ async def _monitor_and_synthesize_comparison(comp_id: str, id_a: str, id_b: str,
                 break
 
             # Wrap and forward all other events for comparison stream
-            wrapped = {"event": item["event"], "data": {**item["data"], "company_slot": prefix}}
+            wrapped = {
+                "event": item["event"],
+                "data": {**item["data"], "company_slot": prefix},
+            }
             await q_comp.put(wrapped)
 
             if item["event"] == "synthesis":
@@ -118,7 +146,9 @@ async def _monitor_and_synthesize_comparison(comp_id: str, id_a: str, id_b: str,
     await asyncio.gather(forward_events(id_a, q_a, "A"), forward_events(id_b, q_b, "B"))
 
     # Perform Comparison Synthesis
-    _logger.info(f"[{comp_id}] Both investigations complete. Running comparison synthesis.")
+    _logger.info(
+        f"[{comp_id}] Both investigations complete. Running comparison synthesis."
+    )
     try:
         from app.shared.llm_portkey import chat_complete
 
@@ -140,7 +170,9 @@ async def _monitor_and_synthesize_comparison(comp_id: str, id_a: str, id_b: str,
 
         # Run chat_complete in a separate thread so it doesn't block the async event loop
         res = await asyncio.to_thread(
-            chat_complete, user_prompt=comparison_prompt, system_prompt="Compare financial fraud profiles. JSON only."
+            chat_complete,
+            user_prompt=comparison_prompt,
+            system_prompt="Compare financial fraud profiles. JSON only.",
         )
         content = res.get("content", "{}")
         if "```json" in content:
@@ -180,5 +212,9 @@ async def stream_comparison(comp_id: str):
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
     )

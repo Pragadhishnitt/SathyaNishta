@@ -17,7 +17,9 @@ class ExtractEntitiesRequest(BaseModel):
 @router.post("/extract-entities")
 async def extract_entities(req: ExtractEntitiesRequest):
     try:
-        evidence_text = "\n".join([str(e.get("finding", "")) for e in req.evidence[:20]])
+        evidence_text = "\n".join(
+            [str(e.get("finding", "")) for e in req.evidence[:20]]
+        )
         prompt = (
             f"From these investigation findings for {req.company_name}, extract names of "
             "subsidiary companies, promoter entities, or shell companies mentioned.\n"

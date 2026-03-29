@@ -36,9 +36,13 @@ def get_portkey_client():
     """
 
     if not settings.PORTKEY_API_KEY:
-        raise PortkeyLLMError("Missing PORTKEY_API_KEY. Set it in your environment (.env / docker-compose).")
+        raise PortkeyLLMError(
+            "Missing PORTKEY_API_KEY. Set it in your environment (.env / docker-compose)."
+        )
 
-    from portkey_ai import Portkey  # local import to keep startup resilient if deps change
+    from portkey_ai import (
+        Portkey,
+    )  # local import to keep startup resilient if deps change
 
     kwargs: Dict[str, Any] = {
         "api_key": settings.PORTKEY_API_KEY,
@@ -53,7 +57,11 @@ def get_portkey_client():
     return Portkey(**kwargs)
 
 
-@retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3), reraise=True)
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(3),
+    reraise=True,
+)
 def chat_complete(
     *,
     user_prompt: str,

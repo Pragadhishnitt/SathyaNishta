@@ -34,7 +34,9 @@ class RateLimiter:
 
         # Remove requests older than time window
         self.requests[identifier] = [
-            req_time for req_time in self.requests[identifier] if current_time - req_time < self.time_window
+            req_time
+            for req_time in self.requests[identifier]
+            if current_time - req_time < self.time_window
         ]
 
         # Check if under limit
@@ -67,13 +69,23 @@ class RateLimiter:
 
 
 # Rate limiters for different endpoints
-login_limiter = RateLimiter(max_requests=5, time_window=300)  # 5 login attempts per 5 minutes
-register_limiter = RateLimiter(max_requests=3, time_window=3600)  # 3 registrations per hour
-password_reset_limiter = RateLimiter(max_requests=3, time_window=3600)  # 3 password resets per hour
-email_limiter = RateLimiter(max_requests=10, time_window=3600)  # 10 emails per hour per user
+login_limiter = RateLimiter(
+    max_requests=5, time_window=300
+)  # 5 login attempts per 5 minutes
+register_limiter = RateLimiter(
+    max_requests=3, time_window=3600
+)  # 3 registrations per hour
+password_reset_limiter = RateLimiter(
+    max_requests=3, time_window=3600
+)  # 3 password resets per hour
+email_limiter = RateLimiter(
+    max_requests=10, time_window=3600
+)  # 10 emails per hour per user
 
 
-def check_rate_limit(limiter: RateLimiter, identifier: str, error_message: str = "Rate limit exceeded"):
+def check_rate_limit(
+    limiter: RateLimiter, identifier: str, error_message: str = "Rate limit exceeded"
+):
     """
     Check rate limit and raise HTTPException if exceeded
 

@@ -27,7 +27,9 @@ class StorageEvent(BaseModel):
 
 
 @router.post("/webhook")
-async def storage_webhook(event: StorageEvent, background_tasks: BackgroundTasks) -> Dict[str, Any]:
+async def storage_webhook(
+    event: StorageEvent, background_tasks: BackgroundTasks
+) -> Dict[str, Any]:
     """Handle storage webhook events from Supabase.
 
     This endpoint is called by Supabase Edge Functions when
@@ -41,7 +43,9 @@ async def storage_webhook(event: StorageEvent, background_tasks: BackgroundTasks
         Processing status and details
     """
     try:
-        logger.info(f"Received storage webhook: {event.bucket}/{event.record.get('name')}")
+        logger.info(
+            f"Received storage webhook: {event.bucket}/{event.record.get('name')}"
+        )
 
         # Process the document in background
         background_tasks.add_task(process_document_background, event.dict())
@@ -81,7 +85,12 @@ async def get_processing_status() -> Dict[str, Any]:
         return {
             "status": "active",
             "processor": "document_processor",
-            "supported_buckets": ["financial_docs", "audio_recordings", "temp_uploads", "news_uploads"],
+            "supported_buckets": [
+                "financial_docs",
+                "audio_recordings",
+                "temp_uploads",
+                "news_uploads",
+            ],
             "auto_processing": True,
             "timestamp": "2024-03-29T00:00:00Z",
         }
@@ -92,12 +101,19 @@ async def get_processing_status() -> Dict[str, Any]:
 
 
 @router.post("/test")
-async def test_processing(bucket: str = "financial_docs", file_name: str = "AAPL/FY2024/Q1/balance_sheet.pdf"):
+async def test_processing(
+    bucket: str = "financial_docs", file_name: str = "AAPL/FY2024/Q1/balance_sheet.pdf"
+):
     """Test the document processing pipeline."""
     try:
         test_event = {
             "bucket": bucket,
-            "record": {"name": file_name, "id": "test-file-id", "size": 1024000, "content_type": "application/pdf"},
+            "record": {
+                "name": file_name,
+                "id": "test-file-id",
+                "size": 1024000,
+                "content_type": "application/pdf",
+            },
             "type": "INSERT",
         }
 

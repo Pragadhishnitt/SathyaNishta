@@ -41,7 +41,11 @@ class EmailReportRequest(BaseModel):
 
 
 def send_investigation_report_email(
-    recipients: List[str], subject: str, message: str, investigation_data: dict, report_type: str
+    recipients: List[str],
+    subject: str,
+    message: str,
+    investigation_data: dict,
+    report_type: str,
 ):
     """Send investigation report email"""
     if not SMTP_USER or not SMTP_PASSWORD or "your-email" in SMTP_USER:
@@ -78,7 +82,10 @@ def send_investigation_report_email(
 
     except Exception as e:
         print(f"Failed to send email to {recipient}: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send email")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send email",
+        )
 
 
 def generate_investigation_html(data: dict, custom_message: str) -> str:
@@ -88,8 +95,14 @@ def generate_investigation_html(data: dict, custom_message: str) -> str:
     risk_score = synthesis.get("risk_score", 0)
     company_name = synthesis.get("company_name", "Unknown Company")
 
-    risk_color = "#ef4444" if risk_score >= 70 else "#f59e0b" if risk_score >= 40 else "#10b981"
-    risk_level = "High Risk" if risk_score >= 70 else "Medium Risk" if risk_score >= 40 else "Low Risk"
+    risk_color = (
+        "#ef4444" if risk_score >= 70 else "#f59e0b" if risk_score >= 40 else "#10b981"
+    )
+    risk_level = (
+        "High Risk"
+        if risk_score >= 70
+        else "Medium Risk" if risk_score >= 40 else "Low Risk"
+    )
 
     evidence_html = ""
     for item in evidence[:5]:  # Show top 5 evidence items
@@ -298,19 +311,32 @@ def generate_default_html(data: dict, custom_message: str) -> str:
 async def send_report_email(request: EmailReportRequest, http_request: Request = None):
     """Send investigation report via email"""
     # Rate limit by client IP instead of user email (auth removed for demo)
-    client_ip = http_request.client.host if http_request and http_request.client else "unknown"
-    check_rate_limit(email_limiter, client_ip, "Too many email requests. Please try again later.")
+    client_ip = (
+        http_request.client.host if http_request and http_request.client else "unknown"
+    )
+    check_rate_limit(
+        email_limiter, client_ip, "Too many email requests. Please try again later."
+    )
 
     if not request.recipients:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="At least one recipient is required")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one recipient is required",
+        )
 
     # Validate and filter recipients
     valid_recipients = request.get_valid_recipients()
     if len(valid_recipients) == 0:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No valid email addresses provided")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid email addresses provided",
+        )
 
     if len(valid_recipients) > 10:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Maximum 10 recipients allowed")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Maximum 10 recipients allowed",
+        )
 
     # Generate subject if not provided
     subject = request.subject or "Sathya Nishta Investigation Report"
@@ -331,5 +357,6 @@ async def send_report_email(request: EmailReportRequest, http_request: Request =
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send email. Please try again later."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send email. Please try again later.",
         )

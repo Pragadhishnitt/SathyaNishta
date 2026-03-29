@@ -45,9 +45,13 @@ def main():
         print(f"✅ Created investigation: {inv_id}")
 
     # 2. Connect to Neo4j
-    driver = GraphDatabase.driver(settings.NEO4J_URI, auth=(settings.NEO4J_USERNAME, settings.NEO4J_PASSWORD))
+    driver = GraphDatabase.driver(
+        settings.NEO4J_URI, auth=(settings.NEO4J_USERNAME, settings.NEO4J_PASSWORD)
+    )
     with driver.session() as session:
-        session.run("MERGE (c:Company {name: 'SeedCorp'}) SET c.created_at = datetime()")
+        session.run(
+            "MERGE (c:Company {name: 'SeedCorp'}) SET c.created_at = datetime()"
+        )
         print("✅ Created/Merged 'SeedCorp' node in Neo4j")
     driver.close()
 

@@ -41,7 +41,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_session)) -> User:
+async def get_current_user(
+    token: str = Depends(oauth2_scheme), db: Session = Depends(get_session)
+) -> User:
     """Get current authenticated user"""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -64,22 +66,35 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     return user
 
 
-async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
+async def get_current_active_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
     """Get current active user"""
     if not current_user.is_active:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
+        )
     return current_user
 
 
-async def get_current_verified_user(current_user: User = Depends(get_current_active_user)) -> User:
+async def get_current_verified_user(
+    current_user: User = Depends(get_current_active_user),
+) -> User:
     """Get current verified user"""
     if not current_user.is_verified:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email not verified")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Email not verified"
+        )
     return current_user
 
 
-async def get_current_premium_user(current_user: User = Depends(get_current_verified_user)) -> User:
+async def get_current_premium_user(
+    current_user: User = Depends(get_current_verified_user),
+) -> User:
     """Get current premium user"""
     if not current_user.is_premium:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Premium subscription required")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Premium subscription required",
+        )
     return current_user

@@ -73,7 +73,9 @@ def extract_text_from_pdf(pdf_path: str, max_pages: int = None) -> str:
     text = ""
 
     with pdfplumber.open(pdf_path) as pdf:
-        total_pages = len(pdf.pages) if max_pages is None else min(len(pdf.pages), max_pages)
+        total_pages = (
+            len(pdf.pages) if max_pages is None else min(len(pdf.pages), max_pages)
+        )
 
         for page_num in range(total_pages):
             page = pdf.pages[page_num]
@@ -84,7 +86,10 @@ def extract_text_from_pdf(pdf_path: str, max_pages: int = None) -> str:
                 for table in tables:
                     # Convert table to readable text format
                     for row in table:
-                        text += " | ".join([str(cell) if cell else "" for cell in row]) + "\n"
+                        text += (
+                            " | ".join([str(cell) if cell else "" for cell in row])
+                            + "\n"
+                        )
                     text += "\n"
 
             # Extract regular text
@@ -121,7 +126,9 @@ def generate_embeddings(chunks_data: List[Dict]) -> List[Dict]:
     for i, chunk_data in enumerate(chunks_data):
         try:
             response = cohere_client.embed(
-                texts=[chunk_data["content"]], model="embed-english-v3.0", input_type="search_document"
+                texts=[chunk_data["content"]],
+                model="embed-english-v3.0",
+                input_type="search_document",
             )
             chunk_data["embedding"] = response.embeddings[0]  # 1024 dimensions
             chunk_data["embedding_dim"] = len(response.embeddings[0])
@@ -150,7 +157,11 @@ def store_in_supabase(chunks_data: List[Dict]) -> None:
     for i, chunk_data in enumerate(chunks_data, 1):
         try:
             # Map source to standardized values
-            source_map = {"SEBI": "SEBI", "INDAS": "IndAS", "COMPANIES_ACT": "CompaniesAct"}
+            source_map = {
+                "SEBI": "SEBI",
+                "INDAS": "IndAS",
+                "COMPANIES_ACT": "CompaniesAct",
+            }
 
             # Prepare data for insertion into regulatory_docs table
             data = {
@@ -209,7 +220,11 @@ def process_legal_folder(folder_name: str = "sebi") -> List[Dict]:
     print("=" * 80)
 
     # Category mapping based on folder
-    category_map = {"sebi": "disclosure", "indas": "related_party", "companies_act": "compliance"}
+    category_map = {
+        "sebi": "disclosure",
+        "indas": "related_party",
+        "companies_act": "compliance",
+    }
 
     all_chunks = []
 
@@ -242,7 +257,10 @@ def process_legal_folder(folder_name: str = "sebi") -> List[Dict]:
                     "chunk_number": i,
                     "content": chunk,
                     "word_count": len(chunk.split()),
-                    "metadata": {"total_chunks": len(chunks), "source_folder": folder_name},
+                    "metadata": {
+                        "total_chunks": len(chunks),
+                        "source_folder": folder_name,
+                    },
                 }
             )
 

@@ -35,7 +35,9 @@ class User(UserBase, table=True):
 
     # Timestamps
     created_at: datetime = Field(default_factory=func.now)
-    updated_at: datetime = Field(default_factory=func.now, sa_column_kwargs={"onupdate": func.now()})
+    updated_at: datetime = Field(
+        default_factory=func.now, sa_column_kwargs={"onupdate": func.now()}
+    )
     last_login: Optional[datetime] = None
 
 

@@ -36,7 +36,9 @@ class FinancialAgent(BaseAgent):
             self.llm_client = get_portkey_client()
             self.logger.info("Portkey LLM client initialized for financial analysis")
         except PortkeyLLMError as e:
-            self.logger.warning(f"Portkey not available: {e}. Analysis will be limited.")
+            self.logger.warning(
+                f"Portkey not available: {e}. Analysis will be limited."
+            )
             self.llm_client = None
 
         # Initialize PostgreSQL engine for financial data
@@ -71,13 +73,17 @@ class FinancialAgent(BaseAgent):
         if not isinstance(params, dict):
             raise ValueError("FinancialAgent task 'params' must be a dict")
 
-        self.logger.debug("Running financial tool", extra={"tool": tool_name, "params": params})
+        self.logger.debug(
+            "Running financial tool", extra={"tool": tool_name, "params": params}
+        )
         return self.tool_map[tool_name](params, task)
 
     # ---------------------------------------------------------------
     # Tool implementations (query database, not LLM)
     # ---------------------------------------------------------------
-    def analyze_balance_sheet(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
+    def analyze_balance_sheet(
+        self, params: Dict[str, Any], task: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Query balance sheet data from financial_filings and analyze via LLM."""
         company = params.get("company_name")
         period = params.get("period")
@@ -130,7 +136,9 @@ class FinancialAgent(BaseAgent):
         except Exception as exc:
             raise RuntimeError(f"Balance sheet analysis failed: {exc}") from exc
 
-    def calculate_financial_ratios(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
+    def calculate_financial_ratios(
+        self, params: Dict[str, Any], task: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Query financial ratios and analyze via LLM."""
         company = params.get("company_name")
         period = params.get("period")
@@ -184,7 +192,9 @@ class FinancialAgent(BaseAgent):
         except Exception as exc:
             raise RuntimeError(f"Financial ratio calculation failed: {exc}") from exc
 
-    def detect_cash_flow_divergence(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
+    def detect_cash_flow_divergence(
+        self, params: Dict[str, Any], task: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Query cash flow statements and analyze for divergence via LLM."""
         company = params.get("company_name")
         period = params.get("period")
@@ -228,7 +238,8 @@ class FinancialAgent(BaseAgent):
 
             # Check if LLM detected divergence
             divergence_detected = (
-                "divergence" in llm_analysis.get("summary", "").lower() or len(llm_analysis.get("anomalies", [])) > 0
+                "divergence" in llm_analysis.get("summary", "").lower()
+                or len(llm_analysis.get("anomalies", [])) > 0
             )
 
             return {
@@ -244,7 +255,9 @@ class FinancialAgent(BaseAgent):
         except Exception as exc:
             raise RuntimeError(f"Cash flow divergence detection failed: {exc}") from exc
 
-    def detect_related_party_transactions(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
+    def detect_related_party_transactions(
+        self, params: Dict[str, Any], task: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Query consolidated statements and analyze for related party transactions via LLM."""
         company = params.get("company_name")
         period = params.get("period")
@@ -296,13 +309,21 @@ class FinancialAgent(BaseAgent):
                 "source_documents": [f.get("id") for f in filings],
             }
         except Exception as exc:
-            raise RuntimeError(f"Related party transaction detection failed: {exc}") from exc
+            raise RuntimeError(
+                f"Related party transaction detection failed: {exc}"
+            ) from exc
 
     # ---------------------------------------------------------------
     # LLM Analysis: Use Portkey to analyze financial documents
     # ---------------------------------------------------------------
-    @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3), reraise=True)
-    def _analyze_with_llm(self, documents: List[Dict], analysis_prompt: str) -> Dict[str, Any]:
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(3),
+        reraise=True,
+    )
+    def _analyze_with_llm(
+        self, documents: List[Dict], analysis_prompt: str
+    ) -> Dict[str, Any]:
         """Use LLM to analyze financial documents and extract insights."""
         if not self.llm_client or not documents:
             return {
@@ -374,8 +395,12 @@ Use this exact format:
                     closing_fence = analysis_text.find("```", start_pos)
                     if closing_fence >= 0:
                         analysis_text = analysis_text[start_pos:closing_fence].strip()
-                        self.logger.debug(f"After markdown removal length: {len(analysis_text)}")
-                        self.logger.debug(f"After markdown removal (first 300): {analysis_text[:300]}")
+                        self.logger.debug(
+                            f"After markdown removal length: {len(analysis_text)}"
+                        )
+                        self.logger.debug(
+                            f"After markdown removal (first 300): {analysis_text[:300]}"
+                        )
 
             # Step 2: Try standard JSON parsing
             analysis_json = None
@@ -418,12 +443,18 @@ Use this exact format:
 
                     # Fallback: replace all newlines with spaces
                     try:
-                        one_line_text = analysis_text.replace("\n", " ").replace("\r", " ").replace("\t", " ")
+                        one_line_text = (
+                            analysis_text.replace("\n", " ")
+                            .replace("\r", " ")
+                            .replace("\t", " ")
+                        )
                         one_line_text = " ".join(one_line_text.split())
                         analysis_json = json.loads(one_line_text)
                         self.logger.debug("One-line JSON parsing succeeded")
                     except json.JSONDecodeError as e2:
-                        self.logger.debug(f"One-line JSON parsing failed: {str(e2)[:100]}")
+                        self.logger.debug(
+                            f"One-line JSON parsing failed: {str(e2)[:100]}"
+                        )
 
             # Step 3: If that fails, try to clean up and parse
             if analysis_json is None:
@@ -444,16 +475,22 @@ Use this exact format:
                     if start_idx >= 0 and end_idx > start_idx:
                         try:
                             extracted_json = cleaned[start_idx : end_idx + 1]
-                            self.logger.debug(f"Extracted JSON (first 200): {extracted_json[:200]}")
+                            self.logger.debug(
+                                f"Extracted JSON (first 200): {extracted_json[:200]}"
+                            )
                             analysis_json = json.loads(extracted_json)
                             self.logger.debug("Extracted JSON parsing succeeded")
                         except json.JSONDecodeError as e:
-                            self.logger.debug(f"Extracted JSON parsing failed: {str(e)[:100]}")
+                            self.logger.debug(
+                                f"Extracted JSON parsing failed: {str(e)[:100]}"
+                            )
 
             # Step 4: Ultimate fallback - lenient parsing
             if analysis_json is None:
                 self.logger.warning("JSON parsing failed, using lenient extraction")
-                self.logger.debug(f"Lenient parsing input (first 500): {analysis_text[:500]}")
+                self.logger.debug(
+                    f"Lenient parsing input (first 500): {analysis_text[:500]}"
+                )
                 analysis_json = self._parse_json_leniently(analysis_text)
                 self.logger.debug(f"Lenient parsed result: {analysis_json}")
 
@@ -478,7 +515,11 @@ Use this exact format:
 
         except Exception as e:
             self.logger.error(f"LLM analysis failed: {e}")
-            return {"analysis": f"LLM analysis failed: {str(e)}", "anomalies": [], "health_indicator": "unknown"}
+            return {
+                "analysis": f"LLM analysis failed: {str(e)}",
+                "anomalies": [],
+                "health_indicator": "unknown",
+            }
 
     # ---------------------------------------------------------------
     # Internal helper: lenient JSON parser for malformed responses
@@ -506,7 +547,9 @@ Use this exact format:
         if summary_match:
             summary_text = summary_match.group(1)
             # Unescape common sequences
-            summary_text = summary_text.replace("\\n", " ").replace("\\t", " ").replace("\\r", " ")
+            summary_text = (
+                summary_text.replace("\\n", " ").replace("\\t", " ").replace("\\r", " ")
+            )
             result["summary"] = summary_text.strip()
             self.logger.debug(f"Extracted summary via regex: {result['summary'][:80]}")
 
@@ -530,9 +573,13 @@ Use this exact format:
                             elif text[idx] == '"':
                                 # Check if this ends the string (followed by comma or })
                                 next_chars = text[idx + 1 : idx + 5].lstrip()
-                                if next_chars.startswith(",") or next_chars.startswith("}"):
+                                if next_chars.startswith(",") or next_chars.startswith(
+                                    "}"
+                                ):
                                     result["summary"] = content.strip()
-                                    self.logger.debug(f"Extracted summary via simple: {result['summary'][:80]}")
+                                    self.logger.debug(
+                                        f"Extracted summary via simple: {result['summary'][:80]}"
+                                    )
                                     break
                                 else:
                                     content += text[idx]
@@ -549,7 +596,9 @@ Use this exact format:
             health_text = health_match.group(1).lower().strip()
             if health_text in ["healthy", "warning", "critical"]:
                 result["health_indicator"] = health_text
-                self.logger.debug(f"Extracted health_indicator: {result['health_indicator']}")
+                self.logger.debug(
+                    f"Extracted health_indicator: {result['health_indicator']}"
+                )
 
         # Extract arrays
         for field in ["key_metrics", "anomalies", "recommendations"]:
@@ -641,7 +690,11 @@ Use this exact format:
     # ---------------------------------------------------------------
     # Internal helper: query financial_filings table
     # ---------------------------------------------------------------
-    @retry(wait=wait_exponential(multiplier=1, min=1, max=5), stop=stop_after_attempt(3), reraise=True)
+    @retry(
+        wait=wait_exponential(multiplier=1, min=1, max=5),
+        stop=stop_after_attempt(3),
+        reraise=True,
+    )
     def _query_financial_filings(
         self, company_name: str, doc_type: str, period: Optional[str] = None
     ) -> List[Dict[str, Any]]:

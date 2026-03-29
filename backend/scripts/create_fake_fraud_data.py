@@ -42,7 +42,9 @@ def insert_fraud_data():
     """
 
     finance_metadata = json.dumps({"is_synthetic": True, "notes": "fake fraud data"})
-    audio_trans_metadata = json.dumps({"is_synthetic": True, "notes": "fake fraud data"})
+    audio_trans_metadata = json.dumps(
+        {"is_synthetic": True, "notes": "fake fraud data"}
+    )
 
     # Detailed metadata for AudioAgent to detect markers and tone
     audio_file_metadata = {
@@ -51,7 +53,12 @@ def insert_fraud_data():
             "overall_tone": "defensive/anxious",
             "confidence": 0.92,
             "segments": [
-                {"start": 10, "end": 25, "tone": "hesitant", "transcript": "uh, mostly confident"},
+                {
+                    "start": 10,
+                    "end": 25,
+                    "tone": "hesitant",
+                    "transcript": "uh, mostly confident",
+                },
                 {
                     "start": 45,
                     "end": 60,
@@ -67,7 +74,11 @@ def insert_fraud_data():
             "explanation": "Significant presence of hedging ('mostly', 'eventually') and defensive topic avoidance regarding offshore transfers.",
             "markers": [
                 {"type": "hedging", "text": "mostly confident", "confidence": 0.8},
-                {"type": "detachment", "text": "didn't personally authorize", "confidence": 0.9},
+                {
+                    "type": "detachment",
+                    "text": "didn't personally authorize",
+                    "confidence": 0.9,
+                },
             ],
         },
     }
@@ -153,7 +164,9 @@ def insert_fraud_data():
 
         session.commit()
 
-    print(f"✅ Fraud data for {company} inserted into Supabase (Financial + Audio + Tables).")
+    print(
+        f"✅ Fraud data for {company} inserted into Supabase (Financial + Audio + Tables)."
+    )
     print("\n" + "=" * 50)
     print("NEO4J CIRCULAR TRADING SETUP")
     print("=" * 50)

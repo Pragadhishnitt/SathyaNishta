@@ -141,7 +141,9 @@ async def start_investigation(req: InvestigationRequest):
             )
             session.commit()
     except Exception as e:
-        _logger.error(f"Failed to create investigation in DB for {inv_id}: {e}", exc_info=True)
+        _logger.error(
+            f"Failed to create investigation in DB for {inv_id}: {e}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail="Failed to create investigation")
 
     # Start the LangGraph run in background
@@ -175,7 +177,15 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
         _logger.info(f"[{inv_id}] Starting LangGraph execution for {company}")
 
         # Track which agents have started
-        agent_names = {"financial", "graph", "compliance", "audio", "news", "reflection", "synthesis"}
+        agent_names = {
+            "financial",
+            "graph",
+            "compliance",
+            "audio",
+            "news",
+            "reflection",
+            "synthesis",
+        }
         final_state: Dict[str, object] = {}
 
         # Stream node-level updates from LangGraph
@@ -190,11 +200,18 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
             if node_name == "supervisor":
                 # Emit agent_start for the next agent being routed to
                 next_agent = node_data.get("next_agent", "")
-                if next_agent and next_agent in agent_names and next_agent != "synthesis":
+                if (
+                    next_agent
+                    and next_agent in agent_names
+                    and next_agent != "synthesis"
+                ):
                     await q.put(
                         {
                             "event": "agent_start",
-                            "data": {"agent": next_agent, "timestamp": f"T+{node_data.get('iteration_count', 0)}s"},
+                            "data": {
+                                "agent": next_agent,
+                                "timestamp": f"T+{node_data.get('iteration_count', 0)}s",
+                            },
                         }
                     )
 
@@ -210,14 +227,18 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
                 }
 
                 if node_name == "graph":
-                    event_payload["graph_data"] = node_data.get("graph_payload", {"nodes": [], "edges": []})
+                    event_payload["graph_data"] = node_data.get(
+                        "graph_payload", {"nodes": [], "edges": []}
+                    )
                 if node_name == "audio":
                     timeline = node_data.get("audio_timeline", []) or []
                     event_payload["deception_markers"] = [
                         {
                             "start": round(float(m.get("start_pct", 0)) * 100, 2),
                             "end": round(float(m.get("end_pct", 0)) * 100, 2),
-                            "label": m.get("explanation", m.get("marker_type", "Marker")),
+                            "label": m.get(
+                                "explanation", m.get("marker_type", "Marker")
+                            ),
                             "severity": m.get("severity", "medium"),
                             "quote": m.get("quote", ""),
                             "marker_type": m.get("marker_type", ""),
@@ -246,7 +267,13 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
                             "agent": "reflection",
                             "risk_score": None,  # Don't show delta as absolute score
                             "findings": [node_data.get("reflection_notes", "")],
-                            "evidence_map": {"passed": "Yes" if node_data.get("reflection_passed") else "No"},
+                            "evidence_map": {
+                                "passed": (
+                                    "Yes"
+                                    if node_data.get("reflection_passed")
+                                    else "No"
+                                )
+                            },
                         },
                     }
                 )
@@ -263,9 +290,13 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
                     "compliance_findings": final_state.get("compliance_findings", {}),
                     "audio_findings": final_state.get("audio_findings", {}),
                     "news_findings": final_state.get("news_findings", {}),
-                    "graph_payload": final_state.get("graph_payload", {"nodes": [], "edges": []}),
+                    "graph_payload": final_state.get(
+                        "graph_payload", {"nodes": [], "edges": []}
+                    ),
                     "audio_timeline": final_state.get("audio_timeline", []),
-                    "audio_timeline_total_duration_s": final_state.get("audio_timeline_total_duration_s", 0),
+                    "audio_timeline_total_duration_s": final_state.get(
+                        "audio_timeline_total_duration_s", 0
+                    ),
                 }
                 await q.put({"event": "synthesis", "data": synthesis_data})
 
@@ -281,9 +312,13 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
                     "compliance_findings": final_state.get("compliance_findings", {}),
                     "audio_findings": final_state.get("audio_findings", {}),
                     "news_findings": final_state.get("news_findings", {}),
-                    "graph_payload": final_state.get("graph_payload", {"nodes": [], "edges": []}),
+                    "graph_payload": final_state.get(
+                        "graph_payload", {"nodes": [], "edges": []}
+                    ),
                     "audio_timeline": final_state.get("audio_timeline", []),
-                    "audio_timeline_total_duration_s": final_state.get("audio_timeline_total_duration_s", 0),
+                    "audio_timeline_total_duration_s": final_state.get(
+                        "audio_timeline_total_duration_s", 0
+                    ),
                 }
 
         # Mark complete
@@ -305,7 +340,11 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
                         WHERE id = :id
                     """
                     ),
-                    {"id": inv_id, "score": synthesis_data["fraud_risk_score"], "verdict": synthesis_data["verdict"]},
+                    {
+                        "id": inv_id,
+                        "score": synthesis_data["fraud_risk_score"],
+                        "verdict": synthesis_data["verdict"],
+                    },
                 )
                 session.commit()
 
@@ -321,7 +360,10 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
                 )
                 session.commit()
         except Exception as e:
-            _logger.error(f"Failed to persist final investigation state for {inv_id}: {e}", exc_info=True)
+            _logger.error(
+                f"Failed to persist final investigation state for {inv_id}: {e}",
+                exc_info=True,
+            )
 
     except Exception as e:
         _logger.error(f"[{inv_id}] Investigation failed: {e}")
@@ -336,7 +378,10 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
         # Mark failed in DB
         try:
             with Session(engine) as session:
-                session.execute(text("UPDATE investigations SET status = 'failed' WHERE id = :id"), {"id": inv_id})
+                session.execute(
+                    text("UPDATE investigations SET status = 'failed' WHERE id = :id"),
+                    {"id": inv_id},
+                )
                 session.commit()
         except Exception as db_e:
             _logger.error(f"Failed to update failed investigation in DB: {db_e}")
@@ -388,7 +433,8 @@ async def get_investigation(inv_id: str):
     try:
         with Session(engine) as session:
             inv = session.execute(
-                text("SELECT id, query, status FROM investigations WHERE id = :id"), {"id": inv_id}
+                text("SELECT id, query, status FROM investigations WHERE id = :id"),
+                {"id": inv_id},
             ).fetchone()
 
             if not inv:
@@ -417,4 +463,6 @@ async def get_investigation(inv_id: str):
     except Exception as e:
         _logger.error(f"Failed to fetch investigation {inv_id} from DB: {e}")
 
-    raise HTTPException(status_code=404, detail="Investigation not found or still running")
+    raise HTTPException(
+        status_code=404, detail="Investigation not found or still running"
+    )

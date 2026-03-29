@@ -5,6 +5,7 @@ Revises:
 Create Date: 2026-02-11 10:15:18.882097
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -36,8 +37,12 @@ def upgrade() -> None:
         sa.Column("evidence_chain", sa.JSON(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_investigations_query"), "investigations", ["query"], unique=False)
-    op.create_index(op.f("ix_investigations_status"), "investigations", ["status"], unique=False)
+    op.create_index(
+        op.f("ix_investigations_query"), "investigations", ["query"], unique=False
+    )
+    op.create_index(
+        op.f("ix_investigations_status"), "investigations", ["status"], unique=False
+    )
     op.create_table(
         "audit_trails",
         sa.Column("id", sa.Integer(), nullable=False),
@@ -54,7 +59,12 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_audit_trails_investigation_id"), "audit_trails", ["investigation_id"], unique=False)
+    op.create_index(
+        op.f("ix_audit_trails_investigation_id"),
+        "audit_trails",
+        ["investigation_id"],
+        unique=False,
+    )
 
 
 def downgrade() -> None:

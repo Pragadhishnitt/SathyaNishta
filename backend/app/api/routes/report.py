@@ -21,7 +21,15 @@ def _escape_text(value) -> str:
     return text_value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def _add_agent_section(elements, styles, header_style, subsection_style, body_style, title: str, findings: dict | None):
+def _add_agent_section(
+    elements,
+    styles,
+    header_style,
+    subsection_style,
+    body_style,
+    title: str,
+    findings: dict | None,
+):
     elements.append(Paragraph(title, header_style))
 
     if not isinstance(findings, dict) or not findings:
@@ -30,7 +38,9 @@ def _add_agent_section(elements, styles, header_style, subsection_style, body_st
 
     risk_score = findings.get("risk_score")
     if risk_score is not None:
-        elements.append(Paragraph(f"<b>Risk Score:</b> {_escape_text(risk_score)}/10", body_style))
+        elements.append(
+            Paragraph(f"<b>Risk Score:</b> {_escape_text(risk_score)}/10", body_style)
+        )
 
     summary_items = findings.get("findings") or []
     if isinstance(summary_items, list) and summary_items:
@@ -45,7 +55,9 @@ def _add_agent_section(elements, styles, header_style, subsection_style, body_st
         elements.append(Paragraph("Supporting Data", subsection_style))
         for key, value in list(evidence_map.items())[:10]:
             label = _escape_text(str(key).replace("_", " ").title())
-            elements.append(Paragraph(f"<b>{label}:</b> {_escape_text(value)}", body_style))
+            elements.append(
+                Paragraph(f"<b>{label}:</b> {_escape_text(value)}", body_style)
+            )
 
     elements.append(Spacer(1, 10))
 
@@ -59,15 +71,23 @@ async def generate_report(inv_id: str):
     try:
         with Session(engine) as session:
             # Get main investigation data
-            inv = session.execute(text("SELECT * FROM investigations WHERE id = :id"), {"id": inv_id}).fetchone()
+            inv = session.execute(
+                text("SELECT * FROM investigations WHERE id = :id"), {"id": inv_id}
+            ).fetchone()
 
             if not inv:
-                _logger.warning(f"Report generation failed: investigation {inv_id} not found")
+                _logger.warning(
+                    f"Report generation failed: investigation {inv_id} not found"
+                )
                 raise HTTPException(status_code=404, detail="Investigation not found")
 
             if inv.status != "completed":
-                _logger.warning(f"Report generation blocked: investigation {inv_id} has status={inv.status}")
-                raise HTTPException(status_code=400, detail="Investigation not yet completed")
+                _logger.warning(
+                    f"Report generation blocked: investigation {inv_id} has status={inv.status}"
+                )
+                raise HTTPException(
+                    status_code=400, detail="Investigation not yet completed"
+                )
 
             # Get synthesis evidence from audit trail
             audit = session.execute(
@@ -86,11 +106,17 @@ async def generate_report(inv_id: str):
                 elif isinstance(raw_payload, dict):
                     payload = raw_payload
                 else:
-                    raise TypeError(f"Unsupported audit payload type: {type(raw_payload).__name__}")
+                    raise TypeError(
+                        f"Unsupported audit payload type: {type(raw_payload).__name__}"
+                    )
                 evidence = payload.get("evidence", [])
-                _logger.info(f"Loaded synthesis audit for {inv_id}: evidence_count={len(evidence)}")
+                _logger.info(
+                    f"Loaded synthesis audit for {inv_id}: evidence_count={len(evidence)}"
+                )
             else:
-                _logger.warning(f"No synthesis audit row found for investigation {inv_id}")
+                _logger.warning(
+                    f"No synthesis audit row found for investigation {inv_id}"
+                )
 
     except HTTPException:
         raise
@@ -115,12 +141,23 @@ async def generate_report(inv_id: str):
 
     # 3. Create PDF
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=50,
+        leftMargin=50,
+        topMargin=50,
+        bottomMargin=50,
+    )
     styles = getSampleStyleSheet()
 
     # Custom Styles
     title_style = ParagraphStyle(
-        "TitleStyle", parent=styles["Heading1"], fontSize=24, spaceAfter=20, textColor=colors.HexColor("#0f172a")
+        "TitleStyle",
+        parent=styles["Heading1"],
+        fontSize=24,
+        spaceAfter=20,
+        textColor=colors.HexColor("#0f172a"),
     )
     header_style = ParagraphStyle(
         "HeaderStyle",
@@ -138,7 +175,9 @@ async def generate_report(inv_id: str):
         spaceAfter=4,
         textColor=colors.HexColor("#334155"),
     )
-    body_style = ParagraphStyle("BodyStyle", parent=styles["Normal"], fontSize=10, leading=13, spaceAfter=4)
+    body_style = ParagraphStyle(
+        "BodyStyle", parent=styles["Normal"], fontSize=10, leading=13, spaceAfter=4
+    )
 
     elements = []
 
@@ -146,14 +185,21 @@ async def generate_report(inv_id: str):
     elements.append(Paragraph("SathyaNishta Forensic Report", title_style))
     elements.append(Paragraph(f"<b>Target:</b> {company_name}", styles["Normal"]))
     elements.append(Paragraph(f"<b>Investigation ID:</b> {inv_id}", styles["Normal"]))
-    elements.append(Paragraph(f"<b>Date:</b> {inv.completed_at.strftime('%Y-%m-%d %H:%M:%S')}", styles["Normal"]))
+    elements.append(
+        Paragraph(
+            f"<b>Date:</b> {inv.completed_at.strftime('%Y-%m-%d %H:%M:%S')}",
+            styles["Normal"],
+        )
+    )
     elements.append(Spacer(1, 20))
 
     # Verdict Box
     verdict = inv.verdict or "UNKNOWN"
     score = inv.fraud_risk_score or 0.0
 
-    verdict_color = colors.red if score >= 8 else colors.orange if score >= 4 else colors.green
+    verdict_color = (
+        colors.red if score >= 8 else colors.orange if score >= 4 else colors.green
+    )
 
     data = [
         [
@@ -184,7 +230,11 @@ async def generate_report(inv_id: str):
         table_data = [["Source", "Finding", "Severity"]]
         for ev in evidence:
             table_data.append(
-                [ev.get("source", "N/A"), Paragraph(ev.get("finding", ""), styles["Normal"]), ev.get("severity", "N/A")]
+                [
+                    ev.get("source", "N/A"),
+                    Paragraph(ev.get("finding", ""), styles["Normal"]),
+                    ev.get("severity", "N/A"),
+                ]
             )
 
         et = Table(table_data, colWidths=[80, 320, 60])
@@ -204,7 +254,9 @@ async def generate_report(inv_id: str):
         )
         elements.append(et)
     else:
-        elements.append(Paragraph("No specific evidence findings recorded.", styles["Normal"]))
+        elements.append(
+            Paragraph("No specific evidence findings recorded.", styles["Normal"])
+        )
 
     agent_sections = [
         ("Financial Agent Output", payload.get("financial_findings")),
@@ -214,7 +266,15 @@ async def generate_report(inv_id: str):
         ("News Agent Output", payload.get("news_findings")),
     ]
     for section_title, findings in agent_sections:
-        _add_agent_section(elements, styles, header_style, subsection_style, body_style, section_title, findings)
+        _add_agent_section(
+            elements,
+            styles,
+            header_style,
+            subsection_style,
+            body_style,
+            section_title,
+            findings,
+        )
 
     # Footer
     elements.append(Spacer(1, 40))

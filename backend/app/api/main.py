@@ -40,7 +40,9 @@ app.include_router(generate_brief_router, prefix="/api")
 app.include_router(extract_entities_router, prefix="/api")
 app.include_router(market_data_router)
 app.include_router(compare_router)
-app.include_router(chat_persistence_router, prefix="/api/persistence", tags=["chat-persistence"])
+app.include_router(
+    chat_persistence_router, prefix="/api/persistence", tags=["chat-persistence"]
+)
 app.include_router(storage_webhook_router, prefix="/api", tags=["storage-webhook"])
 
 

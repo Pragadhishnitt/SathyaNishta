@@ -13,7 +13,11 @@ class MarketDataResponse(BaseModel):
     sensex: dict
 
 
-@retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3), reraise=True)
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(3),
+    reraise=True,
+)
 def fetch_ticker_data(symbol):
     """Fetch ticker data with timeout"""
     try:
@@ -71,4 +75,6 @@ async def get_market_indices():
         raise HTTPException(status_code=504, detail="Market data fetch timeout")
     except Exception as e:
         print(f"Error fetching market data: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error fetching market data: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching market data: {str(e)}"
+        )

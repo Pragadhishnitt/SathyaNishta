@@ -15,7 +15,9 @@ VERDICT_EMOJI = {
 }
 
 
-async def dispatch_risk_alert(company: str, score: float, verdict: str, top_findings: List[str]) -> None:
+async def dispatch_risk_alert(
+    company: str, score: float, verdict: str, top_findings: List[str]
+) -> None:
     """Send Slack alert for severe verdicts. Failures are non-fatal."""
     if not SLACK_WEBHOOK_URL or verdict not in ("CRITICAL", "HIGH_RISK"):
         return
@@ -27,14 +29,20 @@ async def dispatch_risk_alert(company: str, score: float, verdict: str, top_find
         "blocks": [
             {
                 "type": "header",
-                "text": {"type": "plain_text", "text": f"{emoji} SathyaNishta Alert: {company}"},
+                "text": {
+                    "type": "plain_text",
+                    "text": f"{emoji} SathyaNishta Alert: {company}",
+                },
             },
             {
                 "type": "section",
                 "fields": [
                     {"type": "mrkdwn", "text": f"*Verdict:*\n{verdict}"},
                     {"type": "mrkdwn", "text": f"*Risk Score:*\n{score}/10"},
-                    {"type": "mrkdwn", "text": f"*Time:*\n{datetime.now().strftime('%d %b %Y %H:%M IST')}"},
+                    {
+                        "type": "mrkdwn",
+                        "text": f"*Time:*\n{datetime.now().strftime('%d %b %Y %H:%M IST')}",
+                    },
                     {"type": "mrkdwn", "text": "*Platform:*\nSathyaNishta"},
                 ],
             },
@@ -47,7 +55,10 @@ async def dispatch_risk_alert(company: str, score: float, verdict: str, top_find
                 "elements": [
                     {
                         "type": "button",
-                        "text": {"type": "plain_text", "text": "View Full Investigation"},
+                        "text": {
+                            "type": "plain_text",
+                            "text": "View Full Investigation",
+                        },
                         "style": "danger",
                         "url": (
                             f"{os.getenv('APP_URL', 'http://127.0.0.1:3000')}/"
