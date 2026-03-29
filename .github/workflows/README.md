@@ -38,7 +38,7 @@ GCP_PROJECT_ID=dotted-carrier-483916-b5
 GCP_SA_KEY=[Service account JSON key]
 GCP_REGION=asia-south1
 GCP_ZONE=asia-south1-a
-VM_NAME=sathyanishta-server-1
+VM_NAME=sathyanishta-1
 STATIC_IP=34.100.219.13
 GITGUARDIAN_API_KEY=[GitGuardian API key for secrets detection]
 ```
