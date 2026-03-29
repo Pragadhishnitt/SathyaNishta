@@ -10,7 +10,7 @@ env:
   REGISTRY: asia-south1-docker.pkg.dev
   PROJECT_ID: dotted-carrier-483916-b5
   REPOSITORY: sathyanishta-prod
-  VM_NAME: sathyanishta-server-1
+  VM_NAME: sathyanishta-1
   GCP_ZONE: asia-south1-a
   STATIC_IP: 34.100.219.13
 
