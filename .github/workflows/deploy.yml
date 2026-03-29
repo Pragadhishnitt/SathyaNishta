@@ -1,0 +1,184 @@
+name: Deploy to Production
+
+on:
+  workflow_run:
+    workflows: ["Build and Push Docker Images"]
+    types:
+      - completed
+    branches: [ main ]
+
+env:
+  REGISTRY: asia-south1-docker.pkg.dev
+  PROJECT_ID: dotted-carrier-483916-b5
+  REPOSITORY: sathyanishta-prod
+  GCP_REGION: asia-south1
+  GCP_ZONE: asia-south1-a
+  VM_NAME: sathyanishta-server-1
+  STATIC_IP: 34.100.219.13
+
+jobs:
+  deploy:
+    name: Deploy to Production VM
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+        
+    - name: Setup gcloud
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: ${{ env.PROJECT_ID }}
+        
+    - name: Create deployment script
+      run: |
+        cat > deploy.sh << 'EOF'
+        #!/bin/bash
+        set -e
+        
+        echo "🚀 Starting deployment..."
+        
+        # Navigate to application directory
+        cd /opt/sathyanishta
+        
+        # Create backup of current running containers
+        echo "📦 Creating backup..."
+        docker-compose down || true
+        docker tag ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend:latest ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend:backup-$(date +%Y%m%d-%H%M%S) || true
+        docker tag ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/frontend:latest ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/frontend:backup-$(date +%Y%m%d-%H%M%S) || true
+        
+        # Pull latest images
+        echo "📥 Pulling latest images..."
+        docker pull ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend:latest
+        docker pull ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/frontend:latest
+        
+        # Update production environment file
+        echo "⚙️ Updating environment..."
+        cp config/.env.prod .env
+        
+        # Start services with new images
+        echo "🔄 Starting services..."
+        docker-compose up -d
+        
+        # Wait for services to be healthy
+        echo "⏳ Waiting for services to be healthy..."
+        sleep 30
+        
+        # Health checks
+        echo "🏥 Running health checks..."
+        
+        # Backend health check
+        for i in {1..10}; do
+          if curl -f http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ Backend is healthy"
+            break
+          else
+            echo "⏳ Backend health check attempt $i/10..."
+            sleep 10
+          fi
+          
+          if [ $i -eq 10 ]; then
+            echo "❌ Backend health check failed"
+            echo "🔄 Rolling back..."
+            docker-compose down
+            # Implement rollback logic here if needed
+            exit 1
+          fi
+        done
+        
+        # Frontend health check
+        for i in {1..10}; do
+          if curl -f http://localhost:3000 > /dev/null 2>&1; then
+            echo "✅ Frontend is healthy"
+            break
+          else
+            echo "⏳ Frontend health check attempt $i/10..."
+            sleep 10
+          fi
+          
+          if [ $i -eq 10 ]; then
+            echo "❌ Frontend health check failed"
+            echo "🔄 Rolling back..."
+            docker-compose down
+            # Implement rollback logic here if needed
+            exit 1
+          fi
+        done
+        
+        echo "🎉 Deployment completed successfully!"
+        
+        # Cleanup old images
+        echo "🧹 Cleaning up old images..."
+        docker image prune -f
+        
+        echo "📊 Deployment summary:"
+        docker-compose ps
+        EOF
+        
+        chmod +x deploy.sh
+        
+    - name: Copy deployment script to VM
+      run: |
+        gcloud compute scp deploy.sh ${VM_NAME}:/tmp/ --zone=${GCP_ZONE}
+        
+    - name: Execute deployment on VM
+      run: |
+        gcloud compute ssh ${VM_NAME} --zone=${GCP_ZONE} --command="cd /tmp && ./deploy.sh"
+        
+    - name: Smoke tests
+      run: |
+        echo "🧪 Running smoke tests..."
+        
+        # Test backend health
+        for i in {1..5}; do
+          if curl -f http://${STATIC_IP}:8000/health > /dev/null 2>&1; then
+            echo "✅ Backend smoke test passed"
+            break
+          else
+            echo "⏳ Backend smoke test attempt $i/5..."
+            sleep 15
+          fi
+          
+          if [ $i -eq 5 ]; then
+            echo "❌ Backend smoke test failed"
+            exit 1
+          fi
+        done
+        
+        # Test frontend accessibility
+        for i in {1..5}; do
+          if curl -f http://${STATIC_IP}:8090 > /dev/null 2>&1; then
+            echo "✅ Frontend smoke test passed"
+            break
+          else
+            echo "⏳ Frontend smoke test attempt $i/5..."
+            sleep 15
+          fi
+          
+          if [ $i -eq 5 ]; then
+            echo "❌ Frontend smoke test failed"
+            exit 1
+          fi
+        done
+        
+        echo "🎉 All smoke tests passed!"
+        
+    - name: Notify deployment success
+      if: success()
+      run: |
+        echo "✅ Deployment to production completed successfully!"
+        echo "🌐 Application is available at: http://${STATIC_IP}:8090"
+        echo "📊 Backend API: http://${STATIC_IP}:8000"
+        
+    - name: Notify deployment failure
+      if: failure()
+      run: |
+        echo "❌ Deployment failed!"
+        echo "🔍 Check the logs above for details"
+        echo "🚨 Manual intervention may be required"
