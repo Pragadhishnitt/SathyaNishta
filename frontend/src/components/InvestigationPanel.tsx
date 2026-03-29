@@ -281,7 +281,7 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
                   </div>
 
                   {/* Risk score badge */}
-                  {e.status === "complete" && e.risk_score !== undefined && (
+                  {e.status === "complete" && typeof e.risk_score === "number" && (
                     <div className={`text-sm font-bold font-mono text-${riskColor} bg-${riskColor}/10 px-2.5 py-1 rounded-lg border border-${riskColor}/20`}>
                       {e.risk_score.toFixed(1)}
                     </div>
