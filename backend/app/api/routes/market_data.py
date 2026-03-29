@@ -1,8 +1,9 @@
+import asyncio
+
 import yfinance as yf
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import asyncio
-from tenacity import retry, wait_exponential, stop_after_attempt
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 router = APIRouter(prefix="/api/market", tags=["market"])
 
@@ -37,8 +38,9 @@ CACHE_TTL = 5  # seconds
 @router.get("/indices", response_model=MarketDataResponse)
 async def get_market_indices():
     """Fetch NIFTY 50 and SENSEX data using yfinance with caching"""
-    global _cache
-
+    # FIX: removed `global _cache` — it was flagged by F824 because _cache is never
+    # reassigned here, only mutated (dict key updates). `global` is only needed
+    # when you do `_cache = something_new`, not when you do `_cache["key"] = value`.
     async with _cache_lock:
         now = asyncio.get_event_loop().time()
         if _cache["data"] and (now - _cache["timestamp"]) < CACHE_TTL:
@@ -46,8 +48,6 @@ async def get_market_indices():
 
     try:
         print("Starting market data fetch...")
-
-        # Run in thread pool to avoid blocking
         loop = asyncio.get_event_loop()
         nifty_task = loop.run_in_executor(None, fetch_ticker_data, "^NSEI")
         sensex_task = loop.run_in_executor(None, fetch_ticker_data, "^BSESN")
