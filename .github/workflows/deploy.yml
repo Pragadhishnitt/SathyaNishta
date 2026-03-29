@@ -5,7 +5,7 @@ on:
     workflows: ["Build and Push Docker Images"]
     types:
       - completed
-    branches: [ main ]
+    branches: [ main ]  # Only main branch
 
 env:
   REGISTRY: asia-south1-docker.pkg.dev
