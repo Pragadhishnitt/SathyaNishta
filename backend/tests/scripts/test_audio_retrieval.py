@@ -23,7 +23,7 @@ test_companies = [
     "ITC",
     "ITC Limited",
     "Reliance Industries",
-    "Hindustan Unilever"
+    "Hindustan Unilever",
 ]
 
 print(f"\nAgent database engine initialized: {agent.engine is not None}")
@@ -40,6 +40,7 @@ for company in test_companies:
     except Exception as e:
         print(f"✗ Error: {e}")
         import traceback
+
         traceback.print_exc()
 
 print("\n" + "=" * 80)

@@ -34,10 +34,7 @@ class GraphAgent(BaseAgent):
         neo4j_username = settings.NEO4J_USERNAME
         neo4j_password = settings.NEO4J_PASSWORD
         if neo4j_uri and neo4j_username and neo4j_password:
-            self.neo4j_driver = GraphDatabase.driver(
-                neo4j_uri,
-                auth=(neo4j_username, neo4j_password)
-            )
+            self.neo4j_driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_username, neo4j_password))
         else:
             self.neo4j_driver = None
             self.logger.warning("Neo4j credentials not found, graph queries will be limited")
@@ -48,11 +45,7 @@ class GraphAgent(BaseAgent):
             "detect_circular_loops": self.detect_circular_loops,
         }
 
-    @retry(
-        wait=wait_exponential(multiplier=1, min=1, max=5),
-        stop=stop_after_attempt(3),
-        reraise=True
-    )
+    @retry(wait=wait_exponential(multiplier=1, min=1, max=5), stop=stop_after_attempt(3), reraise=True)
     def get_graph_payload(self, entity_name: str, max_hops: int = 5) -> Dict[str, Any]:
         """Return Neo4j subgraph as serializable node/edge objects for UI rendering."""
         if not self.neo4j_driver:
@@ -78,7 +71,9 @@ class GraphAgent(BaseAgent):
                 suspicious: coalesce(r.is_suspicious, false)
             }] AS edges
         LIMIT 200
-        """.replace("{max_hops}", str(max_hops))
+        """.replace(
+            "{max_hops}", str(max_hops)
+        )
 
         with self.neo4j_driver.session() as session:
             result = session.run(query, name=entity_name)
@@ -89,13 +84,15 @@ class GraphAgent(BaseAgent):
                 for node in record["nodes"] or []:
                     all_nodes[node["id"]] = node
                 for edge in record["edges"] or []:
-                    all_edges.append({
-                        "from": edge.get("source"),
-                        "to": edge.get("target"),
-                        "amount": edge.get("amount", 0),
-                        "suspicious": bool(edge.get("suspicious", False)),
-                        "label": f"₹{edge.get('amount', 0)} Cr" if edge.get("amount") else "",
-                    })
+                    all_edges.append(
+                        {
+                            "from": edge.get("source"),
+                            "to": edge.get("target"),
+                            "amount": edge.get("amount", 0),
+                            "suspicious": bool(edge.get("suspicious", False)),
+                            "label": f"₹{edge.get('amount', 0)} Cr" if edge.get("amount") else "",
+                        }
+                    )
 
             return {
                 "nodes": list(all_nodes.values()),
@@ -142,11 +139,7 @@ class GraphAgent(BaseAgent):
         # Use LLM to generate the Cypher query
         return self._call_llm("generate_cypher_query", params, task)
 
-    @retry(
-        wait=wait_exponential(multiplier=1, min=1, max=5),
-        stop=stop_after_attempt(3),
-        reraise=True
-    )
+    @retry(wait=wait_exponential(multiplier=1, min=1, max=5), stop=stop_after_attempt(3), reraise=True)
     def run_cypher_query(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
         """Executes a Cypher query against Neo4j and returns structured results."""
         query = params.get("query")
@@ -166,7 +159,7 @@ class GraphAgent(BaseAgent):
                     # Convert Neo4j record to dict, handling special objects
                     record_dict = {}
                     for key, value in record.items():
-                        if hasattr(value, 'nodes') and hasattr(value, 'relationships'):
+                        if hasattr(value, "nodes") and hasattr(value, "relationships"):
                             # This is a Path object - extract nodes and relationships
                             path_data = {
                                 "nodes": [self._serialize_node(node) for node in value.nodes],
@@ -175,30 +168,23 @@ class GraphAgent(BaseAgent):
                                         "type": rel.type,
                                         "start_node_id": rel.start_node.id,
                                         "end_node_id": rel.end_node.id,
-                                        "properties": {k: self._serialize_value(v) for k, v in dict(rel).items()}
+                                        "properties": {k: self._serialize_value(v) for k, v in dict(rel).items()},
                                     }
                                     for rel in value.relationships
-                                ]
+                                ],
                             }
                             record_dict[key] = path_data
-                        elif hasattr(value, 'id') and hasattr(value, 'labels'):
+                        elif hasattr(value, "id") and hasattr(value, "labels"):
                             # This is a Node object
                             record_dict[key] = self._serialize_node(value)
                         else:
                             record_dict[key] = self._serialize_value(value)
                     records.append(record_dict)
 
-                return {
-                    "results": records,
-                    "result_count": len(records)
-                }
+                return {"results": records, "result_count": len(records)}
         except Exception as e:
             self.logger.error(f"Cypher query failed: {e}")
-            return {
-                "results": [],
-                "result_count": 0,
-                "error": str(e)
-            }
+            return {"results": [], "result_count": 0, "error": str(e)}
 
     def detect_circular_loops(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
         """High-level tool that combines Cypher generation, execution, and validation."""
@@ -230,10 +216,7 @@ class GraphAgent(BaseAgent):
         # Run the query
         run_params = {
             "query": cypher_query,
-            "params": {
-                "entity_name": entity_name,
-                "min_amount": min_transaction_amount
-            }
+            "params": {"entity_name": entity_name, "min_amount": min_transaction_amount},
         }
         run_result = self.run_cypher_query(run_params, task)
         results = run_result.get("results", [])
@@ -248,16 +231,20 @@ class GraphAgent(BaseAgent):
             dates = record.get("dates", [])
             total_amount = record.get("total_circular_amount", 0)
             path_length = record.get("path_length", 0)
-            
+
             if company_path and len(company_path) > 2:
-                loops_found.append({
-                    "companies": company_path,
-                    "transaction_amounts": amounts,
-                    "transaction_dates": dates,
-                    "total_amount": total_amount,
-                    "loop_length": path_length,
-                    "risk_indicator": "SUSPICIOUS" if total_amount > 10_000_000_000 else "NOTABLE"  # ₹10B threshold
-                })
+                loops_found.append(
+                    {
+                        "companies": company_path,
+                        "transaction_amounts": amounts,
+                        "transaction_dates": dates,
+                        "total_amount": total_amount,
+                        "loop_length": path_length,
+                        "risk_indicator": "SUSPICIOUS"
+                        if total_amount > 10_000_000_000
+                        else "NOTABLE",  # ₹10B threshold
+                    }
+                )
                 total_circular_amount += total_amount
 
         # Calculate risk score based on findings
@@ -284,7 +271,7 @@ class GraphAgent(BaseAgent):
             "total_loop_count": len(loops_found),
             "total_circular_amount": total_circular_amount,
             "risk_score": risk_score,
-            "findings": findings
+            "findings": findings,
         }
 
     def _serialize_node(self, node):
@@ -292,7 +279,7 @@ class GraphAgent(BaseAgent):
         return {
             "id": node.id,
             "labels": list(node.labels),
-            "properties": {k: self._serialize_value(v) for k, v in dict(node).items()}
+            "properties": {k: self._serialize_value(v) for k, v in dict(node).items()},
         }
 
     def _serialize_value(self, value):

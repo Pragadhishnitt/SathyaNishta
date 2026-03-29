@@ -25,19 +25,16 @@ def test_analyze_audio_tone():
     print("\n" + "=" * 60)
     print("Test 1: analyze_audio_tone")
     print("=" * 60)
-    
+
     agent = AudioAgent()
-    
+
     task = {
         "tool": "analyze_audio_tone",
-        "params": {
-            "company_name": "Hindustan Unilever Limited",
-            "period": "Q4"
-        },
+        "params": {"company_name": "Hindustan Unilever Limited", "period": "Q4"},
         "investigation_id": "test_001",
-        "task_id": "audio_test_1"
+        "task_id": "audio_test_1",
     }
-    
+
     try:
         result = agent.process(task)
         print("\n✓ Result:")
@@ -53,19 +50,16 @@ def test_detect_deception_markers():
     print("\n" + "=" * 60)
     print("Test 2: detect_deception_markers")
     print("=" * 60)
-    
+
     agent = AudioAgent()
-    
+
     task = {
         "tool": "detect_deception_markers",
-        "params": {
-            "company_name": "ITC Limited",
-            "period": "Q4"
-        },
+        "params": {"company_name": "ITC Limited", "period": "Q4"},
         "investigation_id": "test_001",
-        "task_id": "audio_test_2"
+        "task_id": "audio_test_2",
     }
-    
+
     try:
         result = agent.process(task)
         print("\n✓ Result:")
@@ -81,19 +75,16 @@ def test_load_audio_file():
     print("\n" + "=" * 60)
     print("Test 3: load_audio_file")
     print("=" * 60)
-    
+
     agent = AudioAgent()
-    
+
     task = {
         "tool": "load_audio_file",
-        "params": {
-            "company_name": "Wipro Limited",
-            "period": "Q4"
-        },
+        "params": {"company_name": "Wipro Limited", "period": "Q4"},
         "investigation_id": "test_001",
-        "task_id": "audio_test_3"
+        "task_id": "audio_test_3",
     }
-    
+
     try:
         result = agent.process(task)
         print("\n✓ Result:")
@@ -109,31 +100,25 @@ def test_multi_company_comparison():
     print("\n" + "=" * 60)
     print("Test 4: Multi-Company Tone Comparison")
     print("=" * 60)
-    
+
     agent = AudioAgent()
     companies = ["Hindustan Unilever Limited", "ITC Limited", "Wipro Limited"]
-    
+
     results_list = []
     for company in companies:
         task = {
             "tool": "analyze_audio_tone",
-            "params": {
-                "company_name": company,
-                "period": "Q4"
-            },
+            "params": {"company_name": company, "period": "Q4"},
             "investigation_id": "test_001",
-            "task_id": f"audio_test_compare_{company}"
+            "task_id": f"audio_test_compare_{company}",
         }
-        
+
         try:
             result = agent.process(task)
-            results_list.append({
-                "company": company,
-                "tone_result": result
-            })
+            results_list.append({"company": company, "tone_result": result})
         except Exception as e:
             print(f"\n⚠️  {company}: {e}")
-    
+
     if results_list:
         print("\n✓ Comparison Results:")
         print(json.dumps(results_list, indent=2))
@@ -152,29 +137,29 @@ def run_all_tests():
     print("  • Wipro Limited (WIPRO)")
     print("  • State Bank of India (SBI)")
     print("  • Reliance Industries Limited (RIL)")
-    
+
     results = {
         "analyze_audio_tone": test_analyze_audio_tone(),
         "detect_deception_markers": test_detect_deception_markers(),
         "load_audio_file": test_load_audio_file(),
-        "multi_company_comparison": test_multi_company_comparison()
+        "multi_company_comparison": test_multi_company_comparison(),
     }
-    
+
     # Summary
     print("\n" + "=" * 80)
     print(" " * 30 + "TEST SUMMARY")
     print("=" * 80)
-    
+
     passed = sum(1 for r in results.values() if r is not None)
     total = len(results)
-    
+
     for test_name, result in results.items():
         status = "✓ PASSED" if result is not None else "✗ FAILED"
         print(f"{test_name:.<50} {status}")
-    
+
     print(f"\nTotal: {passed}/{total} tests passed")
     print("=" * 80 + "\n")
-    
+
     return results
 
 

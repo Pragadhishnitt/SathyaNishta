@@ -28,15 +28,13 @@ NEO4J_URI = os.getenv("NEO4J_URI", "bolt://127.0.0.1:7687")
 NEO4J_USERNAME = os.getenv("NEO4J_USERNAME", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password")
 
+
 class GraphDatabasePopulator:
     def __init__(self):
         # For Neo4j Aura, use neo4j+ssc:// to skip certificate verification in development
         uri = NEO4J_URI.replace("neo4j+s://", "neo4j+ssc://") if NEO4J_URI.startswith("neo4j+s://") else NEO4J_URI
 
-        self.driver = GraphDatabase.driver(
-            uri,
-            auth=(NEO4J_USERNAME, NEO4J_PASSWORD)
-        )
+        self.driver = GraphDatabase.driver(uri, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
         self.legal_docs_path = Path(__file__).parent / "legal_docs"
 
     def test_connection(self):
@@ -67,7 +65,7 @@ class GraphDatabasePopulator:
             return []
 
         data = []
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 # Clean up whitespace
@@ -82,7 +80,7 @@ class GraphDatabasePopulator:
             try:
                 result = session.run("SHOW INDEXES")
                 for record in result:
-                    index_name = record.get('name')
+                    index_name = record.get("name")
                     if index_name:
                         try:
                             session.run(f"DROP INDEX {index_name}")
@@ -90,21 +88,21 @@ class GraphDatabasePopulator:
                             pass
             except:
                 pass
-            
+
             # Company constraints and indexes
             session.run("CREATE CONSTRAINT IF NOT EXISTS FOR (c:Company) REQUIRE c.id IS UNIQUE")
             session.run("CREATE CONSTRAINT IF NOT EXISTS FOR (c:Company) REQUIRE c.name IS UNIQUE")
-            
+
             # Person constraints and indexes (din = Director Identification Number)
             session.run("CREATE CONSTRAINT IF NOT EXISTS FOR (p:Person) REQUIRE p.din IS UNIQUE")
             session.run("CREATE CONSTRAINT IF NOT EXISTS FOR (p:Person) REQUIRE p.id IS UNIQUE")
-            
+
             # ShellEntity constraints and indexes
             session.run("CREATE CONSTRAINT IF NOT EXISTS FOR (s:ShellEntity) REQUIRE s.id IS UNIQUE")
-            
+
             # BankAccount constraints
             session.run("CREATE CONSTRAINT IF NOT EXISTS FOR (b:BankAccount) REQUIRE b.account_number IS UNIQUE")
-            
+
             # Create performance indexes
             session.run("CREATE INDEX IF NOT EXISTS FOR (c:Company) ON (c.name)")
             session.run("CREATE INDEX IF NOT EXISTS FOR (c:Company) ON (c.sector)")
@@ -117,7 +115,8 @@ class GraphDatabasePopulator:
         """Create Company nodes."""
         with self.driver.session() as session:
             for company in companies_data:
-                session.run("""
+                session.run(
+                    """
                     MERGE (c:Company {
                         id: $company_id,
                         name: $company_name,
@@ -126,7 +125,9 @@ class GraphDatabasePopulator:
                         listing_status: $listing_status,
                         country: $country
                     })
-                """, **company)
+                """,
+                    **company,
+                )
             print(f"Created {len(companies_data)} Company nodes")
 
     def create_directors_and_individuals(self, directors_data: List[Dict[str, Any]]):
@@ -134,7 +135,8 @@ class GraphDatabasePopulator:
         with self.driver.session() as session:
             for director in directors_data:
                 # Create Person node with DIN
-                session.run("""
+                session.run(
+                    """
                     MERGE (p:Person {
                         id: $director_id,
                         din: $director_id,
@@ -143,10 +145,13 @@ class GraphDatabasePopulator:
                         appointment_date: date($appointment_date),
                         designation: $designation
                     })
-                """, director)
+                """,
+                    director,
+                )
 
                 # Link Person to Company with DIRECTOR_OF relationship
-                session.run("""
+                session.run(
+                    """
                     MATCH (p:Person {id: $director_id})
                     MATCH (c:Company {id: $company_id})
                     MERGE (p)-[:DIRECTOR_OF {
@@ -154,7 +159,9 @@ class GraphDatabasePopulator:
                         appointment_date: date($appointment_date),
                         sector_category: $sector_category
                     }]->(c)
-                """, director)
+                """,
+                    director,
+                )
 
             print(f"Created {len(directors_data)} Person nodes and DIRECTOR_OF relationships")
 
@@ -162,10 +169,11 @@ class GraphDatabasePopulator:
         """Create ShellEntity nodes for offshore and shell entities."""
         with self.driver.session() as session:
             for trust in trusts_data:
-                entity_type = trust.get('entity_type', 'Shell Company').strip()
-                
+                entity_type = trust.get("entity_type", "Shell Company").strip()
+
                 # Create ShellEntity node - use SET for optional properties
-                session.run("""
+                session.run(
+                    """
                     MERGE (s:ShellEntity {
                         id: $entity_id,
                         name: $entity_name,
@@ -174,14 +182,16 @@ class GraphDatabasePopulator:
                     SET s.beneficial_owner = $beneficial_owner,
                         s.country = $country,
                         s.jurisdiction = $jurisdiction
-                """, {
-                    'entity_id': trust.get('entity_id'),
-                    'entity_name': trust.get('entity_name'),
-                    'entity_type': entity_type,
-                    'beneficial_owner': trust.get('beneficial_owner'),
-                    'country': trust.get('country'),
-                    'jurisdiction': trust.get('country')
-                })
+                """,
+                    {
+                        "entity_id": trust.get("entity_id"),
+                        "entity_name": trust.get("entity_name"),
+                        "entity_type": entity_type,
+                        "beneficial_owner": trust.get("beneficial_owner"),
+                        "country": trust.get("country"),
+                        "jurisdiction": trust.get("country"),
+                    },
+                )
 
             print(f"Created {len(trusts_data)} ShellEntity nodes")
 
@@ -189,19 +199,20 @@ class GraphDatabasePopulator:
         """Create OWNS relationships from shareholders to companies."""
         with self.driver.session() as session:
             for holding in shareholding_data:
-                shareholder_type = holding.get('shareholder_type', 'Company').strip()
-                
+                shareholder_type = holding.get("shareholder_type", "Company").strip()
+
                 # Map shareholder type to node label
-                if shareholder_type.lower() == 'company':
-                    from_type = 'Company'
-                elif shareholder_type.lower() == 'individual':
-                    from_type = 'Person'
-                elif shareholder_type.lower() in ['shell', 'offshore', 'offshore company']:
-                    from_type = 'ShellEntity'
+                if shareholder_type.lower() == "company":
+                    from_type = "Company"
+                elif shareholder_type.lower() == "individual":
+                    from_type = "Person"
+                elif shareholder_type.lower() in ["shell", "offshore", "offshore company"]:
+                    from_type = "ShellEntity"
                 else:
-                    from_type = 'Company'
-                
-                session.run(f"""
+                    from_type = "Company"
+
+                session.run(
+                    f"""
                     MATCH (from:{from_type} {{id: $shareholder_id}})
                     MATCH (to:Company {{id: $company_id}})
                     MERGE (from)-[:OWNS {{
@@ -209,7 +220,9 @@ class GraphDatabasePopulator:
                         holding_type: $holding_type,
                         as_of_date: date($as_of_date)
                     }}]->(to)
-                """, holding)
+                """,
+                    holding,
+                )
 
             print(f"Created {len(shareholding_data)} OWNS relationships")
 
@@ -218,16 +231,19 @@ class GraphDatabasePopulator:
         with self.driver.session() as session:
             for rel in relationships_data:
                 # Convert relationship type to valid Cypher identifier
-                rel_type = rel.get('relationship_type', 'SUBSIDIARY').upper().replace(' ', '_')
-                
-                session.run(f"""
+                rel_type = rel.get("relationship_type", "SUBSIDIARY").upper().replace(" ", "_")
+
+                session.run(
+                    f"""
                     MATCH (parent:Company {{id: $parent_company_id}})
                     MATCH (child:Company {{id: $child_company_id}})
                     MERGE (parent)-[:{rel_type} {{
                         percentage_ownership: toFloat($percentage_ownership),
                         relationship_date: date($relationship_date)
                     }}]->(child)
-                """, rel)
+                """,
+                    rel,
+                )
 
             print(f"Created {len(relationships_data)} company relationships")
 
@@ -236,9 +252,10 @@ class GraphDatabasePopulator:
         with self.driver.session() as session:
             for txn in transactions_data:
                 # Convert amount to integer (INR paise)
-                txn['amount_paise'] = int(float(txn['amount_paise']))
+                txn["amount_paise"] = int(float(txn["amount_paise"]))
 
-                session.run("""
+                session.run(
+                    """
                     MATCH (from:Company {id: $from_company_id})
                     MATCH (to:Company {id: $to_company_id})
                     MERGE (from)-[:TRANSACTS_WITH {
@@ -248,43 +265,44 @@ class GraphDatabasePopulator:
                         description: $description,
                         type: $transaction_type
                     }]->(to)
-                """, txn)
+                """,
+                    txn,
+                )
 
             print(f"Created {len(transactions_data)} transaction relationships")
 
     def _get_entity_type(self, entity_id: str) -> str:
         """Determine entity type from ID prefix."""
-        if entity_id.startswith('SHELL_') or entity_id.startswith('OFFSHORE_'):
-            return 'ShellEntity'
+        if entity_id.startswith("SHELL_") or entity_id.startswith("OFFSHORE_"):
+            return "ShellEntity"
         else:
-            return 'Company'
+            return "Company"
 
     def validate_circular_loops(self):
         """Find and report circular transaction loops."""
         with self.driver.session() as session:
-            result = session.run("""
+            result = session.run(
+                """
                 MATCH path = (c:Company)-[:TRANSACTS_WITH*3..5]-(c)
                 WHERE ALL(r IN relationships(path) WHERE r.amount > 10000000000)
                 RETURN path, length(path) as path_length,
                        reduce(total = 0, r IN relationships(path) | total + r.amount) as loop_total
                 LIMIT 10
-            """)
+            """
+            )
 
             loops = []
             for record in result:
-                path = record['path']
-                total_amount = record['loop_total']
-                companies = [node['name'] for node in path.nodes]
+                path = record["path"]
+                total_amount = record["loop_total"]
+                companies = [node["name"] for node in path.nodes]
 
-                loops.append({
-                    'path': companies,
-                    'total_amount': total_amount
-                })
+                loops.append({"path": companies, "total_amount": total_amount})
 
             if loops:
                 print(f"Found {len(loops)} potential circular loops:")
                 for loop in loops:
-                    amount_cr = loop['total_amount'] / 100_00_00_000
+                    amount_cr = loop["total_amount"] / 100_00_00_000
                     print(f"  {loop['path']} - ₹{amount_cr:.1f} Cr")
 
     def populate_all(self):
@@ -297,16 +315,18 @@ class GraphDatabasePopulator:
             return
 
         # Read all CSV data
-        companies = self.read_csv('companies.csv')
-        directors = self.read_csv('directors.csv')
-        trusts = self.read_csv('trusts_and_entities.csv')
-        shareholding = self.read_csv('shareholding_pattern.csv')
-        relationships = self.read_csv('company_relationships.csv')
-        transactions = self.read_csv('related_party_transactions.csv')
+        companies = self.read_csv("companies.csv")
+        directors = self.read_csv("directors.csv")
+        trusts = self.read_csv("trusts_and_entities.csv")
+        shareholding = self.read_csv("shareholding_pattern.csv")
+        relationships = self.read_csv("company_relationships.csv")
+        transactions = self.read_csv("related_party_transactions.csv")
 
-        print(f"Data loaded: {len(companies)} companies, {len(directors)} directors, "
-              f"{len(trusts)} trusts, {len(shareholding)} holdings, "
-              f"{len(relationships)} relationships, {len(transactions)} transactions")
+        print(
+            f"Data loaded: {len(companies)} companies, {len(directors)} directors, "
+            f"{len(trusts)} trusts, {len(shareholding)} holdings, "
+            f"{len(relationships)} relationships, {len(transactions)} transactions"
+        )
 
         # Create constraints
         self.create_constraints()
@@ -334,6 +354,7 @@ def main():
     except Exception as e:
         print(f"Error during population: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         populator.close()

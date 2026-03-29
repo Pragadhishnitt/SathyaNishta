@@ -23,6 +23,7 @@ SMTP_USER = os.getenv("SMTP_USER")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@sathyanishta.com")
 
+
 class EmailReportRequest(BaseModel):
     recipients: List[str]
     subject: Optional[str] = None
@@ -31,27 +32,24 @@ class EmailReportRequest(BaseModel):
     report_type: str = "investigation"  # investigation, brief, compare
 
     def validate_email(self, email: str) -> bool:
-        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
         return re.match(pattern, email) is not None
 
     def get_valid_recipients(self) -> List[str]:
         """Get only valid email addresses"""
         return [email for email in self.recipients if self.validate_email(email)]
 
+
 def send_investigation_report_email(
-    recipients: List[str], 
-    subject: str, 
-    message: str, 
-    investigation_data: dict,
-    report_type: str
+    recipients: List[str], subject: str, message: str, investigation_data: dict, report_type: str
 ):
     """Send investigation report email"""
     if not SMTP_USER or not SMTP_PASSWORD or "your-email" in SMTP_USER:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Email service not configured. Please set SMTP_USER and SMTP_PASSWORD environment variables."
+            detail="Email service not configured. Please set SMTP_USER and SMTP_PASSWORD environment variables.",
         )
-    
+
     # Generate HTML content based on report type
     if report_type == "investigation":
         html_content = generate_investigation_html(investigation_data, message)
@@ -61,40 +59,38 @@ def send_investigation_report_email(
         html_content = generate_compare_html(investigation_data, message)
     else:
         html_content = generate_default_html(investigation_data, message)
-    
+
     try:
         for recipient in recipients:
             msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
             msg["From"] = FROM_EMAIL
             msg["To"] = recipient
-            
+
             html_part = MIMEText(html_content, "html")
             msg.attach(html_part)
-            
+
             server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
             server.starttls()
             server.login(SMTP_USER, SMTP_PASSWORD)
             server.send_message(msg)
             server.quit()
-            
+
     except Exception as e:
         print(f"Failed to send email to {recipient}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send email"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send email")
+
 
 def generate_investigation_html(data: dict, custom_message: str) -> str:
     """Generate HTML for investigation report"""
-    synthesis = data.get('synthesis', {})
-    evidence = data.get('evidence', [])
-    risk_score = synthesis.get('risk_score', 0)
-    company_name = synthesis.get('company_name', 'Unknown Company')
-    
-    risk_color = '#ef4444' if risk_score >= 70 else '#f59e0b' if risk_score >= 40 else '#10b981'
-    risk_level = 'High Risk' if risk_score >= 70 else 'Medium Risk' if risk_score >= 40 else 'Low Risk'
-    
+    synthesis = data.get("synthesis", {})
+    evidence = data.get("evidence", [])
+    risk_score = synthesis.get("risk_score", 0)
+    company_name = synthesis.get("company_name", "Unknown Company")
+
+    risk_color = "#ef4444" if risk_score >= 70 else "#f59e0b" if risk_score >= 40 else "#10b981"
+    risk_level = "High Risk" if risk_score >= 70 else "Medium Risk" if risk_score >= 40 else "Low Risk"
+
     evidence_html = ""
     for item in evidence[:5]:  # Show top 5 evidence items
         evidence_html += f"""
@@ -103,19 +99,19 @@ def generate_investigation_html(data: dict, custom_message: str) -> str:
             <p style="margin: 0; color: #6b7280; font-size: 12px;">{item.get('source', 'Unknown source')}</p>
         </div>
         """
-    
+
     summary_html = ""
-    if synthesis.get('summary'):
+    if synthesis.get("summary"):
         summary_html = f"""
         <div class="section">
             <h3 style="color: #1f2937; margin-bottom: 12px;">\U0001F4DD Executive Summary</h3>
             <p style="color: #4b5563; line-height: 1.6;">{synthesis['summary']}</p>
         </div>
         """
-    
+
     recommendations_html = ""
-    if synthesis.get('recommendations'):
-        recs_list = "".join([f"<li>{rec}</li>" for rec in synthesis['recommendations']])
+    if synthesis.get("recommendations"):
+        recs_list = "".join([f"<li>{rec}</li>" for rec in synthesis["recommendations"]])
         recommendations_html = f"""
         <div class="section">
             <h3 style="color: #1f2937; margin-bottom: 12px;">\U0001F4A1 Recommendations</h3>
@@ -124,7 +120,7 @@ def generate_investigation_html(data: dict, custom_message: str) -> str:
             </ul>
         </div>
         """
-    
+
     custom_message_html = ""
     if custom_message:
         custom_message_html = f"""
@@ -132,7 +128,7 @@ def generate_investigation_html(data: dict, custom_message: str) -> str:
             <p style="margin: 0;"><strong>Message from sender:</strong> {custom_message}</p>
         </div>
         """
-    
+
     return f"""
     <!DOCTYPE html>
     <html>
@@ -186,6 +182,7 @@ def generate_investigation_html(data: dict, custom_message: str) -> str:
     </html>
     """
 
+
 def generate_brief_html(data: dict, custom_message: str) -> str:
     """Generate HTML for market brief"""
     return f"""
@@ -221,6 +218,7 @@ def generate_brief_html(data: dict, custom_message: str) -> str:
     </body>
     </html>
     """
+
 
 def generate_compare_html(data: dict, custom_message: str) -> str:
     """Generate HTML for comparison report"""
@@ -258,6 +256,7 @@ def generate_compare_html(data: dict, custom_message: str) -> str:
     </html>
     """
 
+
 def generate_default_html(data: dict, custom_message: str) -> str:
     """Generate default HTML for other report types"""
     return f"""
@@ -294,55 +293,43 @@ def generate_default_html(data: dict, custom_message: str) -> str:
     </html>
     """
 
+
 @router.post("/send-report")
-async def send_report_email(
-    request: EmailReportRequest,
-    http_request: Request = None
-):
+async def send_report_email(request: EmailReportRequest, http_request: Request = None):
     """Send investigation report via email"""
     # Rate limit by client IP instead of user email (auth removed for demo)
     client_ip = http_request.client.host if http_request and http_request.client else "unknown"
     check_rate_limit(email_limiter, client_ip, "Too many email requests. Please try again later.")
-    
+
     if not request.recipients:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="At least one recipient is required"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="At least one recipient is required")
+
     # Validate and filter recipients
     valid_recipients = request.get_valid_recipients()
     if len(valid_recipients) == 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No valid email addresses provided"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No valid email addresses provided")
+
     if len(valid_recipients) > 10:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Maximum 10 recipients allowed"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Maximum 10 recipients allowed")
+
     # Generate subject if not provided
     subject = request.subject or "Sathya Nishta Investigation Report"
-    
+
     try:
         send_investigation_report_email(
             recipients=valid_recipients,
             subject=subject,
             message=request.message or "",
             investigation_data=request.investigation_data,
-            report_type=request.report_type
+            report_type=request.report_type,
         )
-        
+
         return {
             "message": f"Report successfully sent to {len(valid_recipients)} recipient(s)",
-            "recipients": valid_recipients
+            "recipients": valid_recipients,
         }
-        
+
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send email. Please try again later."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send email. Please try again later."
         )

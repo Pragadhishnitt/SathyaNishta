@@ -7,6 +7,7 @@ from app.shared.llm_portkey import PortkeyLLMError, chat_complete
 
 router = APIRouter()
 
+
 @router.get("/health")
 async def health_check():
     return {"status": "ok"}

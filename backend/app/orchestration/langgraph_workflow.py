@@ -42,17 +42,15 @@ def _supervisor_node(state: InvestigationState) -> Dict[str, Any]:
     one. Returns ``next_agent = "synthesis"`` once all required agents are done.
     """
     mode = state.get("mode", "standard")
-    sequence = (
-        SATHYANISHTA_SEQUENCE if mode == "sathyanishta" else STANDARD_SEQUENCE
-    )
+    sequence = SATHYANISHTA_SEQUENCE if mode == "sathyanishta" else STANDARD_SEQUENCE
 
     # Map of agent name → state key that proves it ran
     done_keys = {
-        "financial":  "financial_findings",
-        "graph":      "graph_findings",
+        "financial": "financial_findings",
+        "graph": "graph_findings",
         "compliance": "compliance_findings",
-        "audio":      "audio_findings",
-        "news":       "news_findings",
+        "audio": "audio_findings",
+        "news": "news_findings",
         "reflection": "reflection_passed",
     }
 
@@ -96,15 +94,19 @@ def build_investigation_graph():
     graph.add_edge(START, "supervisor")
 
     # Supervisor routes conditionally
-    graph.add_conditional_edges("supervisor", _route_next, {
-        "financial":  "financial",
-        "graph":      "graph",
-        "compliance": "compliance",
-        "audio":      "audio",
-        "news":       "news",
-        "reflection": "reflection",
-        "synthesis":  "synthesis",
-    })
+    graph.add_conditional_edges(
+        "supervisor",
+        _route_next,
+        {
+            "financial": "financial",
+            "graph": "graph",
+            "compliance": "compliance",
+            "audio": "audio",
+            "news": "news",
+            "reflection": "reflection",
+            "synthesis": "synthesis",
+        },
+    )
 
     # Each agent loops back to supervisor
     for agent in ["financial", "graph", "compliance", "audio", "news", "reflection"]:

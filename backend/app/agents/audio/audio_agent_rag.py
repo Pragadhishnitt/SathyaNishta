@@ -68,57 +68,51 @@ class AudioAgent(BaseAgent):
     # RAG Helper Methods
     # =====================================================================
 
-    @retry(
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        stop=stop_after_attempt(3),
-        reraise=True
-    )
+    @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3), reraise=True)
     def _retrieve_audio_documents(self, company: str, query: str, top_k: int = 3) -> List[Dict]:
         """Retrieve most relevant audio transcripts using semantic search"""
         try:
             if not self.engine:
                 self.logger.error("Database engine not initialized")
                 return []
-            
+
             # Import Cohere for embedding the query
             import cohere
             from dotenv import load_dotenv
             import os
-            
+
             load_dotenv()
             cohere_api_key = os.getenv("COHERE_API_KEY")
             if not cohere_api_key:
                 self.logger.error("COHERE_API_KEY not found")
                 return []
-            
+
             cohere_client = cohere.Client(cohere_api_key)
-            
+
             # Generate embedding for query
-            response = cohere_client.embed(
-                texts=[query],
-                model="embed-english-v3.0",
-                input_type="search_query"
-            )
+            response = cohere_client.embed(texts=[query], model="embed-english-v3.0", input_type="search_query")
             query_embedding = response.embeddings[0]
             query_embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
-            
+
             with self.engine.connect() as connection:
                 # Try simple name-based search first (more reliable)
                 self.logger.debug(f"Searching for company: {company}")
-                
-                results = connection.execute(text("""
+
+                results = connection.execute(
+                    text(
+                        """
                     SELECT id, company_name, company_code, transcript_date, 
                            content_chunk, chunk_number, metadata, 0.8 as similarity
                     FROM audio_transcriptions
                     WHERE company_name ILIKE :company_name
                     LIMIT :top_k
-                """), {
-                    "company_name": f"%{company}%",
-                    "top_k": top_k
-                }).fetchall()
-                
+                """
+                    ),
+                    {"company_name": f"%{company}%", "top_k": top_k},
+                ).fetchall()
+
                 self.logger.debug(f"Query returned {len(results) if results else 0} results for {company}")
-                
+
                 documents = []
                 for row in results:
                     # Handle metadata field - might be dict or JSON string
@@ -127,30 +121,28 @@ class AudioAgent(BaseAgent):
                         metadata = json.loads(metadata) if metadata else {}
                     elif metadata is None:
                         metadata = {}
-                    
-                    documents.append({
-                        "id": row[0],
-                        "company_name": row[1],
-                        "company_code": row[2],
-                        "transcript_date": row[3],
-                        "content": row[4],
-                        "chunk_number": row[5],
-                        "metadata": metadata,
-                        "similarity": float(row[7]) if row[7] else 0.0
-                    })
-                
+
+                    documents.append(
+                        {
+                            "id": row[0],
+                            "company_name": row[1],
+                            "company_code": row[2],
+                            "transcript_date": row[3],
+                            "content": row[4],
+                            "chunk_number": row[5],
+                            "metadata": metadata,
+                            "similarity": float(row[7]) if row[7] else 0.0,
+                        }
+                    )
+
                 self.logger.info(f"Retrieved {len(documents)} audio documents for {company}")
                 return documents
-        
+
         except Exception as e:
             self.logger.error(f"Error retrieving documents: {e}")
             return []
 
-    @retry(
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        stop=stop_after_attempt(3),
-        reraise=True
-    )
+    @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3), reraise=True)
     def _analyze_with_llm(self, transcript_content: str, analysis_type: str) -> Dict[str, Any]:
         """Analyze audio transcript content using Portkey LLM"""
         if not self.llm_client:
@@ -160,7 +152,7 @@ class AudioAgent(BaseAgent):
                 "tone_indicators": [],
                 "sentiment": "unknown",
                 "deception_markers": [],
-                "recommendations": []
+                "recommendations": [],
             }
 
         # Prepare analysis prompt based on analysis type
@@ -209,19 +201,19 @@ Respond with ONLY valid JSON:
                 model="gpt-4-turbo",
                 messages=[
                     {"role": "system", "content": "You are a financial analyst. Respond only with valid JSON."},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
                 max_tokens=3000,
-                temperature=0.3
+                temperature=0.3,
             )
-            
+
             analysis_text = response.choices[0].message.content.strip()
-            
+
             # Multi-stage JSON parsing with fallback
             analysis_json = self._parse_json_response(analysis_text)
-            
+
             return analysis_json
-        
+
         except Exception as e:
             self.logger.error(f"LLM analysis error: {e}")
             return {"summary": f"Analysis error: {str(e)}", "error": True}
@@ -233,61 +225,61 @@ Respond with ONLY valid JSON:
             return json.loads(response_text)
         except json.JSONDecodeError:
             pass
-        
+
         # Try 2: Manual newline escaping in quoted strings
         try:
             fixed_text = ""
             in_string = False
             for i, char in enumerate(response_text):
-                if char == '"' and (i == 0 or response_text[i-1] != '\\'):
+                if char == '"' and (i == 0 or response_text[i - 1] != "\\"):
                     in_string = not in_string
-                elif in_string and char == '\n':
-                    fixed_text += '\\n'
+                elif in_string and char == "\n":
+                    fixed_text += "\\n"
                 else:
                     fixed_text += char
             return json.loads(fixed_text)
         except json.JSONDecodeError:
             pass
-        
+
         # Try 3: One-line replacement
         try:
-            one_line = response_text.replace('\n', ' ').replace('\r', ' ')
-            one_line = re.sub(r'\s+', ' ', one_line)
+            one_line = response_text.replace("\n", " ").replace("\r", " ")
+            one_line = re.sub(r"\s+", " ", one_line)
             return json.loads(one_line)
         except json.JSONDecodeError:
             pass
-        
+
         # Try 4: Lenient regex-based extraction
         return self._extract_fields_leniently(response_text)
 
     def _extract_fields_leniently(self, text: str) -> Dict[str, Any]:
         """Extract fields from partially broken JSON using regex"""
         result = {}
-        
+
         # Extract summary field
         summary_match = re.search(r'"summary"\s*:\s*"([^"]*(?:\\.[^"]*)*)"', text)
         if summary_match:
-            result['summary'] = summary_match.group(1).replace('\\"', '"')
-        
+            result["summary"] = summary_match.group(1).replace('\\"', '"')
+
         # Extract arrays using improved method
-        result['tone_indicators'] = self._extract_array_field(text, 'tone_indicators')
-        result['deception_markers'] = self._extract_array_field(text, 'deception_markers')
-        result['key_points'] = self._extract_array_field(text, 'key_points')
-        result['recommendations'] = self._extract_array_field(text, 'recommendations')
-        
+        result["tone_indicators"] = self._extract_array_field(text, "tone_indicators")
+        result["deception_markers"] = self._extract_array_field(text, "deception_markers")
+        result["key_points"] = self._extract_array_field(text, "key_points")
+        result["recommendations"] = self._extract_array_field(text, "recommendations")
+
         # Extract sentiment/likely fields
         sentiment_match = re.search(r'"sentiment"\s*:\s*"([^"]+)"', text)
         if sentiment_match:
-            result['sentiment'] = sentiment_match.group(1)
-        
+            result["sentiment"] = sentiment_match.group(1)
+
         likelihood_match = re.search(r'"likelihood"\s*:\s*"([^"]+)"', text)
         if likelihood_match:
-            result['likelihood'] = likelihood_match.group(1)
-        
+            result["likelihood"] = likelihood_match.group(1)
+
         health_match = re.search(r'"financial_health_assessment"\s*:\s*"([^"]+)"', text)
         if health_match:
-            result['financial_health_assessment'] = health_match.group(1)
-        
+            result["financial_health_assessment"] = health_match.group(1)
+
         return result if result else {"summary": "Unable to parse analysis response", "error": True}
 
     def _extract_array_field(self, text: str, field_name: str) -> List[str]:
@@ -295,35 +287,35 @@ Respond with ONLY valid JSON:
         # Find the field and its array value
         pattern = rf'"{field_name}"\s*:\s*\['
         match = re.search(pattern, text)
-        
+
         if not match:
             return []
-        
+
         start_idx = match.end()
-        
+
         # Find matching closing bracket
         bracket_count = 1
         in_string = False
         end_idx = start_idx
-        
+
         for i in range(start_idx, len(text)):
             char = text[i]
-            
-            if char == '"' and (i == 0 or text[i-1] != '\\'):
+
+            if char == '"' and (i == 0 or text[i - 1] != "\\"):
                 in_string = not in_string
             elif not in_string:
-                if char == '[':
+                if char == "[":
                     bracket_count += 1
-                elif char == ']':
+                elif char == "]":
                     bracket_count -= 1
                     if bracket_count == 0:
                         end_idx = i
                         break
-        
+
         array_str = text[start_idx:end_idx]
         items = re.findall(r'"([^"]*(?:\\.[^"]*)*)"', array_str)
-        
-        return [item.replace('\\"', '"').replace('\\n', '\n') for item in items if item.strip()]
+
+        return [item.replace('\\"', '"').replace("\\n", "\n") for item in items if item.strip()]
 
     # =====================================================================
     # Audio Tool Implementations
@@ -331,7 +323,7 @@ Respond with ONLY valid JSON:
 
     def analyze_audio_tone(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze tone and sentiment from company audio transcripts
-        
+
         Args:
             params:
                 company: Company name (e.g., "State Bank of India")
@@ -339,48 +331,50 @@ Respond with ONLY valid JSON:
         """
         company = params.get("company")
         query = params.get("query", "overall tone and sentiment")
-        
+
         if not company:
             return {"error": "Company name required", "status": "failed"}
-        
+
         try:
             # Step 1: Retrieve relevant audio documents
             documents = self._retrieve_audio_documents(company, query, top_k=3)
-            
+
             if not documents:
                 return {
                     "company": company,
                     "query": query,
                     "found_documents": 0,
                     "error": f"No audio transcripts found for {company}",
-                    "status": "no_data"
+                    "status": "no_data",
                 }
-            
+
             # Step 2: Combine documents for analysis
-            combined_content = "\n\n".join([
-                f"[{doc['chunk_number']}/{doc.get('metadata', {}).get('total_chunks', '?')}] {doc['content']}"
-                for doc in documents
-            ])
-            
+            combined_content = "\n\n".join(
+                [
+                    f"[{doc['chunk_number']}/{doc.get('metadata', {}).get('total_chunks', '?')}] {doc['content']}"
+                    for doc in documents
+                ]
+            )
+
             # Step 3: Analyze with LLM
             analysis = self._analyze_with_llm(combined_content, "tone")
-            
+
             return {
                 "company": company,
                 "query": query,
                 "found_documents": len(documents),
-                "document_similarity": [d['similarity'] for d in documents],
+                "document_similarity": [d["similarity"] for d in documents],
                 "analysis": analysis,
-                "status": "success"
+                "status": "success",
             }
-        
+
         except Exception as e:
             self.logger.error(f"Error in analyze_audio_tone: {e}")
             return {"error": str(e), "status": "failed"}
 
     def detect_deception_markers(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Detect potential deception markers in audio transcripts
-        
+
         Args:
             params:
                 company: Company name (e.g., "State Bank of India")
@@ -388,48 +382,50 @@ Respond with ONLY valid JSON:
         """
         company = params.get("company")
         focus = params.get("focus", "overall content")
-        
+
         if not company:
             return {"error": "Company name required", "status": "failed"}
-        
+
         try:
             # Step 1: Retrieve relevant audio documents
             documents = self._retrieve_audio_documents(company, f"deception markers {focus}", top_k=3)
-            
+
             if not documents:
                 return {
                     "company": company,
                     "focus": focus,
                     "found_documents": 0,
                     "error": f"No audio transcripts found for {company}",
-                    "status": "no_data"
+                    "status": "no_data",
                 }
-            
+
             # Step 2: Combine documents for analysis
-            combined_content = "\n\n".join([
-                f"[{doc['chunk_number']}/{doc.get('metadata', {}).get('total_chunks', '?')}] {doc['content']}"
-                for doc in documents
-            ])
-            
+            combined_content = "\n\n".join(
+                [
+                    f"[{doc['chunk_number']}/{doc.get('metadata', {}).get('total_chunks', '?')}] {doc['content']}"
+                    for doc in documents
+                ]
+            )
+
             # Step 3: Analyze with LLM for deception markers
             analysis = self._analyze_with_llm(combined_content, "deception")
-            
+
             return {
                 "company": company,
                 "focus": focus,
                 "found_documents": len(documents),
-                "document_similarity": [d['similarity'] for d in documents],
+                "document_similarity": [d["similarity"] for d in documents],
                 "analysis": analysis,
-                "status": "success"
+                "status": "success",
             }
-        
+
         except Exception as e:
             self.logger.error(f"Error in detect_deception_markers: {e}")
             return {"error": str(e), "status": "failed"}
 
     def analyze_transcript_content(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze transcript content for financial/business insights using RAG+LLM
-        
+
         Args:
             params:
                 company: Company name (e.g., "State Bank of India")
@@ -437,50 +433,48 @@ Respond with ONLY valid JSON:
         """
         company = params.get("company")
         topic = params.get("topic", "financial performance and business health")
-        
+
         if not company:
             return {"error": "Company name required", "status": "failed"}
-        
+
         try:
             # Step 1: Retrieve relevant audio documents
             documents = self._retrieve_audio_documents(company, topic, top_k=3)
-            
+
             if not documents:
                 return {
                     "company": company,
                     "topic": topic,
                     "found_documents": 0,
                     "error": f"No audio transcripts found for {company}",
-                    "status": "no_data"
+                    "status": "no_data",
                 }
-            
+
             # Step 2: Combine documents for analysis
-            combined_content = "\n\n".join([
-                f"[{doc['chunk_number']}/{doc.get('metadata', {}).get('total_chunks', '?')}] {doc['content']}"
-                for doc in documents
-            ])
-            
+            combined_content = "\n\n".join(
+                [
+                    f"[{doc['chunk_number']}/{doc.get('metadata', {}).get('total_chunks', '?')}] {doc['content']}"
+                    for doc in documents
+                ]
+            )
+
             # Step 3: Analyze with LLM
             analysis = self._analyze_with_llm(combined_content, "content")
-            
+
             return {
                 "company": company,
                 "topic": topic,
                 "found_documents": len(documents),
-                "document_similarity": [d['similarity'] for d in documents],
+                "document_similarity": [d["similarity"] for d in documents],
                 "analysis": analysis,
-                "status": "success"
+                "status": "success",
             }
-        
+
         except Exception as e:
             self.logger.error(f"Error in analyze_transcript_content: {e}")
             return {"error": str(e), "status": "failed"}
 
-    @retry(
-        wait=wait_exponential(multiplier=1, min=1, max=5),
-        stop=stop_after_attempt(3),
-        reraise=True
-    )
+    @retry(wait=wait_exponential(multiplier=1, min=1, max=5), stop=stop_after_attempt(3), reraise=True)
     def detect_deception_markers_with_timestamps(self, company: str) -> Dict[str, Any]:
         """
         Detect deception markers and enrich with timeline percentages for frontend heatmap.
@@ -492,13 +486,18 @@ Respond with ONLY valid JSON:
 
         try:
             with self.engine.connect() as connection:
-                rows = connection.execute(text("""
+                rows = connection.execute(
+                    text(
+                        """
                     SELECT chunk_number, content_chunk, metadata
                     FROM audio_transcriptions
                     WHERE company_name ILIKE :company_name
                     ORDER BY chunk_number ASC
                     LIMIT 30
-                """), {"company_name": f"%{company}%"}).fetchall()
+                """
+                    ),
+                    {"company_name": f"%{company}%"},
+                ).fetchall()
 
             chunks: List[Dict[str, Any]] = []
             for row in rows:
@@ -510,13 +509,15 @@ Respond with ONLY valid JSON:
                         metadata = {}
                 if metadata is None:
                     metadata = {}
-                chunks.append({
-                    "chunk_index": int(row[0] or 0),
-                    "transcript_text": row[1] or "",
-                    "start_time": float(metadata.get("start_time", metadata.get("start", 0)) or 0),
-                    "end_time": float(metadata.get("end_time", metadata.get("end", 0)) or 0),
-                    "duration_total": float(metadata.get("duration_total", metadata.get("total_duration", 0)) or 0),
-                })
+                chunks.append(
+                    {
+                        "chunk_index": int(row[0] or 0),
+                        "transcript_text": row[1] or "",
+                        "start_time": float(metadata.get("start_time", metadata.get("start", 0)) or 0),
+                        "end_time": float(metadata.get("end_time", metadata.get("end", 0)) or 0),
+                        "duration_total": float(metadata.get("duration_total", metadata.get("total_duration", 0)) or 0),
+                    }
+                )
 
             if not chunks:
                 return {"status": "no_data", "markers": []}
@@ -530,10 +531,12 @@ Respond with ONLY valid JSON:
                     c["duration_total"] = inferred_total
 
             total_duration = chunks[-1].get("duration_total") or chunks[-1].get("end_time") or 1
-            chunk_texts = "\n".join([
-                f"[CHUNK {c['chunk_index']} | {c['start_time']}s-{c['end_time']}s]: {c['transcript_text'][:300]}"
-                for c in chunks
-            ])
+            chunk_texts = "\n".join(
+                [
+                    f"[CHUNK {c['chunk_index']} | {c['start_time']}s-{c['end_time']}s]: {c['transcript_text'][:300]}"
+                    for c in chunks
+                ]
+            )
 
             prompt = f"""Analyze this earnings call transcript for deception markers.
 For each marker found, return the CHUNK INDEX where it occurs.
@@ -578,17 +581,19 @@ Return JSON only:
                 chunk = chunk_map.get(idx, chunks[0])
                 start_pct = (chunk.get("start_time", 0) / total_duration) if total_duration else 0
                 end_pct = (chunk.get("end_time", 0) / total_duration) if total_duration else start_pct
-                enriched_markers.append({
-                    "chunk_index": idx,
-                    "marker_type": marker.get("marker_type", "deception"),
-                    "quote": marker.get("quote", ""),
-                    "severity": marker.get("severity", "medium"),
-                    "explanation": marker.get("explanation", ""),
-                    "start_pct": round(max(0.0, min(1.0, start_pct)), 4),
-                    "end_pct": round(max(0.0, min(1.0, end_pct)), 4),
-                    "start_time_s": chunk.get("start_time", 0),
-                    "end_time_s": chunk.get("end_time", 0),
-                })
+                enriched_markers.append(
+                    {
+                        "chunk_index": idx,
+                        "marker_type": marker.get("marker_type", "deception"),
+                        "quote": marker.get("quote", ""),
+                        "severity": marker.get("severity", "medium"),
+                        "explanation": marker.get("explanation", ""),
+                        "start_pct": round(max(0.0, min(1.0, start_pct)), 4),
+                        "end_pct": round(max(0.0, min(1.0, end_pct)), 4),
+                        "start_time_s": chunk.get("start_time", 0),
+                        "end_time_s": chunk.get("end_time", 0),
+                    }
+                )
 
             return {
                 "status": "success",

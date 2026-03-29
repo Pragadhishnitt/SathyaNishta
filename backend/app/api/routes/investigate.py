@@ -50,34 +50,70 @@ def _extract_company_name(query: str) -> str:
         if match:
             name = match.group(1).strip()
             # Clean up trailing words
-            name = re.sub(r"\s+(circular|fraud|trading|financial|irregularities|violations|compliance).*$", "", name, flags=re.IGNORECASE)
+            name = re.sub(
+                r"\s+(circular|fraud|trading|financial|irregularities|violations|compliance).*$",
+                "",
+                name,
+                flags=re.IGNORECASE,
+            )
             if name and len(name) > 1:
                 return name
-    
+
     # Fallback: look for capitalized words that look like company names
     words = query.split()
-    capitalized = [w for w in words if w[0].isupper() and w.lower() not in {
-        "investigate", "analyze", "check", "for", "the", "and", "in", "of",
-        "about", "tell", "me", "what", "how", "is", "are", "do", "does",
-    }]
+    capitalized = [
+        w
+        for w in words
+        if w[0].isupper()
+        and w.lower()
+        not in {
+            "investigate",
+            "analyze",
+            "check",
+            "for",
+            "the",
+            "and",
+            "in",
+            "of",
+            "about",
+            "tell",
+            "me",
+            "what",
+            "how",
+            "is",
+            "are",
+            "do",
+            "does",
+        }
+    ]
     if capitalized:
         return " ".join(capitalized)
-    
+
     # Additional fallback: common company names and variations
     common_companies = [
-        "Apple", "Apple Inc", "AAPL", "Apple Inc.",
-        "Reliance", "Reliance Industries", "RELIAN",
-        "SBI", "State Bank of India", 
-        "Wipro", "WIPRO",
-        "Infosys", "INFOSY",
-        "Hindustan Unilever", "HUL", "HindustanUnilever"
+        "Apple",
+        "Apple Inc",
+        "AAPL",
+        "Apple Inc.",
+        "Reliance",
+        "Reliance Industries",
+        "RELIAN",
+        "SBI",
+        "State Bank of India",
+        "Wipro",
+        "WIPRO",
+        "Infosys",
+        "INFOSY",
+        "Hindustan Unilever",
+        "HUL",
+        "HindustanUnilever",
     ]
-    
+
     # Check if any common company name is in the query
     for company in common_companies:
         if company.lower() in query.lower():
             return company
-    
+
     return "Unknown Company"
 
 
@@ -95,11 +131,13 @@ async def start_investigation(req: InvestigationRequest):
     try:
         with Session(engine) as session:
             session.execute(
-                text("""
+                text(
+                    """
                     INSERT INTO investigations (id, query, status, created_at, updated_at)
                     VALUES (:id, :query, 'running', NOW(), NOW())
-                """),
-                {"id": inv_id, "query": req.query}
+                """
+                ),
+                {"id": inv_id, "query": req.query},
             )
             session.commit()
     except Exception as e:
@@ -153,10 +191,12 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
                 # Emit agent_start for the next agent being routed to
                 next_agent = node_data.get("next_agent", "")
                 if next_agent and next_agent in agent_names and next_agent != "synthesis":
-                    await q.put({
-                        "event": "agent_start",
-                        "data": {"agent": next_agent, "timestamp": f"T+{node_data.get('iteration_count', 0)}s"},
-                    })
+                    await q.put(
+                        {
+                            "event": "agent_start",
+                            "data": {"agent": next_agent, "timestamp": f"T+{node_data.get('iteration_count', 0)}s"},
+                        }
+                    )
 
             elif node_name in ("financial", "graph", "compliance", "audio", "news"):
                 # Agent completed — emit agent_done with findings
@@ -186,24 +226,30 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
                         }
                         for m in timeline
                     ]
-                    event_payload["audio_timeline_total_duration_s"] = node_data.get("audio_timeline_total_duration_s", 0)
+                    event_payload["audio_timeline_total_duration_s"] = node_data.get(
+                        "audio_timeline_total_duration_s", 0
+                    )
 
-                await q.put({
-                    "event": "agent_done",
-                    "data": event_payload,
-                })
+                await q.put(
+                    {
+                        "event": "agent_done",
+                        "data": event_payload,
+                    }
+                )
 
             elif node_name == "reflection":
                 # Reflection results treated as an agent so UI renders it
-                await q.put({
-                    "event": "agent_done",
-                    "data": {
-                        "agent": "reflection",
-                        "risk_score": None,  # Don't show delta as absolute score
-                        "findings": [node_data.get("reflection_notes", "")],
-                        "evidence_map": {"passed": "Yes" if node_data.get("reflection_passed") else "No"},
-                    },
-                })
+                await q.put(
+                    {
+                        "event": "agent_done",
+                        "data": {
+                            "agent": "reflection",
+                            "risk_score": None,  # Don't show delta as absolute score
+                            "findings": [node_data.get("reflection_notes", "")],
+                            "evidence_map": {"passed": "Yes" if node_data.get("reflection_passed") else "No"},
+                        },
+                    }
+                )
 
             elif node_name == "synthesis":
                 # Final synthesis
@@ -248,7 +294,8 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
         try:
             with Session(engine) as session:
                 session.execute(
-                    text("""
+                    text(
+                        """
                         UPDATE investigations 
                         SET status = 'completed', 
                             fraud_risk_score = :score, 
@@ -256,25 +303,21 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
                             updated_at = NOW(),
                             completed_at = NOW() 
                         WHERE id = :id
-                    """),
-                    {
-                        "id": inv_id,
-                        "score": synthesis_data["fraud_risk_score"],
-                        "verdict": synthesis_data["verdict"]
-                    }
+                    """
+                    ),
+                    {"id": inv_id, "score": synthesis_data["fraud_risk_score"], "verdict": synthesis_data["verdict"]},
                 )
                 session.commit()
 
             with Session(engine) as session:
                 session.execute(
-                    text("""
+                    text(
+                        """
                         INSERT INTO audit_trails (investigation_id, step_type, timestamp, output_payload)
                         VALUES (:inv_id, 'synthesis', NOW(), :output)
-                    """),
-                    {
-                        "inv_id": inv_id,
-                        "output": json.dumps(synthesis_data)
-                    }
+                    """
+                    ),
+                    {"inv_id": inv_id, "output": json.dumps(synthesis_data)},
                 )
                 session.commit()
         except Exception as e:
@@ -282,19 +325,18 @@ async def _run_investigation(inv_id: str, company: str, query: str, mode: str):
 
     except Exception as e:
         _logger.error(f"[{inv_id}] Investigation failed: {e}")
-        await q.put({
-            "event": "error",
-            "data": {"message": str(e)[:200]},
-        })
+        await q.put(
+            {
+                "event": "error",
+                "data": {"message": str(e)[:200]},
+            }
+        )
         await q.put({"event": "complete", "data": {"investigation_id": inv_id}})
-        
+
         # Mark failed in DB
         try:
             with Session(engine) as session:
-                session.execute(
-                    text("UPDATE investigations SET status = 'failed' WHERE id = :id"),
-                    {"id": inv_id}
-                )
+                session.execute(text("UPDATE investigations SET status = 'failed' WHERE id = :id"), {"id": inv_id})
                 session.commit()
         except Exception as db_e:
             _logger.error(f"Failed to update failed investigation in DB: {db_e}")
@@ -315,7 +357,7 @@ async def stream_investigation(inv_id: str):
                 try:
                     item = await asyncio.wait_for(q.get(), timeout=300)
                 except asyncio.TimeoutError:
-                    yield "event: error\ndata: {\"message\": \"Investigation timed out\"}\n\n"
+                    yield 'event: error\ndata: {"message": "Investigation timed out"}\n\n'
                     break
 
                 yield f"event: {item['event']}\ndata: {json.dumps(item['data'])}\n\n"
@@ -342,32 +384,37 @@ async def get_investigation(inv_id: str):
     """Get the final result of a completed investigation."""
     if inv_id in _results:
         return _results[inv_id]
-        
+
     try:
         with Session(engine) as session:
             inv = session.execute(
-                text("SELECT id, query, status FROM investigations WHERE id = :id"),
-                {"id": inv_id}
+                text("SELECT id, query, status FROM investigations WHERE id = :id"), {"id": inv_id}
             ).fetchone()
-            
+
             if not inv:
                 raise HTTPException(status_code=404, detail="Investigation not found")
-                
+
             if inv.status == "completed":
                 audit = session.execute(
-                    text("SELECT output_payload FROM audit_trails WHERE investigation_id = :id AND step_type = 'synthesis' ORDER BY timestamp DESC LIMIT 1"),
-                    {"id": inv_id}
+                    text(
+                        "SELECT output_payload FROM audit_trails WHERE investigation_id = :id AND step_type = 'synthesis' ORDER BY timestamp DESC LIMIT 1"
+                    ),
+                    {"id": inv_id},
                 ).fetchone()
-                
+
                 if audit and audit.output_payload:
-                    payload = json.loads(audit.output_payload) if isinstance(audit.output_payload, str) else audit.output_payload
+                    payload = (
+                        json.loads(audit.output_payload)
+                        if isinstance(audit.output_payload, str)
+                        else audit.output_payload
+                    )
                     payload["investigation_id"] = inv_id
                     _results[inv_id] = payload
                     return payload
-                    
+
     except HTTPException:
         raise
     except Exception as e:
         _logger.error(f"Failed to fetch investigation {inv_id} from DB: {e}")
-        
+
     raise HTTPException(status_code=404, detail="Investigation not found or still running")

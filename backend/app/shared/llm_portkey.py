@@ -53,11 +53,7 @@ def get_portkey_client():
     return Portkey(**kwargs)
 
 
-@retry(
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    stop=stop_after_attempt(3),
-    reraise=True
-)
+@retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3), reraise=True)
 def chat_complete(
     *,
     user_prompt: str,
@@ -99,11 +95,7 @@ def chat_complete(
         content = response.choices[0].message.content
     except Exception:
         # Fallback if response is dict-like
-        content = (
-            (response.get("choices") or [{}])[0]
-            .get("message", {})
-            .get("content")
-        )
+        content = (response.get("choices") or [{}])[0].get("message", {}).get("content")
 
     return {
         "content": content,

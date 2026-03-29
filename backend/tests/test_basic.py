@@ -49,14 +49,14 @@ def test_invalid_endpoint():
 
 class TestBasicAPI:
     """Basic API test class"""
-    
+
     def test_api_structure(self):
         """Test basic API structure"""
         # Test that main API routes exist
         response = client.get("/")
         # This might redirect or return basic info
         assert response.status_code in [200, 404]  # Depending on implementation
-    
+
     def test_error_handling(self):
         """Test error handling"""
         # Test malformed request

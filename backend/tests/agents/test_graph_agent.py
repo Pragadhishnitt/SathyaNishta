@@ -14,6 +14,7 @@ sys.path.insert(0, str(repo_root / "backend"))
 
 from app.agents.graph.graph_agent import GraphAgent
 
+
 def test_graph_agent():
     print("\n" + "=" * 80)
     print("GRAPH AGENT TEST SUITE".center(80))
@@ -37,8 +38,8 @@ def test_graph_agent():
             "entity_name": "Adani Enterprises Limited",
             "query_type": "circular_transactions",
             "max_hops": 4,
-            "min_transaction_amount": 50000000000000  # matches DB (₹500 Cr)
-        }
+            "min_transaction_amount": 50000000000000,  # matches DB (₹500 Cr)
+        },
     }
     try:
         result1 = agent.process(task1)
@@ -62,8 +63,8 @@ def test_graph_agent():
         "params": {
             "query": cypher_query,
             "params": {},
-            "use_readonly": False  # Add this if your driver requires explicit routing
-        }
+            "use_readonly": False,  # Add this if your driver requires explicit routing
+        },
     }
     try:
         result2 = agent.process(task2)
@@ -81,8 +82,8 @@ def test_graph_agent():
         "params": {
             "entity_name": "Adani Enterprises Limited",
             "min_transaction_amount": 40000000000000,  # Slightly lower to catch ₹500 Cr transactions
-            "max_hops": 4
-        }
+            "max_hops": 4,
+        },
     }
     try:
         result3 = agent.process(task3)
@@ -94,11 +95,16 @@ def test_graph_agent():
     print("\n" + "=" * 80)
     print("TEST SUMMARY".center(80))
     print("=" * 80)
-    print("generate_cypher_query............................", "✓ PASSED" if 'result1' in locals() else "✗ FAILED")
-    print("run_cypher_query...................................", "✓ PASSED" if 'result2' in locals() else "✗ FAILED")
-    print("detect_circular_loops.............................", "✓ PASSED" if 'result3' in locals() else "✗ FAILED")
-    print("\nTotal: 3/3 tests passed" if all(x in locals() for x in ['result1','result2','result3']) else "\nSome tests failed")
+    print("generate_cypher_query............................", "✓ PASSED" if "result1" in locals() else "✗ FAILED")
+    print("run_cypher_query...................................", "✓ PASSED" if "result2" in locals() else "✗ FAILED")
+    print("detect_circular_loops.............................", "✓ PASSED" if "result3" in locals() else "✗ FAILED")
+    print(
+        "\nTotal: 3/3 tests passed"
+        if all(x in locals() for x in ["result1", "result2", "result3"])
+        else "\nSome tests failed"
+    )
     print("=" * 80)
+
 
 if __name__ == "__main__":
     test_graph_agent()

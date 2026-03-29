@@ -111,25 +111,25 @@ class AudioAgent(BaseAgent):
         """Query audio_files metadata and extract tone analysis from database."""
         file_key = params.get("file_key")
         company_name = params.get("company_name")
-        
+
         if not (file_key or company_name):
             raise ValueError("analyze_audio_tone requires 'file_key' or 'company_name'")
-        
+
         try:
             audio_records = self._query_audio_files(file_key, company_name)
-            
+
             if not audio_records:
                 return {
                     "segments": [],
                     "overall_tone": "unknown",
                     "confidence_in_analysis": 0.0,
                 }
-            
+
             # Extract tone analysis from metadata
             latest_audio = audio_records[0]
             metadata = latest_audio.get("metadata", {})
             tone_analysis = metadata.get("tone_analysis", {})
-            
+
             return {
                 "segments": tone_analysis.get("segments", []),
                 "overall_tone": tone_analysis.get("overall_tone", "neutral"),
@@ -142,13 +142,13 @@ class AudioAgent(BaseAgent):
         """Query audio_files metadata and extract deception markers from database."""
         file_key = params.get("file_key")
         company_name = params.get("company_name")
-        
+
         if not (file_key or company_name):
             raise ValueError("detect_deception_markers requires 'file_key' or 'company_name'")
-        
+
         try:
             audio_records = self._query_audio_files(file_key, company_name)
-            
+
             if not audio_records:
                 return {
                     "deception_markers": [],
@@ -157,12 +157,12 @@ class AudioAgent(BaseAgent):
                     "overall_deception_likelihood": 0.0,
                     "explanation": "No audio data found",
                 }
-            
+
             # Extract deception markers from metadata
             latest_audio = audio_records[0]
             metadata = latest_audio.get("metadata", {})
             deception_analysis = metadata.get("deception_analysis", {})
-            
+
             return {
                 "deception_markers": deception_analysis.get("markers", []),
                 "hedging_word_count": deception_analysis.get("hedging_count", 0),
@@ -176,11 +176,13 @@ class AudioAgent(BaseAgent):
     # ---------------------------------------------------------------
     # Internal helper: query audio_files table
     # ---------------------------------------------------------------
-    def _query_audio_files(self, file_key: Optional[str] = None, company_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    def _query_audio_files(
+        self, file_key: Optional[str] = None, company_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Query audio_files table for company audio data."""
         if not self.engine:
             raise RuntimeError("PostgreSQL not initialized")
-        
+
         try:
             with Session(self.engine) as session:
                 query = """
@@ -190,31 +192,34 @@ class AudioAgent(BaseAgent):
                     WHERE 1=1
                 """
                 params = {}
-                
+
                 if file_key:
                     query += " AND file_key = :file_key"
                     params["file_key"] = file_key
-                
+
                 if company_name:
                     query += " AND LOWER(company_name) = LOWER(:company)"
                     params["company"] = company_name
-                
+
                 query += " ORDER BY call_date DESC LIMIT 5"
-                
+
                 result = session.execute(text(query), params)
                 rows = result.fetchall()
-                return [{
-                    "id": str(row[0]),
-                    "company_name": row[1],
-                    "call_type": row[2],
-                    "period": row[3],
-                    "file_key": row[4],
-                    "duration_sec": row[5],
-                    "transcript": row[6],
-                    "participants": row[7] or [],
-                    "metadata": row[8] or {},
-                    "call_date": str(row[9]) if row[9] else None,
-                } for row in rows]
+                return [
+                    {
+                        "id": str(row[0]),
+                        "company_name": row[1],
+                        "call_type": row[2],
+                        "period": row[3],
+                        "file_key": row[4],
+                        "duration_sec": row[5],
+                        "transcript": row[6],
+                        "participants": row[7] or [],
+                        "metadata": row[8] or {},
+                        "call_date": str(row[9]) if row[9] else None,
+                    }
+                    for row in rows
+                ]
         except Exception as exc:
             self.logger.error(f"Audio file query failed: {exc}")
             raise RuntimeError(f"Database query failed: {exc}") from exc
@@ -272,4 +277,3 @@ class AudioAgent(BaseAgent):
             wav_file.writeframes(silent_frame * num_frames)
 
         return buffer.getvalue()
-

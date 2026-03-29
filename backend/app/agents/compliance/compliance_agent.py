@@ -21,6 +21,7 @@ from tenacity import retry, wait_exponential, stop_after_attempt
 
 # Load .env if present (for local dev)
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from ...core.config import settings
@@ -42,6 +43,7 @@ class ComplianceAgent(BaseAgent):
         if supabase_url and supabase_key:
             try:
                 from supabase import create_client, Client
+
                 self.supabase: Optional[Client] = create_client(supabase_url, supabase_key)
             except Exception as e:
                 self.supabase = None
@@ -49,8 +51,6 @@ class ComplianceAgent(BaseAgent):
         else:
             self.supabase = None
             self.logger.warning("Supabase credentials not found, RAG queries will be limited")
-
-
 
         self.tool_map: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
             "check_sebi_regulations": self.check_sebi_regulations,
@@ -61,6 +61,7 @@ class ComplianceAgent(BaseAgent):
         # Initialize Cohere client for embeddings
         try:
             import cohere
+
             cohere_api_key = getattr(settings, "COHERE_API_KEY", None)
             if cohere_api_key:
                 self.cohere_client = cohere.Client(cohere_api_key)
@@ -102,11 +103,7 @@ class ComplianceAgent(BaseAgent):
         """Cross-reference financial findings against IndAS accounting standards."""
         return self._call_llm("verify_indas_compliance", params, task)
 
-    @retry(
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        stop=stop_after_attempt(3),
-        reraise=True
-    )
+    @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3), reraise=True)
     def rag_legal_query(self, params: Dict[str, Any], task: Dict[str, Any]) -> Dict[str, Any]:
         """Perform semantic search on regulatory documents using Supabase pgvector."""
         query = params.get("query")
@@ -120,26 +117,19 @@ class ComplianceAgent(BaseAgent):
         if not self.supabase:
             raise RuntimeError("Supabase not configured. Cannot perform RAG query.")
 
-
         try:
             # Use instance cohere_client for embedding
             if self.cohere_client is None:
-                raise RuntimeError("Cohere client not initialized. Ensure 'cohere' is installed and COHERE_API_KEY is set in settings.")
-            response = self.cohere_client.embed(
-                texts=[query],
-                model="embed-english-v3.0",
-                input_type="search_query"
-            )
+                raise RuntimeError(
+                    "Cohere client not initialized. Ensure 'cohere' is installed and COHERE_API_KEY is set in settings."
+                )
+            response = self.cohere_client.embed(texts=[query], model="embed-english-v3.0", input_type="search_query")
             query_embedding = response.embeddings[0]  # 1024 dimensions
 
             # Prepare source filter - map to schema format
             source_array = None
             if source_filter and isinstance(source_filter, list):
-                source_map = {
-                    "SEBI": "SEBI",
-                    "INDAS": "IndAS",
-                    "COMPANIES_ACT": "CompaniesAct"
-                }
+                source_map = {"SEBI": "SEBI", "INDAS": "IndAS", "COMPANIES_ACT": "CompaniesAct"}
                 source_array = [source_map.get(s.upper(), s) for s in source_filter]
 
             # Call the search_regulatory_documents SQL function
@@ -147,10 +137,10 @@ class ComplianceAgent(BaseAgent):
                 "query_embedding": query_embedding,
                 "match_count": top_k,
                 "source_filter": source_array,
-                "category_filter": category_filter
+                "category_filter": category_filter,
             }
 
-            response = self.supabase.rpc('search_regulatory_documents', rpc_params).execute()
+            response = self.supabase.rpc("search_regulatory_documents", rpc_params).execute()
 
             if not response.data:
                 return {"results": []}
@@ -158,27 +148,26 @@ class ComplianceAgent(BaseAgent):
             # Format results according to contract
             results = []
             for row in response.data:
-                results.append({
-                    "document_id": str(row.get("id")),
-                    "title": row.get("title", ""),
-                    "source": row.get("source", ""),
-                    "category": row.get("category"),
-                    "doc_type": row.get("doc_type"),
-                    "relevance_score": float(row.get("similarity", 0.0)),
-                    "excerpt": row.get("content_chunk", "")[:200],  # First 200 chars
-                    "effective_date": row.get("effective_date"),
-                    "url": row.get("url"),
-                    "metadata": row.get("metadata", {})
-                })
+                results.append(
+                    {
+                        "document_id": str(row.get("id")),
+                        "title": row.get("title", ""),
+                        "source": row.get("source", ""),
+                        "category": row.get("category"),
+                        "doc_type": row.get("doc_type"),
+                        "relevance_score": float(row.get("similarity", 0.0)),
+                        "excerpt": row.get("content_chunk", "")[:200],  # First 200 chars
+                        "effective_date": row.get("effective_date"),
+                        "url": row.get("url"),
+                        "metadata": row.get("metadata", {}),
+                    }
+                )
 
             return {"results": results}
 
         except Exception as e:
             self.logger.error(f"RAG query failed: {e}")
-            return {
-                "results": [],
-                "error": str(e)
-            }
+            return {"results": [], "error": str(e)}
 
     # ------------------------------------------------------------------
     # Internal helper: call LLM via Portkey and return JSON per contract

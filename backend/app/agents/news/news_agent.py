@@ -28,9 +28,11 @@ class NewsAgent:
         """Try to init Tavily client; fall back to DDG if unavailable."""
         try:
             import os
+
             api_key = os.getenv("TAVILY_API_KEY", "")
             if api_key:
                 from tavily import TavilyClient
+
                 self._tavily_client = TavilyClient(api_key=api_key)
                 _logger.info("NewsAgent: Tavily client initialized")
             else:
@@ -38,11 +40,7 @@ class NewsAgent:
         except ImportError:
             _logger.warning("NewsAgent: tavily package not installed — will use DuckDuckGo fallback")
 
-    @retry(
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        stop=stop_after_attempt(3),
-        reraise=True
-    )
+    @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3), reraise=True)
     def _search_tavily(self, company: str, max_results: int = 5) -> List[Dict[str, str]]:
         """Search via Tavily API (returns clean, RAG-optimized content)."""
         if not self._tavily_client:
@@ -56,39 +54,42 @@ class NewsAgent:
             )
             results = []
             for r in response.get("results", []):
-                results.append({
-                    "title": r.get("title", ""),
-                    "url": r.get("url", ""),
-                    "content": r.get("content", "")[:500],
-                    "source": "Tavily",
-                })
+                results.append(
+                    {
+                        "title": r.get("title", ""),
+                        "url": r.get("url", ""),
+                        "content": r.get("content", "")[:500],
+                        "source": "Tavily",
+                    }
+                )
             return results
         except Exception as e:
             _logger.warning(f"Tavily search failed: {e}")
             return []
 
-    @retry(
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        stop=stop_after_attempt(3),
-        reraise=True
-    )
+    @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3), reraise=True)
     def _search_duckduckgo(self, company: str, max_results: int = 5) -> List[Dict[str, str]]:
         """Fallback: search via DuckDuckGo (free, no API key)."""
         try:
             from duckduckgo_search import DDGS
+
             with DDGS() as ddgs:
-                raw = list(ddgs.news(
-                    f"{company} fraud investigation regulatory",
-                    max_results=max_results,
-                ))
+                raw = list(
+                    ddgs.news(
+                        f"{company} fraud investigation regulatory",
+                        max_results=max_results,
+                    )
+                )
             results = []
             for r in raw:
-                results.append({
-                    "title": r.get("title", ""),
-                    "url": r.get("url", ""),
-                    "content": r.get("body", "")[:500],
-                    "source": "DuckDuckGo",
-                })
+                results.append(
+                    {
+                        "title": r.get("title", ""),
+                        "url": r.get("url", ""),
+                        "content": r.get("body", "")[:500],
+                        "source": "DuckDuckGo",
+                    }
+                )
             return results
         except Exception as e:
             _logger.warning(f"DuckDuckGo search failed: {e}")
@@ -111,10 +112,7 @@ class NewsAgent:
                 "crisis_detected": False,
             }
 
-        articles_text = "\n\n".join(
-            f"**{a['title']}** ({a['source']})\n{a['content']}"
-            for a in articles[:5]
-        )
+        articles_text = "\n\n".join(f"**{a['title']}** ({a['source']})\n{a['content']}" for a in articles[:5])
 
         prompt = f"""You are a financial news risk analyst for the Sathya Nishta fraud investigation system.
 
@@ -140,7 +138,11 @@ Return ONLY JSON (no markdown):
 
             # Parse JSON
             if "```" in content:
-                content = content.split("```json")[-1].split("```")[0].strip() if "```json" in content else content.split("```")[1].split("```")[0].strip()
+                content = (
+                    content.split("```json")[-1].split("```")[0].strip()
+                    if "```json" in content
+                    else content.split("```")[1].split("```")[0].strip()
+                )
 
             parsed = json.loads(content)
             return parsed

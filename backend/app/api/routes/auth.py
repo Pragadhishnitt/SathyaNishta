@@ -11,12 +11,21 @@ from email.mime.multipart import MIMEMultipart
 
 from ...core.db import get_session
 from ...models.user import User
-from ...schemas.user import UserCreate, UserLogin, UserResponse, UserUpdate, PasswordReset, PasswordResetConfirm, EmailVerification
+from ...schemas.user import (
+    UserCreate,
+    UserLogin,
+    UserResponse,
+    UserUpdate,
+    PasswordReset,
+    PasswordResetConfirm,
+    EmailVerification,
+)
 from ...core.security import get_password_hash, verify_password, create_access_token, get_current_user
 from ...core.rate_limit import check_rate_limit, login_limiter, register_limiter, password_reset_limiter
 
 # Add this for debugging
 import logging
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -34,11 +43,9 @@ FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@sathyanishta.com")
 EMAIL_VERIFICATION_EXPIRE_HOURS = int(os.getenv("EMAIL_VERIFICATION_EXPIRE_HOURS", "72"))
 PASSWORD_RESET_EXPIRE_HOURS = int(os.getenv("PASSWORD_RESET_EXPIRE_HOURS", "24"))
 # Public URL for links in emails (match Traefik / dev port)
-APP_PUBLIC_URL = (
-    os.getenv("NEXT_PUBLIC_APP_URL")
-    or os.getenv("PUBLIC_APP_URL")
-    or "http://127.0.0.1:3000"
-).rstrip("/")
+APP_PUBLIC_URL = (os.getenv("NEXT_PUBLIC_APP_URL") or os.getenv("PUBLIC_APP_URL") or "http://127.0.0.1:3000").rstrip(
+    "/"
+)
 
 
 def utc_now() -> datetime:
@@ -63,7 +70,7 @@ def send_verification_email(email: str, token: str):
         return
 
     verification_url = f"{APP_PUBLIC_URL}/auth/verify?token={token}"
-    
+
     html_content = f"""
     <html>
     <body>
@@ -79,16 +86,16 @@ def send_verification_email(email: str, token: str):
     </body>
     </html>
     """
-    
+
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = "Verify your Sathya Nishta account"
         msg["From"] = FROM_EMAIL
         msg["To"] = email
-        
+
         html_part = MIMEText(html_content, "html")
         msg.attach(html_part)
-        
+
         server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
         server.starttls()
         server.login(SMTP_USER, SMTP_PASSWORD)
@@ -97,6 +104,7 @@ def send_verification_email(email: str, token: str):
     except Exception as e:
         print(f"Failed to send verification email: {e}")
 
+
 def send_password_reset_email(email: str, token: str):
     """Send password reset link"""
     if not SMTP_USER or not SMTP_PASSWORD or "your-email" in SMTP_USER:
@@ -104,7 +112,7 @@ def send_password_reset_email(email: str, token: str):
         return
 
     reset_url = f"{APP_PUBLIC_URL}/auth/reset-password?token={token}"
-    
+
     html_content = f"""
     <html>
     <body>
@@ -121,16 +129,16 @@ def send_password_reset_email(email: str, token: str):
     </body>
     </html>
     """
-    
+
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = "Reset your Sathya Nishta password"
         msg["From"] = FROM_EMAIL
         msg["To"] = email
-        
+
         html_part = MIMEText(html_content, "html")
         msg.attach(html_part)
-        
+
         server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
         server.starttls()
         server.login(SMTP_USER, SMTP_PASSWORD)
@@ -139,6 +147,7 @@ def send_password_reset_email(email: str, token: str):
     except Exception as e:
         print(f"Failed to send password reset email: {e}")
 
+
 @router.post("/register", response_model=UserResponse)
 async def register(user: UserCreate, db: Session = Depends(get_session), request: Request = None):
     """Register a new user"""
@@ -146,25 +155,22 @@ async def register(user: UserCreate, db: Session = Depends(get_session), request
         # Debug logging
         logger.info(f"Registration attempt: {user.email}")
         logger.info(f"User data: {user.dict()}")
-        
+
         # Apply rate limiting
         client_ip = request.client.host if request else "unknown"
         check_rate_limit(register_limiter, user.email, "Too many registration attempts. Please try again later.")
-        
+
         # Check if user already exists
         db_user = db.query(User).filter(User.email == user.email).first()
         if db_user:
             logger.warning(f"Email already registered: {user.email}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
-            )
-        
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+
         # Create new user
         hashed_password = get_password_hash(user.password)
         verification_token = secrets.token_urlsafe(32)
         verification_expires = utc_now() + timedelta(hours=EMAIL_VERIFICATION_EXPIRE_HOURS)
-        
+
         db_user = User(
             email=user.email,
             name=user.name,
@@ -173,33 +179,30 @@ async def register(user: UserCreate, db: Session = Depends(get_session), request
             role=user.role,
             bio=user.bio,
             verification_token=verification_token,
-            verification_expires=verification_expires
+            verification_expires=verification_expires,
         )
-        
+
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
-        
+
         # Send verification email
         send_verification_email(user.email, verification_token)
-        
+
         logger.info(f"User registered successfully: {user.email}")
         return UserResponse.model_validate(db_user)
-        
+
     except ValueError as e:
         # Handle validation errors from Pydantic validators
         logger.error(f"Validation error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         # Log the error for debugging
         logger.error(f"Registration error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Registration failed. Please try again."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Registration failed. Please try again."
         )
+
 
 @router.post("/verify-email")
 async def verify_email(verification: EmailVerification, db: Session = Depends(get_session)):
@@ -208,24 +211,19 @@ async def verify_email(verification: EmailVerification, db: Session = Depends(ge
     user = db.query(User).filter(User.verification_token == raw_token).first()
 
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired verification token"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired verification token")
 
     exp = to_utc_aware(user.verification_expires)
     if exp is not None and exp <= utc_now():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired verification token"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired verification token")
+
     user.is_verified = True
     user.verification_token = None
     user.verification_expires = None
     db.commit()
-    
+
     return {"message": "Email verified successfully"}
+
 
 @router.post("/login")
 async def login(user_credentials: UserLogin, db: Session = Depends(get_session), request: Request = None):
@@ -233,63 +231,56 @@ async def login(user_credentials: UserLogin, db: Session = Depends(get_session),
     # Apply rate limiting
     client_ip = request.client.host if request else "unknown"
     check_rate_limit(login_limiter, client_ip, "Too many login attempts. Please try again later.")
-    
+
     user = db.query(User).filter(User.email == user_credentials.email).first()
-    
+
     if not user or not verify_password(user_credentials.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+
     if not user.is_verified:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Please verify your email before logging in"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Please verify your email before logging in"
         )
-    
+
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Account is deactivated"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account is deactivated")
+
     # Update last login
     user.last_login = datetime.utcnow()
     db.commit()
-    
+
     # Create access token
     access_token = create_access_token(data={"sub": str(user.id)})
-    
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": UserResponse.model_validate(user)
-    }
+
+    return {"access_token": access_token, "token_type": "bearer", "user": UserResponse.model_validate(user)}
+
 
 @router.post("/forgot-password")
 async def forgot_password(password_reset: PasswordReset, db: Session = Depends(get_session), request: Request = None):
     """Send password reset email"""
     # Apply rate limiting
     client_ip = request.client.host if request else "unknown"
-    check_rate_limit(password_reset_limiter, password_reset.email, "Too many password reset attempts. Please try again later.")
-    
+    check_rate_limit(
+        password_reset_limiter, password_reset.email, "Too many password reset attempts. Please try again later."
+    )
+
     user = db.query(User).filter(User.email == password_reset.email).first()
-    
+
     if not user:
         # Don't reveal if email exists or not
         return {"message": "If the email exists, a password reset link has been sent"}
-    
+
     reset_token = secrets.token_urlsafe(32)
     reset_expires = utc_now() + timedelta(hours=PASSWORD_RESET_EXPIRE_HOURS)
-    
+
     user.reset_token = reset_token
     user.reset_expires = reset_expires
     db.commit()
-    
+
     send_password_reset_email(user.email, reset_token)
-    
+
     return {"message": "If the email exists, a password reset link has been sent"}
+
 
 @router.post("/reset-password")
 async def reset_password(reset_data: PasswordResetConfirm, db: Session = Depends(get_session)):
@@ -298,44 +289,38 @@ async def reset_password(reset_data: PasswordResetConfirm, db: Session = Depends
     user = db.query(User).filter(User.reset_token == raw_token).first()
 
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired reset token"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
 
     exp = to_utc_aware(user.reset_expires)
     if exp is not None and exp <= utc_now():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired reset token"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+
     user.hashed_password = get_password_hash(reset_data.new_password)
     user.reset_token = None
     user.reset_expires = None
     db.commit()
-    
+
     return {"message": "Password reset successfully"}
+
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current user info"""
     return UserResponse.model_validate(current_user)
 
+
 @router.put("/me", response_model=UserResponse)
 async def update_current_user(
-    user_update: UserUpdate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_session)
+    user_update: UserUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_session)
 ):
     """Update current user info"""
     update_data = user_update.dict(exclude_unset=True)
-    
+
     for field, value in update_data.items():
         setattr(current_user, field, value)
-    
+
     current_user.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(current_user)
-    
+
     return UserResponse.model_validate(current_user)

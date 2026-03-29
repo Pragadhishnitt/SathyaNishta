@@ -26,6 +26,7 @@ _logger = setup_logger("agent_nodes")
 
 # ── Fallback data generators ──────────────────────────────────
 
+
 def _get_financial_fallback(company: str) -> AgentFinding:
     """Return realistic financial fallback data when real data is unavailable."""
     r_score = round(random.uniform(4.5, 6.5), 1)
@@ -35,7 +36,7 @@ def _get_financial_fallback(company: str) -> AgentFinding:
     growth = random.randint(5, 15)
     amount = random.randint(3000, 6000)
     pct = random.randint(10, 25)
-    
+
     return AgentFinding(
         risk_score=r_score,
         findings=[
@@ -58,7 +59,7 @@ def _get_graph_fallback(company: str) -> tuple:
     r_score = round(random.uniform(5.5, 7.5), 1)
     amount = random.randint(2500, 5000)
     ownership = random.randint(60, 95)
-    
+
     finding = AgentFinding(
         risk_score=r_score,
         findings=[
@@ -83,10 +84,34 @@ def _get_graph_fallback(company: str) -> tuple:
         ],
         "edges": [
             {"from": company, "to": "Apex Trading LLC", "amount": amount, "suspicious": True, "label": f"₹{amount} Cr"},
-            {"from": "Apex Trading LLC", "to": "Meridian Investments", "amount": amount, "suspicious": True, "label": f"₹{amount} Cr"},
-            {"from": "Meridian Investments", "to": company, "amount": amount, "suspicious": True, "label": f"₹{amount} Cr"},
-            {"from": company, "to": f"{company} Subsidiary", "amount": int(amount * 0.35), "suspicious": False, "label": f"₹{int(amount * 0.35)} Cr"},
-            {"from": f"{company} Subsidiary", "to": "Apex Trading LLC", "amount": int(amount * 0.25), "suspicious": True, "label": f"₹{int(amount * 0.25)} Cr"},
+            {
+                "from": "Apex Trading LLC",
+                "to": "Meridian Investments",
+                "amount": amount,
+                "suspicious": True,
+                "label": f"₹{amount} Cr",
+            },
+            {
+                "from": "Meridian Investments",
+                "to": company,
+                "amount": amount,
+                "suspicious": True,
+                "label": f"₹{amount} Cr",
+            },
+            {
+                "from": company,
+                "to": f"{company} Subsidiary",
+                "amount": int(amount * 0.35),
+                "suspicious": False,
+                "label": f"₹{int(amount * 0.35)} Cr",
+            },
+            {
+                "from": f"{company} Subsidiary",
+                "to": "Apex Trading LLC",
+                "amount": int(amount * 0.25),
+                "suspicious": True,
+                "label": f"₹{int(amount * 0.25)} Cr",
+            },
         ],
         "node_count": 4,
         "edge_count": 5,
@@ -98,7 +123,7 @@ def _get_news_fallback(company: str) -> AgentFinding:
     """Return realistic news fallback data."""
     r_score = round(random.uniform(4.5, 6.5), 1)
     stock_drop = round(random.uniform(2.5, 6.5), 1)
-    
+
     return AgentFinding(
         risk_score=r_score,
         findings=[
@@ -123,7 +148,7 @@ def _get_audio_fallback(company: str) -> tuple:
     r_score = round(random.uniform(5.0, 6.5), 1)
     t1 = random.randint(90, 150)
     t2 = random.randint(400, 520)
-    
+
     finding = AgentFinding(
         risk_score=r_score,
         findings=[
@@ -139,9 +164,39 @@ def _get_audio_fallback(company: str) -> tuple:
         },
     )
     timeline = [
-        {"chunk_index": 1, "marker_type": "hedging", "quote": "we believe transactions were at arm's length", "severity": "medium", "explanation": "Vague hedging language about related-party transactions", "start_pct": round(t1/1800, 2), "end_pct": round((t1+120)/1800, 2), "start_time_s": t1, "end_time_s": t1 + 120},
-        {"chunk_index": 3, "marker_type": "evasion", "quote": "legal team will address separately", "severity": "high", "explanation": "CEO deflected direct question about shell entity ownership", "start_pct": round(t2/1800, 2), "end_pct": round((t2+120)/1800, 2), "start_time_s": t2, "end_time_s": t2 + 120},
-        {"chunk_index": 5, "marker_type": "false_confidence", "quote": "absolutely no irregularities whatsoever", "severity": "medium", "explanation": "Overly emphatic denial without supporting evidence", "start_pct": 0.55, "end_pct": 0.62, "start_time_s": 1000, "end_time_s": 1120},
+        {
+            "chunk_index": 1,
+            "marker_type": "hedging",
+            "quote": "we believe transactions were at arm's length",
+            "severity": "medium",
+            "explanation": "Vague hedging language about related-party transactions",
+            "start_pct": round(t1 / 1800, 2),
+            "end_pct": round((t1 + 120) / 1800, 2),
+            "start_time_s": t1,
+            "end_time_s": t1 + 120,
+        },
+        {
+            "chunk_index": 3,
+            "marker_type": "evasion",
+            "quote": "legal team will address separately",
+            "severity": "high",
+            "explanation": "CEO deflected direct question about shell entity ownership",
+            "start_pct": round(t2 / 1800, 2),
+            "end_pct": round((t2 + 120) / 1800, 2),
+            "start_time_s": t2,
+            "end_time_s": t2 + 120,
+        },
+        {
+            "chunk_index": 5,
+            "marker_type": "false_confidence",
+            "quote": "absolutely no irregularities whatsoever",
+            "severity": "medium",
+            "explanation": "Overly emphatic denial without supporting evidence",
+            "start_pct": 0.55,
+            "end_pct": 0.62,
+            "start_time_s": 1000,
+            "end_time_s": 1120,
+        },
     ]
     return finding, timeline, 1800.0
 
@@ -151,7 +206,7 @@ def _get_compliance_fallback(company: str) -> AgentFinding:
     r_score = round(random.uniform(4.0, 6.0), 1)
     amount = random.randint(3500, 5500)
     relevance = round(random.uniform(0.75, 0.95), 2)
-    
+
     return AgentFinding(
         risk_score=r_score,
         findings=[
@@ -166,8 +221,8 @@ def _get_compliance_fallback(company: str) -> AgentFinding:
     )
 
 
-
 # ── Helper: safe AgentFinding builder ───────────────────────────
+
 
 def _build_finding(risk_score: float, findings: List[str], evidence: Dict[str, str]) -> AgentFinding:
     """Clamp risk_score to [0, 10] and return a valid AgentFinding."""
@@ -180,6 +235,7 @@ def _build_finding(risk_score: float, findings: List[str], evidence: Dict[str, s
 
 # ── Financial Agent Node ────────────────────────────────────────
 
+
 def financial_node(state: InvestigationState) -> Dict[str, Any]:
     """Run real FinancialAgent — queries Supabase financial_filings + LLM analysis."""
     company = state.get("company_name", "Unknown")
@@ -187,6 +243,7 @@ def financial_node(state: InvestigationState) -> Dict[str, Any]:
 
     try:
         from app.agents.financial.financial_agent import FinancialAgent
+
         agent = FinancialAgent()
 
         all_findings: List[str] = []
@@ -204,10 +261,12 @@ def financial_node(state: InvestigationState) -> Dict[str, Any]:
 
         for tool_name, label in tools:
             try:
-                result = agent.process({
-                    "tool": tool_name,
-                    "params": {"company_name": company},
-                })
+                result = agent.process(
+                    {
+                        "tool": tool_name,
+                        "params": {"company_name": company},
+                    }
+                )
                 summary = result.get("summary", "")
                 if summary:
                     all_findings.append(f"[{label}] {summary[:200]}")
@@ -228,7 +287,6 @@ def financial_node(state: InvestigationState) -> Dict[str, Any]:
             combined_findings = all_findings + all_anomalies
             finding = _build_finding(risk_score, combined_findings[:10], evidence)
 
-
     except Exception as e:
         _logger.error(f"Financial Agent failed: {e}")
         finding = _get_financial_fallback(company)
@@ -241,6 +299,7 @@ def financial_node(state: InvestigationState) -> Dict[str, Any]:
 
 # ── Graph Agent Node ───────────────────────────────────────────
 
+
 def graph_node(state: InvestigationState) -> Dict[str, Any]:
     """Run real GraphAgent — queries Neo4j and returns graph payload for frontend."""
     company = state.get("company_name", "Unknown")
@@ -248,17 +307,20 @@ def graph_node(state: InvestigationState) -> Dict[str, Any]:
 
     try:
         from app.agents.graph.graph_agent import GraphAgent
+
         agent = GraphAgent()
 
         # Detect circular loops
-        result = agent.process({
-            "tool": "detect_circular_loops",
-            "params": {
-                "entity_name": company,
-                "max_hops": 5,
-                "min_transaction_amount": 0,
-            },
-        })
+        result = agent.process(
+            {
+                "tool": "detect_circular_loops",
+                "params": {
+                    "entity_name": company,
+                    "max_hops": 5,
+                    "min_transaction_amount": 0,
+                },
+            }
+        )
 
         loops = result.get("loops_found", [])
         total_amount = result.get("total_circular_amount", 0)
@@ -279,9 +341,7 @@ def graph_node(state: InvestigationState) -> Dict[str, Any]:
             for loop in loops[:5]:
                 path_str = " → ".join(loop.get("companies", []))
                 flow = loop.get("total_amount", 0)
-                findings.append(
-                    f"Circular loop: {path_str} (₹{flow:,.0f} Cr; source: Neo4j graph)"
-                )
+                findings.append(f"Circular loop: {path_str} (₹{flow:,.0f} Cr; source: Neo4j graph)")
                 if loop.get("risk_indicator") == "SUSPICIOUS":
                     findings.append(f"  ⚠ Suspicious: {loop.get('loop_length', 0)} hops")
 
@@ -305,20 +365,20 @@ def graph_node(state: InvestigationState) -> Dict[str, Any]:
         finding, graph_payload = _get_graph_fallback(company)
 
     # If graph query succeeded but returned nothing useful, use fallback
-    if finding and (
-        finding.get("evidence", {}).get("cycle_count") == "0"
-        and graph_payload.get("node_count", 0) == 0
-    ):
+    if finding and (finding.get("evidence", {}).get("cycle_count") == "0" and graph_payload.get("node_count", 0) == 0):
         finding, graph_payload = _get_graph_fallback(company)
 
     return {
         "graph_findings": finding,
         "graph_payload": graph_payload,
-        "messages": [f"Graph Agent: {finding['evidence'].get('cycle_count', '?')} cycles — score {finding['risk_score']}/10"],
+        "messages": [
+            f"Graph Agent: {finding['evidence'].get('cycle_count', '?')} cycles — score {finding['risk_score']}/10"
+        ],
     }
 
 
 # ── Compliance Agent Node ──────────────────────────────────────
+
 
 def compliance_node(state: InvestigationState) -> Dict[str, Any]:
     """Run real ComplianceAgent — checks SEBI regulations via RAG + LLM."""
@@ -327,15 +387,13 @@ def compliance_node(state: InvestigationState) -> Dict[str, Any]:
 
     try:
         from app.agents.compliance.compliance_agent import ComplianceAgent
+
         agent = ComplianceAgent()
 
         # Build a comprehensive query from prior findings
         financial = state.get("financial_findings", {})
         graph = state.get("graph_findings", {})
-        prior_findings = (
-            financial.get("findings", [])[:3] +
-            graph.get("findings", [])[:3]
-        )
+        prior_findings = financial.get("findings", [])[:3] + graph.get("findings", [])[:3]
         context = f"Company: {company}. Prior findings: {'; '.join(prior_findings)}"
 
         findings: List[str] = []
@@ -344,13 +402,15 @@ def compliance_node(state: InvestigationState) -> Dict[str, Any]:
 
         # Check SEBI regulations
         try:
-            sebi_result = agent.process({
-                "tool": "check_sebi_regulations",
-                "params": {
-                    "company_name": company,
-                    "findings_summary": context,
-                },
-            })
+            sebi_result = agent.process(
+                {
+                    "tool": "check_sebi_regulations",
+                    "params": {
+                        "company_name": company,
+                        "findings_summary": context,
+                    },
+                }
+            )
             violations = sebi_result.get("violations", [])
             for v in violations:
                 reg_id = v.get("regulation_id", "")
@@ -362,14 +422,16 @@ def compliance_node(state: InvestigationState) -> Dict[str, Any]:
 
         # RAG legal query for relevant regulations
         try:
-            rag_result = agent.process({
-                "tool": "rag_legal_query",
-                "params": {
-                    "query": f"Fraud indicators circular trading related party transactions {company}",
-                    "source_filter": ["SEBI", "COMPANIES_ACT"],
-                    "top_k": 3,
-                },
-            })
+            rag_result = agent.process(
+                {
+                    "tool": "rag_legal_query",
+                    "params": {
+                        "query": f"Fraud indicators circular trading related party transactions {company}",
+                        "source_filter": ["SEBI", "COMPANIES_ACT"],
+                        "top_k": 3,
+                    },
+                }
+            )
             for doc in rag_result.get("results", [])[:3]:
                 findings.append(
                     f"Relevant regulation: {doc.get('title', 'Unknown')} "
@@ -396,11 +458,14 @@ def compliance_node(state: InvestigationState) -> Dict[str, Any]:
 
     return {
         "compliance_findings": finding,
-        "messages": [f"Compliance Agent: {finding['evidence'].get('violation_count', '?')} violations — score {finding['risk_score']}/10"],
+        "messages": [
+            f"Compliance Agent: {finding['evidence'].get('violation_count', '?')} violations — score {finding['risk_score']}/10"
+        ],
     }
 
 
 # ── Audio Agent Node ───────────────────────────────────────────
+
 
 def audio_node(state: InvestigationState) -> Dict[str, Any]:
     """Run real AudioAgent — RAG retrieval + LLM analysis on earnings call transcripts."""
@@ -411,6 +476,7 @@ def audio_node(state: InvestigationState) -> Dict[str, Any]:
 
     try:
         from app.agents.audio.audio_agent_rag import AudioAgent
+
         agent = AudioAgent()
 
         findings: List[str] = []
@@ -419,10 +485,12 @@ def audio_node(state: InvestigationState) -> Dict[str, Any]:
 
         # Tone analysis
         try:
-            tone_result = agent.process({
-                "tool": "analyze_audio_tone",
-                "params": {"company": company, "query": "earnings call tone and sentiment"},
-            })
+            tone_result = agent.process(
+                {
+                    "tool": "analyze_audio_tone",
+                    "params": {"company": company, "query": "earnings call tone and sentiment"},
+                }
+            )
             if tone_result.get("status") == "success":
                 analysis = tone_result.get("analysis", {})
                 sentiment = analysis.get("sentiment", "unknown")
@@ -480,6 +548,7 @@ def audio_node(state: InvestigationState) -> Dict[str, Any]:
 
 # ── News Agent Node ───────────────────────────────────────────
 
+
 def news_node(state: InvestigationState) -> Dict[str, Any]:
     """Run NewsAgent — Tavily/DDG search + LLM risk analysis on recent news."""
     company = state.get("company_name", "Unknown")
@@ -487,6 +556,7 @@ def news_node(state: InvestigationState) -> Dict[str, Any]:
 
     try:
         from app.agents.news.news_agent import NewsAgent
+
         agent = NewsAgent()
 
         # Search for recent news
@@ -530,6 +600,7 @@ def news_node(state: InvestigationState) -> Dict[str, Any]:
 
 # ── Reflection Agent Node ─────────────────────────────────────
 
+
 def reflection_node(state: InvestigationState) -> Dict[str, Any]:
     """Cross-validate all agent findings via LLM for contradictions and unsourced claims."""
     _logger.info("Reflection Agent: reviewing all findings")
@@ -565,7 +636,11 @@ Return ONLY JSON (no markdown):
 
         # Parse JSON from response
         if "```" in content:
-            content = content.split("```json")[-1].split("```")[0].strip() if "```json" in content else content.split("```")[1].split("```")[0].strip()
+            content = (
+                content.split("```json")[-1].split("```")[0].strip()
+                if "```json" in content
+                else content.split("```")[1].split("```")[0].strip()
+            )
 
         parsed = json.loads(content)
         delta = float(parsed.get("adjusted_score_delta", 0.0))
@@ -575,9 +650,9 @@ Return ONLY JSON (no markdown):
             "reflection_passed": parsed.get("passed", True),
             "reflection_notes": parsed.get("reflection_notes", "Findings reviewed"),
             "reflection_findings": {
-                "risk_score": round(delta, 1), # Use the delta as the score for this specific node
+                "risk_score": round(delta, 1),  # Use the delta as the score for this specific node
                 "findings": reflection_findings,
-                "evidence": {"score_adjustment": str(delta)}
+                "evidence": {"score_adjustment": str(delta)},
             },
             "messages": [
                 f"Reflection Agent: {'✅ Passed' if parsed.get('passed') else '⚠️ Adjusted'} (Delta: {delta}) — {parsed.get('reflection_notes', '')[:100]}..."
@@ -595,27 +670,28 @@ Return ONLY JSON (no markdown):
 
 # ── Synthesis Node ─────────────────────────────────────────────
 
+
 def synthesis_node(state: InvestigationState) -> Dict[str, Any]:
     """Compute weighted fraud_risk_score + verdict from agent findings.
-    
+
     Weights have been rebalanced to prioritize the News Agent (25%).
     Implements a 'High Signal Override': If multiple agents detect high risk,
     the final verdict is escalated regardless of the weighted average.
     """
     weights = {
-        "news": 0.25,        # Prioritized (was 0.13)
-        "graph": 0.25,       # (was 0.30)
+        "news": 0.25,  # Prioritized (was 0.13)
+        "graph": 0.25,  # (was 0.30)
         "compliance": 0.20,  # (was 0.25)
-        "financial": 0.20,   # (was 0.22)
-        "audio": 0.10,       # (unchanged)
+        "financial": 0.20,  # (was 0.22)
+        "audio": 0.10,  # (unchanged)
     }
 
     total_weight = 0.0
     weighted_sum = 0.0
     all_evidence = []
-    
+
     # Track individual high-risk signals for override logic
-    high_risk_count = 0      # Score >= 7.0
+    high_risk_count = 0  # Score >= 7.0
     critical_risk_count = 0  # Score >= 8.5
     max_individual_score = 0.0
 
@@ -626,42 +702,47 @@ def synthesis_node(state: InvestigationState) -> Dict[str, Any]:
             score = finding.get("risk_score", 0.0)
             weighted_sum += score * weight
             total_weight += weight
-            
+
             if score > max_individual_score:
                 max_individual_score = score
-            
+
             if score >= 8.5:
                 critical_risk_count += 1
             if score >= 7.0:
                 high_risk_count += 1
 
             for f in finding.get("findings", []):
-                all_evidence.append({
-                    "source": agent_key.title(),
-                    "finding": f,
-                    "severity": (
-                        "CRITICAL" if score >= 8.5 else
-                        "HIGH" if score >= 7.0 else
-                        "MEDIUM" if score >= 4.0 else
-                        "LOW"
-                    ),
-                })
+                all_evidence.append(
+                    {
+                        "source": agent_key.title(),
+                        "finding": f,
+                        "severity": (
+                            "CRITICAL"
+                            if score >= 8.5
+                            else "HIGH"
+                            if score >= 7.0
+                            else "MEDIUM"
+                            if score >= 4.0
+                            else "LOW"
+                        ),
+                    }
+                )
 
     # 1. Base Weighted Score
     base_score = weighted_sum / total_weight if total_weight > 0 else 0.0
-    
+
     # 2. Apply Reflection Adjustment
     reflection = state.get("reflection_findings")
     if reflection and isinstance(reflection, dict):
         delta = reflection.get("risk_score", 0.0)
         _logger.info(f"Applying reflection adjustment: {delta}")
         base_score += delta
-    
+
     # 3. Apply Overrides
     # If any single agent is CRITICAL, floor the score to 7.5 (High Risk)
     if critical_risk_count >= 1:
         base_score = max(base_score, 7.5)
-        
+
     # If TWO or more agents are HIGH or CRITICAL, floor the score to 8.0 (Critical floor)
     if high_risk_count >= 2:
         base_score = max(base_score, 8.2)
@@ -670,11 +751,13 @@ def synthesis_node(state: InvestigationState) -> Dict[str, Any]:
 
     # 4. Fallback for empty results (Wipro fix)
     if not all_evidence:
-        all_evidence.append({
-            "source": "System",
-            "finding": "Comprehensive multi-agent audit completed. No high-risk anomalies or investigative red flags were detected across financial, graph, or compliance vectors.",
-            "severity": "LOW",
-        })
+        all_evidence.append(
+            {
+                "source": "System",
+                "finding": "Comprehensive multi-agent audit completed. No high-risk anomalies or investigative red flags were detected across financial, graph, or compliance vectors.",
+                "severity": "LOW",
+            }
+        )
 
     # 3. Determine Verdict based on boosted score
     if fraud_risk_score >= 8.0:
@@ -693,6 +776,7 @@ def synthesis_node(state: InvestigationState) -> Dict[str, Any]:
         try:
             import asyncio
             from app.shared.alert_dispatcher import dispatch_risk_alert
+
             top_findings = [e["finding"] for e in all_evidence[:3]]
             asyncio.create_task(dispatch_risk_alert(company, fraud_risk_score, verdict, top_findings))
         except Exception as e:
@@ -703,5 +787,7 @@ def synthesis_node(state: InvestigationState) -> Dict[str, Any]:
         "verdict": verdict,
         "evidence": all_evidence,
         "investigation_complete": True,
-        "messages": [f"Synthesis: score={fraud_risk_score}, verdict={verdict} (High-Signal Detected: {high_risk_count})"],
+        "messages": [
+            f"Synthesis: score={fraud_risk_score}, verdict={verdict} (High-Signal Detected: {high_risk_count})"
+        ],
     }
