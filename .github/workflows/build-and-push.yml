@@ -1,7 +1,9 @@
 name: Build and Push Docker Images
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    types: [completed]
     branches: [main]
 
 env:
@@ -12,6 +14,7 @@ env:
 jobs:
   build-and-push:
     name: Build & Push (${{ matrix.service }})
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

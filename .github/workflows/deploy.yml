@@ -67,6 +67,9 @@ jobs:
           docker tag "\${FRONTEND_IMAGE}:latest" "\${FRONTEND_IMAGE}:\${BACKUP_TAG}" 2>/dev/null || true
 
           # ── Pull new images ───────────────────────────────────────────────
+          echo "==> Configuring Docker Authentication..."
+          sudo gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet || true
+
           echo "==> Pulling new images (tag: \${SHORT_TAG})..."
           docker pull "\${BACKEND_IMAGE}:\${IMAGE_TAG}"
           docker pull "\${FRONTEND_IMAGE}:\${IMAGE_TAG}"
@@ -120,16 +123,17 @@ jobs:
 
           chmod +x deploy.sh
 
-      - name: Copy deployment script to VM
+      - name: Copy deployment files to VM
         run: |
-          gcloud compute scp deploy.sh ${{ env.VM_NAME }}:/tmp/deploy.sh \
+          tar -czf deploy.tar.gz deploy.sh docker-compose.yml infra/
+          gcloud compute scp deploy.tar.gz ${{ env.VM_NAME }}:/tmp/deploy.tar.gz \
             --zone=${{ env.GCP_ZONE }}
 
       - name: Execute deployment on VM
         run: |
           gcloud compute ssh ${{ env.VM_NAME }} \
             --zone=${{ env.GCP_ZONE }} \
-            --command="bash /tmp/deploy.sh"
+            --command="tar -xzf /tmp/deploy.tar.gz -C /tmp/ && sudo cp -r /tmp/docker-compose.yml /tmp/infra /opt/sathyanishta/ && sudo bash /tmp/deploy.sh"
 
       # ── External smoke tests (run from the runner, not the VM) ────────────
       - name: Smoke tests
