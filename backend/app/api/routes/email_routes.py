@@ -101,7 +101,7 @@ def generate_investigation_html(data: dict, custom_message: str) -> str:
     risk_level = verdict
 
     evidence_html = ""
-    for item in evidence[:5]:  # Show top 5 evidence items
+    for item in evidence:  # Show all evidence items
         evidence_html += f"""
         <div style="background: #f8fafc; padding: 12px; margin: 8px 0; border-left: 4px solid #6366f1; border-radius: 4px;">
             <div style="display: flex; justify-content: space-between; align-items: start;">

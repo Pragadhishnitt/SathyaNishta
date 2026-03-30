@@ -111,43 +111,15 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
   };
 
   const handleDownloadPDF = async () => {
-    if (investigationId) {
-      try {
-        setIsDownloading(true);
-        // Direct download from backend
-        window.location.href = `/api/investigate/${investigationId}/report`;
-        return;
-      } catch (error) {
-        console.error("Backend report failed, falling back to client-side", error);
-      } finally {
-        setTimeout(() => setIsDownloading(false), 2000);
-      }
-    }
-
-    // Fallback to client-side screenshot if no ID or backend failed
-    if (!panelRef.current) return;
+    if (!investigationId) return;
     try {
       setIsDownloading(true);
-      const canvas = await html2canvas(panelRef.current, {
-        scale: 1.5, // Reduced from 2 for better size
-        backgroundColor: "#0a0a0f", logging: false, useCORS: true,
-      });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [canvas.width, canvas.height] });
-      pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-      const pdfBlob = pdf.output("blob");
-      const url = URL.createObjectURL(pdfBlob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `SathyaNishta_Investigation_${new Date().toISOString().split('T')[0]}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      // Trigger browser download mechanism
+      window.open(`/api/investigate/${investigationId}/report`, '_blank');
     } catch (error) {
-      console.error("Failed to generate PDF", error);
+      console.error("Backend report failed", error);
     } finally {
-      setIsDownloading(false);
+      setTimeout(() => setIsDownloading(false), 2000);
     }
   };
 
