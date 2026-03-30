@@ -38,6 +38,8 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
 COPY app /app/app
+# Copy shared contracts
+COPY contracts /contracts
 # Copy alembic config
 COPY alembic /app/alembic
 COPY alembic.ini /app/alembic.ini

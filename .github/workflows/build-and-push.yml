@@ -59,6 +59,10 @@ jobs:
           echo "IMAGE=${IMAGE}" >> $GITHUB_OUTPUT
           echo "TAG=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
+      - name: Prepare backend context
+        if: matrix.service == 'backend'
+        run: cp -r contracts ./backend/contracts
+
       - name: Build and push image
         uses: docker/build-push-action@v5
         with:
