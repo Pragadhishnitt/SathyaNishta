@@ -163,9 +163,9 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
       document.body.removeChild(a);
       
       console.log(`SathyaNishta: Report downloaded successfully: ${filename} (${blob.size} bytes)`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('SathyaNishta: Download failed:', error);
-      alert(`Failed to download report: ${error.message}. Please try again.`);
+      alert(`Failed to download report: ${error?.message || 'Unknown error'}. Please try again.`);
     } finally {
       setIsDownloading(false);
     }
