@@ -170,8 +170,6 @@ async def generate_report(inv_id: str):
     # 2. Verdict & Risk Score Section
     verdict = (inv.verdict or "CAUTION").upper()
     score = float(inv.fraud_risk_score or 0.0)
-    score_color = RED_ACCENT if score >= 7.5 else green_color if score < 4.0 else colors.orange
-    # Fix for green_color name
     score_color = RED_ACCENT if score >= 7.5 else GREEN_ACCENT if score < 4.0 else colors.orange
 
     verdict_data = [[
