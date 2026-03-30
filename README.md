@@ -16,6 +16,9 @@
 
 *(Fully deployed via automated CI/CD pipeline on Google Cloud Platform using Docker)*
 
+## ⚠️ Google OAuth on IP Addresses
+In the currently deployed version, Google OAuth sign-in will not work properly because Google's OAuth consent policies do not permit pure IP addresses (e.g., `http://34.100.219.13`) as authorized JavaScript origins or redirect URIs. To use Google Auth, the application must be mapped to a valid domain name (e.g., `sathyanishta.com`) with a proper SSL certificate.
+
 ---
 
 ## 📋 Table of Contents
@@ -150,8 +153,14 @@ docker-compose up --build
 
 ### 3. Verify Setup
 ```bash
+# Check backend health
 curl http://localhost:8000/health
+
+# Check frontend
 curl http://localhost:8090
+
+# Try a sample investigation
+# In the app, type: "investigate infosys" or "investigate wipro" for sample reports
 ```
 
 ---

@@ -119,12 +119,40 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
     console.log(`SathyaNishta: Initiating premium report download for ID: ${investigationId}`);
     setIsDownloading(true);
     
-    // Use an absolute-style relative path to the API
-    const downloadUrl = `/api/investigate/${investigationId}/report`;
-    window.location.href = downloadUrl;
-    
-    // Reset loading state after a delay
-    setTimeout(() => setIsDownloading(false), 3000);
+    try {
+      // Use fetch to get the PDF and create a proper download
+      const response = await fetch(`/api/investigate/${investigationId}/report`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to download report: ${response.statusText}`);
+      }
+      
+      // Get the filename from headers or create one
+      const contentDisposition = response.headers.get('content-disposition');
+      const filename = contentDisposition 
+        ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+        : `SathyaNishta_Report_${companyName || 'Investigation'}.pdf`;
+      
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      console.log(`SathyaNishta: Report downloaded successfully: ${filename}`);
+    } catch (error) {
+      console.error('SathyaNishta: Download failed:', error);
+      // Fallback to window.location.href if fetch fails
+      window.location.href = `/api/investigate/${investigationId}/report`;
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   useEffect(() => {
