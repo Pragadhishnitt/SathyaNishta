@@ -60,6 +60,12 @@ def _add_agent_section(
     elements.append(Spacer(1, 10))
 
 
+@router.get("/report/test")
+async def test_report_endpoint():
+    """Test endpoint to verify report API is accessible."""
+    return {"status": "ok", "message": "Report API is working"}
+
+
 @router.get("/investigate/{inv_id}/report")
 async def generate_report(inv_id: str):
     """Generate a high-fidelity, professional PDF report for a forensic investigation."""
@@ -71,6 +77,7 @@ async def generate_report(inv_id: str):
             inv = session.execute(text("SELECT * FROM investigations WHERE id = :id"), {"id": inv_id}).fetchone()
 
             if not inv:
+                _logger.error(f"Investigation not found: {inv_id}")
                 raise HTTPException(status_code=404, detail="Investigation not found")
 
             # Check audit for evidence
@@ -83,8 +90,14 @@ async def generate_report(inv_id: str):
             payload = {}
             if audit:
                 raw_payload = audit.output_payload
-                payload = json.loads(raw_payload) if isinstance(raw_payload, str) else raw_payload
-                evidence = payload.get("evidence", [])
+                try:
+                    payload = json.loads(raw_payload) if isinstance(raw_payload, str) else raw_payload
+                    evidence = payload.get("evidence", [])
+                    _logger.info(f"Found {len(evidence)} evidence items for investigation {inv_id}")
+                except json.JSONDecodeError as e:
+                    _logger.error(f"Failed to parse audit payload: {e}")
+            else:
+                _logger.warning(f"No audit trail found for investigation {inv_id}")
             
     except Exception as e:
         _logger.error(f"Failed to fetch report data: {e}")
@@ -93,11 +106,11 @@ async def generate_report(inv_id: str):
     # 2. Extract company name and metadata
     from app.api.routes.investigate import _extract_company_name
     company_name = _extract_company_name(inv.query or "")
-    # Robust date handling
-    completed_dt = inv.completed_at or inv.updated_at
-    date_str = completed_dt.strftime('%B %d, %Y at %I:%M %p') if completed_dt else "N/A"
+    # Use updated_at as the completion date
+    date_str = inv.updated_at.strftime('%B %d, %Y at %I:%M %p') if inv.updated_at else "N/A"
 
     # 3. Create PDF
+    _logger.info(f"Starting PDF generation for investigation {inv_id}")
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -241,6 +254,8 @@ async def generate_report(inv_id: str):
     buffer.close()
 
     filename = f"SathyaNishta_Report_{company_name.replace(' ', '_')}.pdf"
+    
+    _logger.info(f"PDF generated successfully: {filename} ({len(pdf_content)} bytes)")
 
     return Response(
         content=pdf_content,
@@ -248,6 +263,8 @@ async def generate_report(inv_id: str):
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"',
             "Cache-Control": "no-cache",
-            "Pragma": "no-cache"
+            "Pragma": "no-cache",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Expose-Headers": "Content-Disposition"
         },
     )

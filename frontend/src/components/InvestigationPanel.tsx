@@ -113,6 +113,7 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
   const handleDownloadPDF = async () => {
     if (!investigationId) {
       console.error("SathyaNishta: Cannot download report - Missing Investigation ID", { investigationId, companyName });
+      alert("Cannot download: Investigation ID is missing");
       return;
     }
     
@@ -121,10 +122,19 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
     
     try {
       // Use fetch to get the PDF and create a proper download
-      const response = await fetch(`/api/investigate/${investigationId}/report`);
+      const response = await fetch(`/api/investigate/${investigationId}/report`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/pdf'
+        }
+      });
+      
+      console.log(`SathyaNishta: Report download response status: ${response.status}`);
       
       if (!response.ok) {
-        throw new Error(`Failed to download report: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error(`SathyaNishta: Report download failed: ${response.status} - ${errorText}`);
+        throw new Error(`Failed to download report: ${response.status} ${response.statusText}`);
       }
       
       // Get the filename from headers or create one
@@ -133,8 +143,15 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
         ? contentDisposition.split('filename=')[1].replace(/"/g, '')
         : `SathyaNishta_Report_${companyName || 'Investigation'}.pdf`;
       
+      console.log(`SathyaNishta: Downloading file: ${filename}`);
+      
       // Create blob and download
       const blob = await response.blob();
+      
+      if (blob.size === 0) {
+        throw new Error("Downloaded file is empty");
+      }
+      
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';
@@ -145,11 +162,10 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       
-      console.log(`SathyaNishta: Report downloaded successfully: ${filename}`);
+      console.log(`SathyaNishta: Report downloaded successfully: ${filename} (${blob.size} bytes)`);
     } catch (error) {
       console.error('SathyaNishta: Download failed:', error);
-      // Fallback to window.location.href if fetch fails
-      window.location.href = `/api/investigate/${investigationId}/report`;
+      alert(`Failed to download report: ${error.message}. Please try again.`);
     } finally {
       setIsDownloading(false);
     }
