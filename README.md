@@ -198,6 +198,15 @@ EMAIL_PASSWORD=your-app-password
 
 AWS_ACCESS_KEY_ID=your-aws-access-key
 AWS_SECRET_ACCESS_KEY=your-aws-secret-key
+```
+
+---
+
+## ⚠️ Known Deployment Limitations
+
+### Google OAuth on IP Addresses
+In the currently deployed version, Google OAuth sign-in will not work properly because Google's OAuth consent policies do not permit pure IP addresses (e.g., `http://34.100.219.13`) as authorized JavaScript origins or redirect URIs. To use Google Auth, the application must be mapped to a valid domain name (e.g., `sathyanishta.com`) with a proper SSL certificate.
+
 AWS_BUCKET_NAME=your-s3-bucket
 
 SENTRY_DSN=your-sentry-dsn

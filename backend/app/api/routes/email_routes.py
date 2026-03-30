@@ -91,43 +91,39 @@ def send_investigation_report_email(
 
 def generate_investigation_html(data: dict, custom_message: str) -> str:
     """Generate HTML for investigation report"""
-    synthesis = data.get("synthesis", {})
+    # data is the synthesis payload directly
     evidence = data.get("evidence", [])
-    risk_score = synthesis.get("risk_score", 0)
-    company_name = synthesis.get("company_name", "Unknown Company")
+    risk_score = data.get("fraud_risk_score", data.get("risk_score", 0))
+    company_name = data.get("company_name", "Unknown Company")
+    verdict = data.get("verdict", "SAFE")
 
-    risk_color = "#ef4444" if risk_score >= 70 else "#f59e0b" if risk_score >= 40 else "#10b981"
-    risk_level = "High Risk" if risk_score >= 70 else "Medium Risk" if risk_score >= 40 else "Low Risk"
+    risk_color = "#ef4444" if risk_score >= 7.0 else "#f59e0b" if risk_score >= 4.0 else "#10b981"
+    risk_level = verdict
 
     evidence_html = ""
     for item in evidence[:5]:  # Show top 5 evidence items
         evidence_html += f"""
         <div style="background: #f8fafc; padding: 12px; margin: 8px 0; border-left: 4px solid #6366f1; border-radius: 4px;">
-            <h4 style="margin: 0 0 4px 0; color: #1f2937; font-size: 14px;">{item.get('finding', 'Unknown')}</h4>
-            <p style="margin: 0; color: #6b7280; font-size: 12px;">{item.get('source', 'Unknown source')}</p>
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <h4 style="margin: 0 0 4px 0; color: #1f2937; font-size: 14px;">{item.get('finding', 'Unknown')}</h4>
+            </div>
+            <p style="margin: 0; color: #6b7280; font-size: 12px;">Source: {item.get('source', 'Unknown')} | Severity: {item.get('severity', 'N/A')}</p>
         </div>
         """
 
-    summary_html = ""
-    if synthesis.get("summary"):
-        summary_html = f"""
-        <div class="section">
-            <h3 style="color: #1f2937; margin-bottom: 12px;">\U0001F4DD Executive Summary</h3>
-            <p style="color: #4b5563; line-height: 1.6;">{synthesis['summary']}</p>
-        </div>
-        """
+    summary_html = f"""
+    <div class="section">
+        <h3 style="color: #1f2937; margin-bottom: 12px;">\U0001F4DD Investigation Verdict</h3>
+        <p style="color: #4b5563; line-height: 1.6; font-weight: bold;">
+            Based on the multi-agent analysis, the overall verdict for {company_name} is: <span style="background: {risk_color}; color: white; padding: 2px 6px; border-radius: 4px;">{verdict}</span>
+        </p>
+        <p style="color: #4b5563; line-height: 1.6;">
+            The system aggregated findings from financial filings, graph network analysis, compliance checks, and external news/audio data to formulate this score.
+        </p>
+    </div>
+    """
 
     recommendations_html = ""
-    if synthesis.get("recommendations"):
-        recs_list = "".join([f"<li>{rec}</li>" for rec in synthesis["recommendations"]])
-        recommendations_html = f"""
-        <div class="section">
-            <h3 style="color: #1f2937; margin-bottom: 12px;">\U0001F4A1 Recommendations</h3>
-            <ul style="color: #4b5563; line-height: 1.6;">
-                {recs_list}
-            </ul>
-        </div>
-        """
 
     custom_message_html = ""
     if custom_message:
