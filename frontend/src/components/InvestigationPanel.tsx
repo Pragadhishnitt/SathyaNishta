@@ -111,16 +111,17 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
   };
 
   const handleDownloadPDF = async () => {
-    if (!investigationId) return;
-    try {
-      setIsDownloading(true);
-      // Trigger browser download mechanism
-      window.open(`/api/investigate/${investigationId}/report`, '_blank');
-    } catch (error) {
-      console.error("Backend report failed", error);
-    } finally {
-      setTimeout(() => setIsDownloading(false), 2000);
+    if (!investigationId) {
+      console.warn("No investigationId available for download");
+      return;
     }
+    
+    setIsDownloading(true);
+    // Use window.location.href for the most reliable download trigger
+    window.location.href = `/api/investigate/${investigationId}/report`;
+    
+    // Reset loading state after a short delay since location.href doesn't block
+    setTimeout(() => setIsDownloading(false), 2000);
   };
 
   useEffect(() => {
