@@ -118,23 +118,36 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
   };
 
   const handleDownloadPDF = async () => {
-    if (!investigationId) {
-      console.error("SathyaNishta: Cannot download report - Missing Investigation ID", { investigationId, companyName });
-      alert("Cannot download: Investigation ID is missing");
-      return;
-    }
-    
-    console.log(`SathyaNishta: Initiating premium report download for ID: ${investigationId}`);
+    console.log(`SathyaNishta: Starting report download. ID: ${investigationId}, Company: ${companyName}`);
     setIsDownloading(true);
     
     try {
-      // Use fetch to get the PDF and create a proper download
-      const response = await fetch(`/api/investigate/${investigationId}/report`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/pdf'
-        }
-      });
+      let response;
+      
+      if (investigationId) {
+        // Method 1: Use investigation ID if available
+        console.log(`SathyaNishta: Using investigation ID endpoint: ${investigationId}`);
+        response = await fetch(`/api/investigate/${investigationId}/report`, {
+          method: 'GET',
+          headers: { 'Accept': 'application/pdf' }
+        });
+      } else if (synthesis) {
+        // Method 2: Generate from synthesis data directly (no ID needed!)
+        console.log('SathyaNishta: Using direct synthesis endpoint (no ID needed)');
+        response = await fetch('/api/report/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            company_name: companyName || 'Unknown',
+            verdict: synthesis.verdict || 'CAUTION',
+            fraud_risk_score: synthesis.fraud_risk_score || 0,
+            evidence: synthesis.evidence || [],
+            synthesis_data: synthesis
+          })
+        });
+      } else {
+        throw new Error('No investigation data available to generate report');
+      }
       
       console.log(`SathyaNishta: Report download response status: ${response.status}`);
       
@@ -479,12 +492,12 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
                     <div data-html2canvas-ignore="true" className="mt-5 flex justify-end">
                       <button
                         onClick={handleDownloadPDF}
-                        disabled={isDownloading || !investigationId}
-                        title={!investigationId ? "Investigation ID not available. Please wait for investigation to complete." : ""}
-                        className={`btn-primary flex items-center gap-2 text-xs ${!investigationId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={isDownloading || !synthesis}
+                        title={!synthesis ? "No investigation data available" : ""}
+                        className={`btn-primary flex items-center gap-2 text-xs ${!synthesis ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         {isDownloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                        {isDownloading ? "Generating..." : investigationId ? "Download Official Report" : "Report Unavailable"}
+                        {isDownloading ? "Generating..." : synthesis ? "Download Official Report" : "No Data"}
                       </button>
                     </div>
                   </div>
