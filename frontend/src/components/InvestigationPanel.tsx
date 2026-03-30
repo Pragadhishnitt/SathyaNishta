@@ -112,16 +112,19 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
 
   const handleDownloadPDF = async () => {
     if (!investigationId) {
-      console.warn("No investigationId available for download");
+      console.error("SathyaNishta: Cannot download report - Missing Investigation ID", { investigationId, companyName });
       return;
     }
     
+    console.log(`SathyaNishta: Initiating premium report download for ID: ${investigationId}`);
     setIsDownloading(true);
-    // Use window.location.href for the most reliable download trigger
-    window.location.href = `/api/investigate/${investigationId}/report`;
     
-    // Reset loading state after a short delay since location.href doesn't block
-    setTimeout(() => setIsDownloading(false), 2000);
+    // Use an absolute-style relative path to the API
+    const downloadUrl = `/api/investigate/${investigationId}/report`;
+    window.location.href = downloadUrl;
+    
+    // Reset loading state after a delay
+    setTimeout(() => setIsDownloading(false), 3000);
   };
 
   useEffect(() => {

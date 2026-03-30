@@ -57,6 +57,7 @@ def _extract_company_name(query: str) -> str:
             )
             if name and len(name) > 1:
                 return name
+    return "Unknown_Entity"
 
     # Fallback: look for capitalized words that look like company names
     words = query.split()
