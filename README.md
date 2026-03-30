@@ -207,6 +207,9 @@ AWS_SECRET_ACCESS_KEY=your-aws-secret-key
 ### Google OAuth on IP Addresses
 In the currently deployed version, Google OAuth sign-in will not work properly because Google's OAuth consent policies do not permit pure IP addresses (e.g., `http://34.100.219.13`) as authorized JavaScript origins or redirect URIs. To use Google Auth, the application must be mapped to a valid domain name (e.g., `sathyanishta.com`) with a proper SSL certificate.
 
+### Disclaimer: Use of Mock / Synthesized Data
+**Please Note:** *We have used simulated compliance flags, historical stock data snapshots, and mocked graphs at many instances to prove the system works. Not every finding reciprocates real-time authoritative data; the architecture is specifically designed to show that it works effectively with any kind of data input (live APIs, internal databases, or unstructured documents).*
+
 AWS_BUCKET_NAME=your-s3-bucket
 
 SENTRY_DSN=your-sentry-dsn

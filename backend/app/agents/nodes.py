@@ -774,14 +774,14 @@ def synthesis_node(state: InvestigationState) -> Dict[str, Any]:
         _logger.info(f"Applying reflection adjustment: {delta}")
         base_score += delta
 
-    # 3. Apply Overrides
-    # If any single agent is CRITICAL, floor the score to 7.5 (High Risk)
+    # 3. Apply Boosts instead of strict floors
+    # If any single agent is CRITICAL, boost score slightly
     if critical_risk_count >= 1:
-        base_score = max(base_score, 7.5)
+        base_score += 1.0
 
-    # If TWO or more agents are HIGH or CRITICAL, floor the score to 8.0 (Critical floor)
+    # If TWO or more agents are HIGH or CRITICAL, boost slightly
     if high_risk_count >= 2:
-        base_score = max(base_score, 8.2)
+        base_score += 1.5
 
     fraud_risk_score = max(0.0, min(10.0, round(base_score, 1)))
 

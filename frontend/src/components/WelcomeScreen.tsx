@@ -150,18 +150,29 @@ export function WelcomeScreen({ mode }: { mode: "standard" | "sathyanishta" }) {
 
       {/* Sathyanishta Mode Active Banner */}
       {mode === "sathyanishta" && (
-        <div className="rounded-xl neon-border-indigo bg-neon-indigo/5 p-4 text-sm max-w-lg text-left mb-8 animate-slide-up">
-          <div className="font-semibold text-neon-indigo mb-1.5 flex items-center gap-2 text-xs uppercase tracking-wide">
-            <div className="relative">
-              <Shield size={14} />
-              <div className="absolute inset-0 animate-radar-ping rounded-full border border-neon-indigo" />
+        <div className="flex flex-col items-center animate-slide-up gap-4 mb-8">
+          <div className="rounded-xl neon-border-indigo bg-neon-indigo/5 p-4 text-sm max-w-lg text-left">
+            <div className="font-semibold text-neon-indigo mb-1.5 flex items-center gap-2 text-xs uppercase tracking-wide">
+              <div className="relative">
+                <Shield size={14} />
+                <div className="absolute inset-0 animate-radar-ping rounded-full border border-neon-indigo" />
+              </div>
+              Deep Investigation Mode Active
             </div>
-            Deep Investigation Mode Active
+            <p className="text-indigo-200/70 text-xs leading-relaxed">
+              Queries trigger full multi-agent investigation across Financial, Graph, Compliance,
+              Audio, and News vectors with cross-validation and final synthesis verdict.
+            </p>
           </div>
-          <p className="text-indigo-200/70 text-xs leading-relaxed">
-            Queries trigger full multi-agent investigation across Financial, Graph, Compliance,
-            Audio, and News vectors with cross-validation and final synthesis verdict.
-          </p>
+
+          <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-3 text-sm max-w-lg text-left">
+            <div className="font-semibold text-yellow-500 mb-1 text-[11px] uppercase tracking-wide">
+              ⚠️ Simulation Notice
+            </div>
+            <p className="text-yellow-200/70 text-[10px] leading-relaxed">
+              We have used stock data and simulated finding signals at multiple instances to demonstrate the system working. Not everything reciprocates real-time authoritative data; the architecture is designed to show it works effectively with any kind of connected data source.
+            </p>
+          </div>
         </div>
       )}
 

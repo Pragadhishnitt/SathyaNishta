@@ -111,7 +111,20 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
   };
 
   const handleDownloadPDF = async () => {
-    // Rely exclusively on client-side screenshot to capture the full visual Evidence Matrix and layout
+    if (investigationId) {
+      try {
+        setIsDownloading(true);
+        // Direct download from backend
+        window.location.href = `/api/investigate/${investigationId}/report`;
+        return;
+      } catch (error) {
+        console.error("Backend report failed, falling back to client-side", error);
+      } finally {
+        setTimeout(() => setIsDownloading(false), 2000);
+      }
+    }
+
+    // Fallback to client-side screenshot if no ID or backend failed
     if (!panelRef.current) return;
     try {
       setIsDownloading(true);
