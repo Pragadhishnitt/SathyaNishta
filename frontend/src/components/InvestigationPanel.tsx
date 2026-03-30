@@ -101,6 +101,13 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
   const [extractingEntities, setExtractingEntities] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
 
+  // Debug logging for investigation ID
+  useEffect(() => {
+    console.log('SathyaNishta InvestigationPanel: investigationId =', investigationId);
+    console.log('SathyaNishta InvestigationPanel: companyName =', companyName);
+    console.log('SathyaNishta InvestigationPanel: synthesis =', synthesis ? 'present' : 'null');
+  }, [investigationId, companyName, synthesis]);
+
   const toggleAgent = (agent: string) => {
     setExpandedAgents(prev => {
       const next = new Set(prev);
@@ -472,11 +479,12 @@ export function InvestigationPanel({ agentEvents, synthesis, isLoading, investig
                     <div data-html2canvas-ignore="true" className="mt-5 flex justify-end">
                       <button
                         onClick={handleDownloadPDF}
-                        disabled={isDownloading}
-                        className="btn-primary flex items-center gap-2 text-xs"
+                        disabled={isDownloading || !investigationId}
+                        title={!investigationId ? "Investigation ID not available. Please wait for investigation to complete." : ""}
+                        className={`btn-primary flex items-center gap-2 text-xs ${!investigationId ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         {isDownloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                        {isDownloading ? "Generating..." : "Download Official Report"}
+                        {isDownloading ? "Generating..." : investigationId ? "Download Official Report" : "Report Unavailable"}
                       </button>
                     </div>
                   </div>
