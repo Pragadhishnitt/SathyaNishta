@@ -158,7 +158,7 @@ jobs:
           }
 
           smoke_test "Backend API"  "http://${{ env.STATIC_IP }}:8000/health"
-          smoke_test "Frontend"     "http://${{ env.STATIC_IP }}:8090"
+          smoke_test "Frontend"     "http://${{ env.STATIC_IP }}:80"
 
           echo "All smoke tests passed."
 
