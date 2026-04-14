@@ -7,12 +7,13 @@ on:
     branches: [main]
 
 env:
+ env:
   REGISTRY: asia-south1-docker.pkg.dev
-  PROJECT_ID: dotted-carrier-483916-b5
+  PROJECT_ID: satyanishta-492812
   REPOSITORY: sathyanishta-prod
   VM_NAME: sathyanishta-1
-  GCP_ZONE: asia-south1-a
-  STATIC_IP: 34.100.219.13
+  GCP_ZONE: asia-south1-b
+  STATIC_IP: 34.93.229.175
 
 jobs:
   deploy:
