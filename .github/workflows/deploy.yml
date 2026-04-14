@@ -118,7 +118,7 @@ jobs:
           docker image prune -f
 
           echo "==> Deployment of \${SHORT_TAG} complete"
-          docker-compose -f docker-compose.prod.yml ps
+          docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
           EOF
 
           chmod +x deploy.sh

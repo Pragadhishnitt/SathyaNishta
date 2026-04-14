@@ -12,12 +12,12 @@
 ---
 ### 🌟 Live Deployment
 **The application is currently live and accessible at:**
-👉 **[http://34.100.219.13/](http://34.100.219.13/)**
+👉 **[http://34.93.229.175/](http://34.93.229.175/)**
 
 *(Fully deployed via automated CI/CD pipeline on Google Cloud Platform using Docker)*
 
 ## ⚠️ Google OAuth on IP Addresses
-In the currently deployed version, Google OAuth sign-in will not work properly because Google's OAuth consent policies do not permit pure IP addresses (e.g., `http://34.100.219.13`) as authorized JavaScript origins or redirect URIs. To use Google Auth, the application must be mapped to a valid domain name (e.g., `sathyanishta.com`) with a proper SSL certificate and we planned to do at the later stages after discussing with the stakeholders.
+In the currently deployed version, Google OAuth sign-in will not work properly because Google's OAuth consent policies do not permit pure IP addresses (e.g., `http://34.93.229.175`) as authorized JavaScript origins or redirect URIs. To use Google Auth, the application must be mapped to a valid domain name (e.g., `sathyanishta.com`) with a proper SSL certificate and we planned to do at the later stages after discussing with the stakeholders.
 
 ---
 
@@ -214,7 +214,7 @@ AWS_SECRET_ACCESS_KEY=your-aws-secret-key
 ## ⚠️ Known Deployment Limitations
 
 ### Google OAuth on IP Addresses
-In the currently deployed version, Google OAuth sign-in will not work properly because Google's OAuth consent policies do not permit pure IP addresses (e.g., `http://34.100.219.13`) as authorized JavaScript origins or redirect URIs. To use Google Auth, the application must be mapped to a valid domain name (e.g., `sathyanishta.com`) with a proper SSL certificate.
+In the currently deployed version, Google OAuth sign-in will not work properly because Google's OAuth consent policies do not permit pure IP addresses (e.g., `http://34.93.229.175`) as authorized JavaScript origins or redirect URIs. To use Google Auth, the application must be mapped to a valid domain name (e.g., `sathyanishta.com`) with a proper SSL certificate.
 
 ### Disclaimer: Use of Mock / Synthesized Data
 **Please Note:** *We have used simulated compliance flags, historical stock data snapshots, and mocked graphs at many instances to prove the system works. Not every finding reciprocates real-time authoritative data; the architecture is specifically designed to show that it works effectively with any kind of data input (live APIs, internal databases, or unstructured documents).*
@@ -334,8 +334,8 @@ PORTKEY_API_KEY, PORTKEY_CONFIG_ID
 
 The application is hosted on a Google Cloud Platform Compute Engine instance (`sathyanishta-1`). It is continuously deployed via GitHub Actions using the `docker-compose.prod.yml` orchestration, routed through Traefik.
 
-- **Main Web Application:** [http://34.100.219.13/](http://34.100.219.13/)
-- **FastAPI Backend (via Traefik):** `http://34.100.219.13/api/...`
+- **Main Web Application:** [http://34.93.229.175/](http://34.93.229.175/)
+- **FastAPI Backend (via Traefik):** `http://34.93.229.175/api/...`
 
 *Note: Infrastructure modifications and port assignments automatically sync to this instance upon successful merges to the `main` branch.*
 

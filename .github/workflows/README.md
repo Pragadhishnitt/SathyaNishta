@@ -34,12 +34,12 @@ This directory contains the CI/CD pipeline for SathyaNishta application.
 Add these secrets to your repository:
 
 ```
-GCP_PROJECT_ID=dotted-carrier-483916-b5
+GCP_PROJECT_ID=satyanishta-492812
 GCP_SA_KEY=[Service account JSON key]
 GCP_REGION=asia-south1
-GCP_ZONE=asia-south1-a
+GCP_ZONE=asia-south1-b
 VM_NAME=sathyanishta-1
-STATIC_IP=34.100.219.13
+STATIC_IP=34.93.229.175
 GITGUARDIAN_API_KEY=[GitGuardian API key for secrets detection]
 ```
 
