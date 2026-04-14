@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: asia-south1-docker.pkg.dev
-  PROJECT_ID: dotted-carrier-483916-b5
+  PROJECT_ID: satyanishta-492812
   REPOSITORY: sathyanishta-prod
 
 jobs:

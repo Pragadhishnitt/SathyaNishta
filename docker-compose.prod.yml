@@ -70,10 +70,10 @@ services:
     environment:
       - NEXT_TELEMETRY_DISABLED=1
       - NODE_ENV=production
-      - NEXTAUTH_URL=http://34.100.219.13
+      - NEXTAUTH_URL=http://34.93.229.175
       - NEXTAUTH_SECRET=hackathon-market-chat-secret-2026
       - NEXT_PUBLIC_API_URL=http://backend:8000
-      - NEXT_PUBLIC_APP_URL=http://34.100.219.13
+      - NEXT_PUBLIC_APP_URL=http://34.93.229.175
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
